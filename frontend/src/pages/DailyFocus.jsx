@@ -11,7 +11,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
 import WhatshotIcon from '@mui/icons-material/Whatshot';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
-import InboxIcon from '@mui/icons-material/Inbox';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useDaily } from '../api/daily';
 import { useUpdateWorkItemStatus } from '../api/workItems';
@@ -280,19 +280,19 @@ export default function DailyFocus() {
         </Card>
       )}
 
-      {/* Inbox */}
+      {/* Brain Dump */}
       <Card>
         <CardContent>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-            <InboxIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+            <PsychologyIcon sx={{ color: 'primary.main', fontSize: 20 }} />
             <Typography variant="h6" sx={{ fontSize: '1rem' }}>
-              Inbox
+              Brain Dump
             </Typography>
             <Chip label={data.inbox.count} size="small" color="primary" />
           </Stack>
           {data.inbox.recent.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
-              Inbox is empty. Use Ctrl+K to quick capture.
+              All clear. Use Ctrl+K to quick capture.
             </Typography>
           ) : (
             data.inbox.recent.map((item, i) => (

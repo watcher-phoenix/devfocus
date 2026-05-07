@@ -84,7 +84,7 @@ function safeConfigSummary(provider, configStr) {
       case 'jira':
         return { baseUrl: parsed.baseUrl, email: parsed.email, projectKeys: parsed.projectKeys };
       case 'bitbucket':
-        return { workspace: parsed.workspace, username: parsed.username, repos: parsed.repos };
+        return { workspace: parsed.workspace, username: parsed.username, repos: parsed.repos, hasAccessToken: !!parsed.accessToken };
       case 'calendar':
         return { icsUrl: parsed.icsUrl ? '(configured)' : null };
       default:

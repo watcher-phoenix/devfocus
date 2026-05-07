@@ -14,7 +14,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useWorkItems, useQuickCapture, useUpdateWorkItemStatus, useDeleteWorkItem } from '../api/workItems';
 
-export default function Inbox() {
+export default function BrainDump() {
   const [title, setTitle] = useState('');
   const inputRef = useRef(null);
   const { data: items = [], isLoading } = useWorkItems({ status: 'inbox' });
@@ -48,7 +48,7 @@ export default function Inbox() {
   return (
     <Box sx={{ maxWidth: 700 }}>
       <Typography variant="h5" sx={{ mb: 3 }}>
-        Inbox
+        Brain Dump
       </Typography>
 
       {/* Quick capture input */}
@@ -116,7 +116,7 @@ export default function Inbox() {
         ))}
         {!isLoading && items.length === 0 && (
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-            Inbox zero. Nice.
+            All clear. Nothing to sort.
           </Typography>
         )}
       </Stack>

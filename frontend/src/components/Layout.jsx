@@ -12,7 +12,7 @@ import ListItemText from '@mui/material/ListItemText';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import TodayIcon from '@mui/icons-material/Today';
-import InboxIcon from '@mui/icons-material/Inbox';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
@@ -27,7 +27,7 @@ const DRAWER_WIDTH = 240;
 
 const NAV_ITEMS = [
   { label: 'Today', path: '/', icon: <TodayIcon /> },
-  { label: 'Inbox', path: '/inbox', icon: <InboxIcon /> },
+  { label: 'Brain Dump', path: '/braindump', icon: <PsychologyIcon /> },
   { label: 'Board', path: '/board', icon: <ViewKanbanIcon /> },
   { label: 'Week', path: '/week', icon: <CalendarMonthIcon /> },
   { label: 'Snapshots', path: '/snapshots', icon: <BookmarkIcon /> },

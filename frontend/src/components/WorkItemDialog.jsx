@@ -16,7 +16,7 @@ import { useProjects } from '../api/projects';
 import { useUpdateWorkItem, useDeleteWorkItem } from '../api/workItems';
 
 const STATUSES = [
-  { value: 'inbox', label: 'Inbox' },
+  { value: 'inbox', label: 'Brain Dump' },
   { value: 'active', label: 'Active' },
   { value: 'waiting', label: 'Waiting' },
   { value: 'done', label: 'Done' },

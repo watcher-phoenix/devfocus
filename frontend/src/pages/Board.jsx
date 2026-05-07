@@ -26,7 +26,7 @@ import WorkItemDialog from '../components/WorkItemDialog';
 import NewWorkItemDialog from '../components/NewWorkItemDialog';
 
 const COLUMNS = [
-  { key: 'inbox', label: 'Inbox', color: '#9AA0A6' },
+  { key: 'inbox', label: 'Brain Dump', color: '#9AA0A6' },
   { key: 'active', label: 'Active', color: '#7C4DFF' },
   { key: 'waiting', label: 'Waiting', color: '#FFD600' },
   { key: 'done', label: 'Done', color: '#00C853' },

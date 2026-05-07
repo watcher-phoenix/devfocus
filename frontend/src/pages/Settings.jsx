@@ -316,13 +316,14 @@ function IntegrationsTab() {
       <IntegrationCard
         provider="bitbucket"
         label="Bitbucket"
-        description="Track your open PRs and review requests"
-        configHint="Create an App Password at Bitbucket > Personal Settings > App Passwords (needs Repositories:Read and Pull Requests:Read)"
+        description="Track your open PRs and review requests across all repos"
+        configHint="Use EITHER a Workspace Access Token (Workspace Settings > Access Tokens) OR your username + app password. Access token is preferred if app passwords are disabled."
         fields={[
           { key: 'workspace', label: 'Workspace', placeholder: 'your-workspace' },
-          { key: 'username', label: 'Username', placeholder: 'your-bb-username' },
-          { key: 'appPassword', label: 'App Password', placeholder: 'Your Bitbucket app password', secret: true },
-          { key: 'repos', label: 'Repos to track', placeholder: 'crm-backend-services,land-crm,builder-scraper-api', helper: 'Comma-separated repo slugs' },
+          { key: 'accessToken', label: 'Workspace Access Token (preferred)', placeholder: 'Your workspace access token', secret: true, helper: 'Workspace Settings > Access Tokens. Needs Repositories:Read and Pull Requests:Read.' },
+          { key: 'username', label: 'Username (for app password auth)', placeholder: 'your-bb-username', helper: 'Only needed if using app password instead of access token' },
+          { key: 'appPassword', label: 'App Password (alternative)', placeholder: 'Your Bitbucket app password', secret: true },
+          { key: 'repos', label: 'Repos to track (optional)', placeholder: 'crm-backend-services,land-crm', helper: 'Leave empty to track ALL repos in the workspace' },
         ]}
       />
 
