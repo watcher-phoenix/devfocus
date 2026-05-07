@@ -47,11 +47,18 @@ function makeMatchesUser(currentUser, config) {
   return (user) => {
     if (!user) return false;
     if (currentUser && user.uuid === currentUser.uuid) return true;
-    if (config.username) {
-      const uname = config.username.toLowerCase();
-      return (user.username || '').toLowerCase() === uname
-        || (user.nickname || '').toLowerCase() === uname
-        || (user.display_name || '').toLowerCase() === uname;
+    // Match against all configured identifiers
+    const identifiers = [];
+    if (config.username) identifiers.push(config.username.toLowerCase());
+    if (config.displayName) identifiers.push(config.displayName.toLowerCase());
+
+    if (identifiers.length > 0) {
+      const userFields = [
+        (user.username || '').toLowerCase(),
+        (user.nickname || '').toLowerCase(),
+        (user.display_name || '').toLowerCase(),
+      ].filter(Boolean);
+      return identifiers.some((id) => userFields.includes(id));
     }
     return false;
   };

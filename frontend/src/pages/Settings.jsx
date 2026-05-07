@@ -385,6 +385,7 @@ function IntegrationsTab() {
         fields={[
           { key: 'workspace', label: 'Workspace', placeholder: 'your-workspace' },
           { key: 'accessToken', label: 'Workspace Access Token (preferred)', placeholder: 'Your workspace access token', secret: true, helper: 'Workspace Settings > Access Tokens. Needs Repositories:Read and Pull Requests:Read.' },
+          { key: 'displayName', label: 'Your display name in Bitbucket', placeholder: 'Amanda Henderson', helper: 'Must match exactly how your name appears on PRs' },
           { key: 'username', label: 'Username (for app password auth)', placeholder: 'your-bb-username', helper: 'Only needed if using app password instead of access token' },
           { key: 'appPassword', label: 'App Password (alternative)', placeholder: 'Your Bitbucket app password', secret: true },
           { key: 'repos', label: 'Repos to track (optional)', placeholder: 'crm-backend-services,land-crm', helper: 'Leave empty to track ALL repos in the workspace' },
