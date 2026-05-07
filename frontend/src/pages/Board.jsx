@@ -56,6 +56,7 @@ const PRIORITY_COLORS = { 1: 'default', 2: 'warning', 3: 'error' };
 
 export default function Board() {
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [sortField, setSortField] = useState('priority');
   const [sortDir, setSortDir] = useState('desc');
@@ -70,6 +71,9 @@ export default function Board() {
 
   const filtered = useMemo(() => {
     let result = items;
+    if (typeFilter !== 'all') {
+      result = result.filter((i) => i.type === typeFilter);
+    }
     if (projectFilter !== 'all') {
       result = result.filter((i) => String(i.projectId) === String(projectFilter));
     }
@@ -120,6 +124,15 @@ export default function Board() {
           <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
             {STATUS_OPTIONS.map((s) => (
               <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Type</InputLabel>
+          <Select value={typeFilter} label="Type" onChange={(e) => setTypeFilter(e.target.value)}>
+            <MenuItem value="all">All</MenuItem>
+            {Object.entries(TYPE_LABELS).map(([key, label]) => (
+              <MenuItem key={key} value={key}>{label}</MenuItem>
             ))}
           </Select>
         </FormControl>
