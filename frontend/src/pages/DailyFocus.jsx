@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -7,21 +8,23 @@ import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Checkbox from '@mui/material/Checkbox';
 import Skeleton from '@mui/material/Skeleton';
-import Divider from '@mui/material/Divider';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import Collapse from '@mui/material/Collapse';
+import IconButton from '@mui/material/IconButton';
 import Alert from '@mui/material/Alert';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
 import WhatshotIcon from '@mui/icons-material/Whatshot';
-import BookmarkIcon from '@mui/icons-material/Bookmark';
 import PsychologyIcon from '@mui/icons-material/Psychology';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AddIcon from '@mui/icons-material/Add';
 import VideocamIcon from '@mui/icons-material/Videocam';
+import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { useDaily } from '../api/daily';
 import { useUpdateWorkItemStatus, useQuickCapture } from '../api/workItems';
 import { useActivity } from '../api/activity';
@@ -31,37 +34,39 @@ import SnapshotDialog from '../components/SnapshotDialog';
 import LogWorkDialog from '../components/LogWorkDialog';
 import ContextualHint from '../components/ContextualHint';
 
-const TYPE_COLORS = {
-  task: '#9AA0A6', ticket: '#2684FF', strategic: '#7C4DFF', followup: '#00E5FF',
-  review: '#FFD600', jira: '#2684FF', pr: '#00C853', meeting: '#FF9800',
-};
-
-function PriorityCard({ item, onToggle }) {
-  const isDone = item.status === 'done';
+function CollapsibleSection({ title, icon, count, defaultOpen, children, action }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75, opacity: isDone ? 0.5 : 1 }}>
-      <Checkbox
-        size="small"
-        checked={isDone}
-        onChange={() => onToggle(item.id, isDone ? 'active' : 'done')}
-        sx={{ p: 0.5 }}
-      />
-      <Typography variant="body1" sx={{ textDecoration: isDone ? 'line-through' : 'none', flex: 1 }}>
-        {item.title}
-      </Typography>
-      {item.project && (
-        <Chip label={item.project.name} size="small" sx={{ bgcolor: item.project.color + '22', color: item.project.color, fontWeight: 500, fontSize: '0.7rem' }} />
-      )}
-    </Box>
+    <Card sx={{ mb: 2 }}>
+      <CardContent sx={{ pb: open ? undefined : '16px !important' }}>
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+          onClick={() => setOpen(!open)}
+        >
+          <Stack direction="row" alignItems="center" spacing={1}>
+            {icon}
+            <Typography variant="h6" sx={{ fontSize: '1rem' }}>{title}</Typography>
+            {count !== undefined && <Chip label={count} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />}
+          </Stack>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            {action && <Box onClick={(e) => e.stopPropagation()}>{action}</Box>}
+            <IconButton size="small">{open ? <ExpandLessIcon /> : <ExpandMoreIcon />}</IconButton>
+          </Stack>
+        </Box>
+        <Collapse in={open}>
+          <Box sx={{ mt: 1.5 }}>{children}</Box>
+        </Collapse>
+      </CardContent>
+    </Card>
   );
 }
 
 export default function DailyFocus() {
+  const navigate = useNavigate();
   const { data, isLoading } = useDaily();
   const updateStatus = useUpdateWorkItemStatus();
   const capture = useQuickCapture();
-  const [activityDays, setActivityDays] = useState(7);
-  const { data: activityData } = useActivity(activityDays);
+  const { data: activityData } = useActivity(7);
   const { data: snapshots = [] } = useSnapshots({ active: true });
 
   const [captureText, setCaptureText] = useState('');
@@ -69,14 +74,12 @@ export default function DailyFocus() {
   const [logWorkOpen, setLogWorkOpen] = useState(false);
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
   const [editSnapshot, setEditSnapshot] = useState(null);
-  const captureRef = useRef(null);
 
   if (isLoading) {
     return (
       <Box sx={{ maxWidth: 700 }}>
         <Skeleton variant="rounded" height={80} sx={{ mb: 2 }} />
-        <Skeleton variant="rounded" height={200} sx={{ mb: 2 }} />
-        <Skeleton variant="rounded" height={150} />
+        <Skeleton variant="rounded" height={120} sx={{ mb: 2 }} />
       </Box>
     );
   }
@@ -98,12 +101,12 @@ export default function DailyFocus() {
   return (
     <Box sx={{ maxWidth: 700 }}>
       <ContextualHint hintId="today">
-        This is your command center. See your meetings and focus time, check off priorities,
-        capture quick thoughts, log completed work, and save context snapshots — all without
-        leaving this page. Use Ctrl+K to quick capture from anywhere.
+        This is your home base. Capture thoughts, check off priorities, and see your day at a glance.
+        Use the sections below — they collapse so you only see what you need. Go to Work to organize
+        your tasks, or Plan to schedule your week.
       </ContextualHint>
 
-      {/* Token expiry alerts */}
+      {/* Alerts */}
       {data.alerts?.length > 0 && (
         <Stack spacing={1} sx={{ mb: 2 }}>
           {data.alerts.map((alert, i) => (
@@ -114,29 +117,46 @@ export default function DailyFocus() {
         </Stack>
       )}
 
-      {/* Day header */}
+      {/* Day header + quick actions */}
       <Card sx={{ mb: 2 }}>
-        <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: '16px !important' }}>
-          <Box>
-            <Typography variant="h5">{data.dayOfWeek}</Typography>
-            <Typography variant="body2" color="text.secondary">{data.date}</Typography>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box>
+              <Typography variant="h5">{data.dayOfWeek}</Typography>
+              <Typography variant="body2" color="text.secondary">{data.date}</Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              <Chip icon={<EventIcon />} label={`${data.meetings.count} mtg${data.meetings.count !== 1 ? 's' : ''}`} variant="outlined" size="small" color={data.meetings.count > 3 ? 'warning' : 'default'} />
+              <Chip icon={<AccessTimeIcon />} label={`${Math.floor(data.focusMinutes / 60)}h ${data.focusMinutes % 60}m focus`} variant="outlined" size="small" color={data.focusMinutes >= 240 ? 'success' : 'default'} />
+            </Stack>
           </Box>
-          <Stack direction="row" spacing={2}>
-            <Chip icon={<EventIcon />} label={`${data.meetings.count} meeting${data.meetings.count !== 1 ? 's' : ''}`} variant="outlined" color={data.meetings.count > 3 ? 'warning' : 'default'} />
-            <Chip icon={<AccessTimeIcon />} label={`${Math.floor(data.focusMinutes / 60)}h ${data.focusMinutes % 60}m focus`} variant="outlined" color={data.focusMinutes >= 240 ? 'success' : 'default'} />
+
+          {/* Quick actions */}
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button size="small" variant="outlined" startIcon={<ViewKanbanIcon />} onClick={() => navigate('/work')}>
+              {data.inbox.count > 0 ? `Triage (${data.inbox.count})` : 'Work'}
+            </Button>
+            <Button size="small" variant="outlined" startIcon={<CalendarMonthIcon />} onClick={() => navigate('/plan')}>
+              Plan
+            </Button>
+            <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => setLogWorkOpen(true)}>
+              Log Work
+            </Button>
+            <Button size="small" variant="outlined" startIcon={<BookmarkIcon />} onClick={() => { setEditSnapshot(null); setSnapshotDialogOpen(true); }}>
+              Save Context
+            </Button>
           </Stack>
         </CardContent>
       </Card>
 
-      {/* Inline Quick Capture */}
+      {/* Brain dump input */}
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ py: '12px !important', '&:last-child': { pb: '12px !important' } }}>
           <form onSubmit={handleCapture}>
             <TextField
-              inputRef={captureRef}
               fullWidth
               size="small"
-              placeholder="Brain dump — type anything and hit Enter"
+              placeholder="Capture a thought — type and hit Enter"
               value={captureText}
               onChange={(e) => setCaptureText(e.target.value)}
               autoComplete="off"
@@ -146,182 +166,114 @@ export default function DailyFocus() {
         </CardContent>
       </Card>
 
-      {/* Meetings */}
+      {/* Priorities — open by default if there are items */}
+      <CollapsibleSection
+        title="Priorities"
+        icon={<WhatshotIcon sx={{ color: 'warning.main', fontSize: 20 }} />}
+        count={data.priorities.length}
+        defaultOpen={data.priorities.length > 0}
+      >
+        {data.priorities.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            Nothing scheduled for today. Go to <strong>Plan</strong> to drag items onto today, or <strong>Work</strong> to set priorities.
+          </Typography>
+        ) : (
+          data.priorities.map((item) => {
+            const isDone = item.status === 'done';
+            return (
+              <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, opacity: isDone ? 0.5 : 1 }}>
+                <Checkbox size="small" checked={isDone} onChange={() => handleToggle(item.id, isDone ? 'active' : 'done')} sx={{ p: 0.5 }} />
+                <Typography variant="body2" sx={{ textDecoration: isDone ? 'line-through' : 'none', flex: 1 }}>{item.title}</Typography>
+                {item.project && <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />}
+              </Box>
+            );
+          })
+        )}
+      </CollapsibleSection>
+
+      {/* Meetings — open by default if there are meetings */}
       {data.meetings.events?.length > 0 && (
-        <Card sx={{ mb: 2 }}>
-          <CardContent>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-              <EventIcon sx={{ color: 'warning.main', fontSize: 20 }} />
-              <Typography variant="h6" sx={{ fontSize: '1rem' }}>Today's Meetings</Typography>
-            </Stack>
-            {data.meetings.events.map((event) => {
-              const start = new Date(event.startTime);
-              const end = new Date(event.endTime);
-              const formatTime = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-              const durationMin = Math.round((end - start) / 60000);
-              return (
-                <Box key={event.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.75, borderLeft: '3px solid', borderColor: event.allDay ? 'info.main' : 'warning.main', pl: 1.5, mb: 0.5 }}>
-                  <Box sx={{ minWidth: 100 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem' }}>
-                      {event.allDay ? 'All day' : `${formatTime(start)} - ${formatTime(end)}`}
-                    </Typography>
-                    {!event.allDay && (
-                      <Typography variant="caption" color="text.secondary">
-                        {durationMin >= 60 ? `${Math.floor(durationMin / 60)}h ${durationMin % 60}m` : `${durationMin}m`}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2">{event.title}</Typography>
-                    {event.location && <Typography variant="caption" color="text.secondary">{event.location}</Typography>}
-                  </Box>
-                </Box>
-              );
-            })}
-          </CardContent>
-        </Card>
+        <CollapsibleSection
+          title="Meetings"
+          icon={<EventIcon sx={{ color: 'warning.main', fontSize: 20 }} />}
+          count={data.meetings.count}
+          defaultOpen
+        >
+          {data.meetings.events.map((event) => {
+            const start = new Date(event.startTime);
+            const end = new Date(event.endTime);
+            const formatTime = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            const durationMin = Math.round((end - start) / 60000);
+            return (
+              <Box key={event.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.5, borderLeft: '3px solid', borderColor: 'warning.main', pl: 1.5, mb: 0.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem', minWidth: 90 }}>
+                  {event.allDay ? 'All day' : `${formatTime(start)} - ${formatTime(end)}`}
+                </Typography>
+                <Typography variant="body2" sx={{ flex: 1 }}>{event.title}</Typography>
+                {!event.allDay && <Typography variant="caption" color="text.secondary">{durationMin}m</Typography>}
+              </Box>
+            );
+          })}
+        </CollapsibleSection>
       )}
 
-      {/* Priorities */}
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-            <WhatshotIcon sx={{ color: 'warning.main', fontSize: 20 }} />
-            <Typography variant="h6" sx={{ fontSize: '1rem' }}>Top Priorities</Typography>
-          </Stack>
-          {data.priorities.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              No priorities scheduled for today. Go to Work to set priorities, or Plan to schedule items for today.
-            </Typography>
-          ) : (
-            data.priorities.map((item) => (
-              <PriorityCard key={item.id} item={item} onToggle={handleToggle} />
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Context Snapshots */}
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <BookmarkIcon sx={{ color: 'secondary.main', fontSize: 20 }} />
-              <Typography variant="h6" sx={{ fontSize: '1rem' }}>Pick Up Where You Left Off</Typography>
-            </Stack>
-            <Button size="small" startIcon={<AddIcon />} onClick={() => { setEditSnapshot(null); setSnapshotDialogOpen(true); }}>
-              New
-            </Button>
-          </Stack>
-          {snapshots.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              No active snapshots. Save your context when you stop working on a project.
-            </Typography>
-          ) : (
-            snapshots.map((snap) => (
-              <Box
-                key={snap.id}
-                sx={{ py: 1, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' }, borderRadius: 1, px: 1, mb: 0.5 }}
-                onClick={() => { setEditSnapshot(snap); setSnapshotDialogOpen(true); }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                  <Chip label={snap.project?.name || 'No project'} size="small" sx={{ bgcolor: (snap.project?.color || '#666') + '22', color: snap.project?.color || '#666', fontWeight: 500, height: 20, fontSize: '0.7rem' }} />
-                  {snap.branch && <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{snap.branch}</Typography>}
-                </Box>
-                <Typography variant="body2">{snap.summary}</Typography>
-                {snap.nextSteps && <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'pre-line', display: 'block', mt: 0.25 }}>{snap.nextSteps}</Typography>}
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, fontSize: '0.65rem' }}>
-                  Last touched: {new Date(snap.lastTouchedAt).toLocaleString()}
-                </Typography>
-              </Box>
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Activity Log */}
-      <Card>
-        <CardContent>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <CheckCircleOutlineIcon sx={{ color: 'success.main', fontSize: 20 }} />
-              <Typography variant="h6" sx={{ fontSize: '1rem' }}>Activity</Typography>
-              <Chip label={activityData?.totalCount || 0} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
-            </Stack>
-            <Stack direction="row" spacing={1}>
-              <ToggleButtonGroup value={activityDays} exclusive onChange={(e, v) => v && setActivityDays(v)} size="small">
-                <ToggleButton value={7} sx={{ px: 1, py: 0.25, fontSize: '0.7rem' }}>7d</ToggleButton>
-                <ToggleButton value={14} sx={{ px: 1, py: 0.25, fontSize: '0.7rem' }}>14d</ToggleButton>
-                <ToggleButton value={30} sx={{ px: 1, py: 0.25, fontSize: '0.7rem' }}>30d</ToggleButton>
-              </ToggleButtonGroup>
-              <Button size="small" startIcon={<AddIcon />} onClick={() => setLogWorkOpen(true)}>
-                Log Work
-              </Button>
-            </Stack>
-          </Stack>
-
-          {activityDates.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              No activity yet. Complete items from the Board or use "Log Work" to record what you've done.
-            </Typography>
-          ) : (
-            activityDates.slice(0, 5).map((date) => (
-              <Box key={date} sx={{ mb: 1.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5, display: 'block' }}>
-                  {formatDate(date)}
-                  <Chip label={activityGrouped[date].length} size="small" sx={{ ml: 1, height: 18, fontSize: '0.65rem' }} />
-                </Typography>
-                {activityGrouped[date].map((item) => (
-                  <Box
-                    key={item.id}
-                    sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25, cursor: item.isMeeting ? 'default' : 'pointer', '&:hover': { bgcolor: item.isMeeting ? 'transparent' : 'rgba(255,255,255,0.03)' }, borderRadius: 1, px: 0.5 }}
-                    onClick={() => !item.isMeeting && setEditItem(item)}
-                  >
-                    {item.isMeeting ? (
-                      <VideocamIcon sx={{ color: 'warning.main', fontSize: 16 }} />
-                    ) : (
-                      <CheckCircleIcon sx={{ color: 'success.main', fontSize: 16 }} />
-                    )}
-                    <Typography variant="body2" sx={{ flex: 1, fontSize: '0.85rem' }}>
-                      {item.title}
-                    </Typography>
-                    {item.isMeeting && item.duration && (
-                      <Typography variant="caption" color="text.secondary">{item.duration}m</Typography>
-                    )}
-                    {item.externalId && (
-                      <Typography variant="caption" sx={{ color: '#2684FF', fontFamily: 'monospace', fontSize: '0.7rem' }}>{item.externalId}</Typography>
-                    )}
-                    {item.project && (
-                      <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />
-                    )}
-                    {!item.isMeeting && item.type && (
-                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: TYPE_COLORS[item.type] || '#666', flexShrink: 0 }} />
-                    )}
-                  </Box>
-                ))}
-              </Box>
-            ))
-          )}
-
-          {/* Brain Dump preview */}
-          {data.inbox.count > 0 && (
-            <>
-              <Divider sx={{ my: 1.5 }} />
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                <PsychologyIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  Brain Dump ({data.inbox.count} unsorted)
-                </Typography>
+      {/* Context Snapshots — collapsed by default */}
+      {snapshots.length > 0 && (
+        <CollapsibleSection
+          title="Pick Up Where You Left Off"
+          icon={<BookmarkIcon sx={{ color: 'secondary.main', fontSize: 20 }} />}
+          count={snapshots.length}
+          defaultOpen={false}
+        >
+          {snapshots.map((snap) => (
+            <Box
+              key={snap.id}
+              sx={{ py: 0.75, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' }, borderRadius: 1, px: 1, mb: 0.5 }}
+              onClick={() => { setEditSnapshot(snap); setSnapshotDialogOpen(true); }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.25 }}>
+                <Chip label={snap.project?.name || 'No project'} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: (snap.project?.color || '#666') + '22', color: snap.project?.color || '#666' }} />
+                {snap.branch && <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{snap.branch}</Typography>}
               </Stack>
-              {data.inbox.recent.map((item) => (
-                <Typography key={item.id} variant="body2" color="text.secondary" sx={{ py: 0.25, fontSize: '0.85rem' }}>
-                  {item.title}
-                </Typography>
+              <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>{snap.summary}</Typography>
+            </Box>
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Activity — collapsed by default */}
+      <CollapsibleSection
+        title="Activity"
+        icon={<CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />}
+        count={activityData?.totalCount || 0}
+        defaultOpen={false}
+        action={<Button size="small" startIcon={<AddIcon />} onClick={() => setLogWorkOpen(true)}>Log Work</Button>}
+      >
+        {activityDates.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            No activity yet. Complete items from Work or use "Log Work" to record what you've done.
+          </Typography>
+        ) : (
+          activityDates.slice(0, 5).map((date) => (
+            <Box key={date} sx={{ mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5, display: 'block' }}>
+                {formatDate(date)}
+              </Typography>
+              {activityGrouped[date].map((item) => (
+                <Box
+                  key={item.id}
+                  sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25, cursor: item.isMeeting ? 'default' : 'pointer', borderRadius: 1, px: 0.5 }}
+                  onClick={() => !item.isMeeting && setEditItem(item)}
+                >
+                  {item.isMeeting ? <VideocamIcon sx={{ color: 'warning.main', fontSize: 14 }} /> : <CheckCircleIcon sx={{ color: 'success.main', fontSize: 14 }} />}
+                  <Typography variant="body2" sx={{ flex: 1, fontSize: '0.8rem' }}>{item.title}</Typography>
+                  {item.isMeeting && item.duration && <Typography variant="caption" color="text.secondary">{item.duration}m</Typography>}
+                </Box>
               ))}
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </Box>
+          ))
+        )}
+      </CollapsibleSection>
 
       <WorkItemDialog item={editItem} open={Boolean(editItem)} onClose={() => setEditItem(null)} />
       <LogWorkDialog open={logWorkOpen} onClose={() => setLogWorkOpen(false)} />
