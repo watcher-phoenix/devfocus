@@ -1,0 +1,32 @@
+{
+  "name": "devfocus-backend",
+  "version": "1.0.0",
+  "description": "DevFocus — personal productivity dashboard API",
+  "main": "start.js",
+  "scripts": {
+    "start": "nodemon start.js",
+    "migrate": "node database/migrate.js",
+    "lint": "eslint './**/*.js'",
+    "lint-n-fix": "eslint './**/*.js' --fix",
+    "prettify": "prettier './**/*.js' --write"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7",
+    "umzug": "^3.8.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.2.0",
+    "nodemon": "^3.1.0",
+    "prettier": "^3.5.0"
+  }
+}

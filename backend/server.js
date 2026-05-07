@@ -1,0 +1,62 @@
+/* eslint-disable no-console */
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const { sequelize } = require('./database/models');
+const { verify } = require('./utilities/auth');
+
+const app = express();
+
+const frontendUrl = process.env.DEVFOCUS_FRONTEND_URL || 'http://localhost:5173';
+app.use(cors({ origin: frontendUrl, credentials: true }));
+app.use(express.json());
+app.use(cookieParser());
+
+// Health check (unauthenticated)
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+// Auth routes (unauthenticated)
+app.use('/api/auth', require('./routes/auth'));
+
+// All other API routes require authentication
+app.use('/api', verify);
+app.use('/api/daily', require('./routes/daily'));
+app.use('/api/work-items', require('./routes/workItems'));
+app.use('/api/projects', require('./routes/projects'));
+app.use('/api/snapshots', require('./routes/snapshots'));
+app.use('/api/inbox', require('./routes/inbox'));
+app.use('/api/week-plan', require('./routes/weekPlan'));
+app.use('/api/integrations', require('./routes/integrations'));
+
+// In production, serve the built frontend
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'frontend', 'dist', 'index.html'));
+  });
+}
+
+// Global error handler
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, _next) => {
+  console.error(err);
+  const isProd = process.env.NODE_ENV === 'production';
+  res.status(500).json({ error: isProd ? 'Internal server error' : err.message || 'Internal server error' });
+});
+
+const PORT = process.env.DEVFOCUS_PORT || 3001;
+
+async function start() {
+  await sequelize.sync();
+  console.log('Database synced.');
+  app.listen(PORT, () => console.log(`DevFocus API running on port ${PORT}`));
+}
+
+start().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});
+
+module.exports = app;
