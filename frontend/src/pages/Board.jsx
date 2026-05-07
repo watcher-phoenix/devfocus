@@ -24,6 +24,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TextField from '@mui/material/TextField';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -69,6 +71,7 @@ export default function Board() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
+  const [showDone, setShowDone] = useState(false);
   const [sortField, setSortField] = useState('priority');
   const [sortDir, setSortDir] = useState('desc');
   const [editItem, setEditItem] = useState(null);
@@ -126,6 +129,9 @@ export default function Board() {
 
   const filtered = useMemo(() => {
     let result = items;
+    if (!showDone && statusFilter === 'all') {
+      result = result.filter((i) => i.status !== 'done');
+    }
     if (statusFilter !== 'all') {
       result = result.filter((i) => i.status === statusFilter);
     }
@@ -149,7 +155,7 @@ export default function Board() {
       if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [items, statusFilter, typeFilter, projectFilter, sortField, sortDir]);
+  }, [items, showDone, statusFilter, typeFilter, projectFilter, sortField, sortDir]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -203,6 +209,11 @@ export default function Board() {
             ))}
           </Select>
         </FormControl>
+        <FormControlLabel
+          control={<Switch checked={showDone} onChange={(e) => setShowDone(e.target.checked)} size="small" />}
+          label="Done"
+          sx={{ ml: 0 }}
+        />
         <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
           {filtered.length} item{filtered.length !== 1 ? 's' : ''}
         </Typography>
