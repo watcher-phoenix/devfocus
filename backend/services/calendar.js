@@ -3,6 +3,32 @@ const ical = require('node-ical');
 const { CachedEvent, IntegrationConfig } = require('../database/models');
 const { Op } = require('sequelize');
 
+// Check if the user declined or hasn't accepted this event
+function isDeclinedOrTentative(event) {
+  // Check attendee participation status
+  // node-ical parses attendees as an object or array
+  const attendees = event.attendee;
+  if (!attendees) return false;
+
+  const attendeeList = Array.isArray(attendees) ? attendees : [attendees];
+
+  for (const attendee of attendeeList) {
+    const partstat = (attendee?.params?.PARTSTAT || attendee?.params?.partstat || '').toUpperCase();
+    // If we find any attendee who declined, and this is likely the user's calendar,
+    // the published ICS only shows the owner's status
+    if (partstat === 'DECLINED') return true;
+  }
+
+  // Also check the event's own status (some ICS feeds use X-MICROSOFT-CDO-BUSYSTATUS)
+  const busyStatus = (event['X-MICROSOFT-CDO-BUSYSTATUS'] || '').toUpperCase();
+  if (busyStatus === 'FREE') return true;
+
+  // Check TRANSP (transparent = declined/free)
+  if ((event.transparency || '').toUpperCase() === 'TRANSPARENT') return true;
+
+  return false;
+}
+
 // Expand recurring events into individual instances within a date range
 function expandRecurring(events, startDate, endDate) {
   const start = new Date(startDate + 'T00:00:00');
@@ -11,6 +37,9 @@ function expandRecurring(events, startDate, endDate) {
 
   for (const [uid, event] of Object.entries(events)) {
     if (event.type !== 'VEVENT') continue;
+
+    // Skip events the user declined or hasn't accepted
+    if (isDeclinedOrTentative(event)) continue;
 
     // If it has a recurrence rule, expand it
     if (event.rrule) {
