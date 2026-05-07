@@ -148,6 +148,7 @@ function ProjectsTab() {
               </Box>
               {PRESET_COLORS.map((c) => {
                 const isUsed = usedColors.includes(c);
+                const usedByProject = isUsed ? projects.find((p) => p.color === c && p.id !== editId) : null;
                 return (
                   <Box
                     key={c}
@@ -155,15 +156,23 @@ function ProjectsTab() {
                     sx={{
                       width: 32, height: 32, borderRadius: '50%', bgcolor: c, cursor: 'pointer',
                       border: form.color === c ? '3px solid white' : '3px solid transparent',
-                      opacity: isUsed ? 0.35 : 1,
+                      opacity: isUsed ? 0.4 : 1,
                       '&:hover': { border: '3px solid rgba(255,255,255,0.5)', opacity: 1 },
                       position: 'relative',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
-                    title={isUsed ? 'Already used by another project' : ''}
-                  />
+                    title={isUsed ? `Used by ${usedByProject?.name || 'another project'}` : ''}
+                  >
+                    {isUsed && <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(0,0,0,0.6)' }}>X</Typography>}
+                  </Box>
                 );
               })}
             </Stack>
+            {form.color && usedColors.includes(form.color) && (
+              <Typography variant="caption" color="warning.main" sx={{ mt: 1, display: 'block' }}>
+                This color is already used by {projects.find((p) => p.color === form.color && p.id !== editId)?.name || 'another project'}
+              </Typography>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
