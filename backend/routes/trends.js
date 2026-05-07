@@ -107,6 +107,8 @@ router.get('/', async (req, res) => {
     const afterHoursItems = completedItems.filter((item) => {
       if (!item.completedAt) return false;
       const d = new Date(item.completedAt);
+      // Skip items with placeholder noon time (manually logged for past dates)
+      if (d.getHours() === 12 && d.getMinutes() === 0 && d.getSeconds() === 0) return false;
       const mins = d.getHours() * 60 + d.getMinutes();
       return mins < workStart || mins > workEnd;
     });
