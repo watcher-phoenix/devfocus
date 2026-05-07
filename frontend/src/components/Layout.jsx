@@ -22,6 +22,7 @@ import Fab from '@mui/material/Fab';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import QuickCapture from './QuickCapture';
+import ChatBot from './ChatBot';
 
 const DRAWER_WIDTH = 240;
 
@@ -171,6 +172,7 @@ export default function Layout() {
       </Tooltip>
 
       <QuickCapture open={captureOpen} onClose={() => setCaptureOpen(false)} />
+      <ChatBot />
     </Box>
   );
 }

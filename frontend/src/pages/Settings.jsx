@@ -36,11 +36,12 @@ import {
 } from '../api/integrations';
 
 const PRESET_COLORS = [
-  '#7C4DFF', '#651FFF', '#536DFE', '#2196F3', '#03A9F4',
-  '#00BCD4', '#009688', '#4CAF50', '#00C853', '#8BC34A',
-  '#CDDC39', '#FFD600', '#FFC107', '#FF9800', '#FF5722',
-  '#FF5252', '#E91E63', '#F06292', '#CE93D8', '#9C27B0',
-  '#795548', '#607D8B', '#9E9E9E', '#263238',
+  '#7C4DFF', '#651FFF', '#536DFE', '#304FFE', '#2196F3', '#03A9F4', '#0288D1',
+  '#00BCD4', '#009688', '#00897B', '#4CAF50', '#00C853', '#43A047', '#8BC34A',
+  '#CDDC39', '#C0CA33', '#FFD600', '#FFC107', '#FFB300', '#FF9800', '#FF5722',
+  '#FF5252', '#D32F2F', '#E91E63', '#C2185B', '#F06292', '#CE93D8', '#9C27B0',
+  '#7B1FA2', '#6A1B9A', '#795548', '#5D4037', '#607D8B', '#455A64', '#9E9E9E',
+  '#616161', '#263238', '#37474F', '#1A237E', '#004D40',
 ];
 
 // ── Projects Tab ──────────────────────────────────────────────────────────
@@ -445,6 +446,23 @@ function GeneralTab() {
       <Typography variant="body2" color="text.secondary">
         {hours}h {mins}m workday ({settings.workStartTime} — {settings.workEndTime})
       </Typography>
+
+      <Divider sx={{ my: 3 }} />
+
+      <Typography variant="h6" sx={{ fontSize: '1rem', mb: 1 }}>AI Assistant</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Add an Anthropic API key to power the AI chat assistant. Get one from console.anthropic.com.
+        Without a key, the chat bot answers common questions from the built-in FAQ.
+      </Typography>
+      <TextField
+        label="Anthropic API Key"
+        type="password"
+        value={settings.anthropicApiKey || ''}
+        onChange={(e) => updateSettings.mutate({ anthropicApiKey: e.target.value })}
+        fullWidth
+        placeholder="sk-ant-..."
+        sx={{ mb: 2 }}
+      />
 
       <Divider sx={{ my: 3 }} />
 

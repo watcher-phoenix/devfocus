@@ -7,6 +7,7 @@ module.exports = (sequelize) => {
       id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
       workStartTime: { type: DataTypes.STRING(5), allowNull: false, defaultValue: '07:30' },
       workEndTime: { type: DataTypes.STRING(5), allowNull: false, defaultValue: '16:00' },
+      anthropicApiKey: { type: DataTypes.STRING(200), allowNull: true },
       meetingExcludeKeywords: {
         type: DataTypes.STRING(500),
         allowNull: false,
