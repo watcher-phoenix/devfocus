@@ -103,6 +103,19 @@ async function syncBitbucket() {
       return { success: false, error: 'No repos found. Check your workspace name and token permissions (needs Repositories:Read).' };
     }
 
+    // Get Jira ticket keys assigned to this user (to match PRs to Jira work)
+    const myJiraKeys = [];
+    try {
+      const jiraItems = await WorkItem.findAll({
+        where: { externalSource: 'jira', status: { [require('sequelize').Op.ne]: 'done' } },
+        attributes: ['externalId'],
+      });
+      jiraItems.forEach((item) => {
+        if (item.externalId) myJiraKeys.push(item.externalId.toUpperCase());
+      });
+    } catch { /* no jira items */ }
+    console.log(`[bitbucket] Matching PRs against ${myJiraKeys.length} Jira ticket keys`);
+
     const allOpenIds = [];
     const errors = [];
 
@@ -132,13 +145,18 @@ async function syncBitbucket() {
 
           const isAuthor = matchesUser(pr.author);
 
-          // Only import PRs you authored — reviewer PRs are too noisy
+          // Check if PR is linked to a Jira ticket assigned to this user
+          // Match ticket keys (e.g. PROJ-123) in PR title or source branch
+          const prText = `${pr.title} ${pr.source?.branch?.name || ''}`.toUpperCase();
+          const isLinkedToMyJira = myJiraKeys.some((key) => prText.includes(key));
+
+          // Import PRs you authored OR that are linked to your Jira tickets
           const externalId = `${repoSlug}#${pr.id}`;
           const existing = await WorkItem.findOne({
             where: { externalId, externalSource: 'bitbucket' },
           });
 
-          if (!isAuthor) {
+          if (!isAuthor && !isLinkedToMyJira) {
             // Delete previously imported PRs user shouldn't see
             if (existing) await existing.destroy();
             continue;
@@ -146,8 +164,8 @@ async function syncBitbucket() {
 
           allOpenIds.push(externalId);
 
-          const prType = 'pr';
-          const prTitle = `PR: ${pr.title}`;
+          const prType = isAuthor ? 'pr' : 'review';
+          const prTitle = isAuthor ? `PR: ${pr.title}` : `PR (Jira): ${pr.title}`;
           const projectId = await findProjectForRepo(repoSlug);
 
           const data = {
