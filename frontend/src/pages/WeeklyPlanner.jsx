@@ -29,6 +29,7 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useWorkItems, useUpdateWorkItem } from '../api/workItems';
+import { useWeekMeetings } from '../api/daily';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -44,13 +45,8 @@ function getWeekDates(weekStart) {
   return DAYS.map((_, i) => dayjs(weekStart).add(i, 'day').format('YYYY-MM-DD'));
 }
 
-const DEFAULT_DAY_TYPES = {
-  mon: 'meetings',
-  tue: 'meetings',
-  wed: 'meetings',
-  thu: 'focus',
-  fri: 'focus',
-};
+// 2+ hours of meetings = "meetings" day, otherwise "focus"
+const MEETING_THRESHOLD_MINUTES = 120;
 
 function DraggableCard({ item }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -113,6 +109,7 @@ export default function WeeklyPlanner() {
 
   const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later' });
   const updateItem = useUpdateWorkItem();
+  const { data: weekMeetings = {} } = useWeekMeetings(weekStart);
   const { data: snapshots = [] } = useSnapshots({ active: true });
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
   const [editSnapshot, setEditSnapshot] = useState(null);
@@ -263,7 +260,8 @@ export default function WeeklyPlanner() {
           >
             {DAYS.map((day, i) => {
               const date = weekDates[i];
-              const dayType = DEFAULT_DAY_TYPES[day];
+              const dayMeetings = weekMeetings[date] || { meetingCount: 0, meetingMinutes: 0 };
+              const dayType = dayMeetings.meetingMinutes >= MEETING_THRESHOLD_MINUTES ? 'meetings' : 'focus';
               const isToday = date === dayjs().format('YYYY-MM-DD');
               const dayItems = itemsByDate[date] || [];
 
@@ -294,7 +292,7 @@ export default function WeeklyPlanner() {
                     </Box>
                     <Chip
                       icon={dayType === 'meetings' ? <EventIcon /> : <CodeIcon />}
-                      label={dayType === 'meetings' ? 'Mtgs' : 'Focus'}
+                      label={dayType === 'meetings' ? `${dayMeetings.meetingCount} mtgs` : 'Focus'}
                       size="small"
                       variant="outlined"
                       color={dayType === 'focus' ? 'success' : 'default'}

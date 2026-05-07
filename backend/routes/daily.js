@@ -120,6 +120,35 @@ router.get('/:date', async (req, res) => {
   }
 });
 
+// Meeting minutes per day for a week — used by Plan page to auto-detect day types
+router.get('/week-meetings/:weekStart', async (req, res) => {
+  try {
+    const { weekStart } = req.params;
+    const days = {};
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(weekStart + 'T12:00:00');
+      d.setDate(d.getDate() + i);
+      const date = d.toISOString().split('T')[0];
+
+      const events = await CachedEvent.findAll({
+        where: { date, allDay: false },
+      });
+
+      const meetingMinutes = events.reduce((sum, e) => {
+        return sum + (new Date(e.endTime) - new Date(e.startTime)) / 60000;
+      }, 0);
+
+      days[date] = {
+        meetingCount: events.length,
+        meetingMinutes: Math.round(meetingMinutes),
+      };
+    }
+    res.json(days);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 async function getAlerts() {
   try {
   const alerts = [];
