@@ -4,12 +4,11 @@ const { WorkItem, IntegrationConfig } = require('../database/models');
 
 const BB_API = 'https://api.bitbucket.org/2.0';
 
-// Build auth header — supports app password OR workspace/repo access token
+// Build auth header — supports access token OR app password
 function getHeaders(config) {
   if (config.accessToken) {
     return { Authorization: `Bearer ${config.accessToken}` };
   }
-  // App password fallback
   const auth = Buffer.from(`${config.username}:${config.appPassword}`).toString('base64');
   return { Authorization: `Basic ${auth}` };
 }
@@ -20,7 +19,7 @@ async function fetchAllRepos(workspace, headers) {
   let url = `${BB_API}/repositories/${workspace}?pagelen=100`;
 
   while (url) {
-    const response = await axios.get(url, { headers }).catch(() => ({ data: { values: [], next: null } }));
+    const response = await axios.get(url, { headers });
     for (const repo of (response.data.values || [])) {
       repos.push(repo.slug);
     }
@@ -28,6 +27,21 @@ async function fetchAllRepos(workspace, headers) {
   }
 
   return repos;
+}
+
+// Get the current user's UUID for filtering PRs
+async function getCurrentUser(headers) {
+  try {
+    const response = await axios.get(`${BB_API}/user`, { headers });
+    return {
+      uuid: response.data.uuid,
+      displayName: response.data.display_name,
+      accountId: response.data.account_id,
+    };
+  } catch (err) {
+    console.error('[bitbucket] Could not fetch current user:', err.response?.data || err.message);
+    return null;
+  }
 }
 
 async function syncBitbucket() {
@@ -40,23 +54,30 @@ async function syncBitbucket() {
   }
 
   const config = JSON.parse(integrationConfig.config);
-  const { workspace, username } = config;
+  const { workspace } = config;
 
   if (!workspace) {
     return { success: false, error: 'Bitbucket config incomplete — need workspace' };
   }
 
-  if (!config.accessToken && (!username || !config.appPassword)) {
+  if (!config.accessToken && (!config.username || !config.appPassword)) {
     return { success: false, error: 'Need either an access token or username + app password' };
   }
 
   const headers = getHeaders(config);
 
   try {
+    // First verify auth works by getting current user
+    const currentUser = await getCurrentUser(headers);
+    if (!currentUser) {
+      return { success: false, error: 'Authentication failed — check your token or credentials' };
+    }
+    console.log(`[bitbucket] Authenticated as: ${currentUser.displayName} (${currentUser.uuid})`);
+
     let created = 0;
     let updated = 0;
 
-    // Get repo list — either specified or all repos in workspace
+    // Get repo list
     let repoList;
     if (config.repos) {
       repoList = config.repos.split(',').map((r) => r.trim()).filter(Boolean);
@@ -67,76 +88,78 @@ async function syncBitbucket() {
     }
 
     const allOpenIds = [];
+    const errors = [];
 
     for (const repoSlug of repoList) {
-      // Open PRs authored by this user
-      const prParams = { state: 'OPEN', pagelen: 20 };
-      if (username) prParams.q = `author.username="${username}"`;
-
-      const prResponse = await axios.get(
-        `${BB_API}/repositories/${workspace}/${repoSlug}/pullrequests`,
-        { headers, params: prParams }
-      ).catch(() => ({ data: { values: [] } }));
-
-      for (const pr of (prResponse.data.values || [])) {
-        const externalId = `${repoSlug}#${pr.id}`;
-        allOpenIds.push(externalId);
-        const existing = await WorkItem.findOne({
-          where: { externalId, externalSource: 'bitbucket' },
-        });
-
-        const data = {
-          title: `PR: ${pr.title}`,
-          externalId,
-          externalUrl: pr.links?.html?.href || '',
-          externalSource: 'bitbucket',
-          type: 'pr',
-          priority: 1,
-        };
-
-        if (existing) {
-          await existing.update({ title: data.title });
-          updated++;
-        } else {
-          await WorkItem.create({ ...data, status: 'active' });
-          created++;
-        }
-      }
-
-      // PRs where user is a reviewer
-      if (username) {
-        const reviewResponse = await axios.get(
+      try {
+        // Fetch ALL open PRs for this repo (no user filter — filter client-side)
+        const prResponse = await axios.get(
           `${BB_API}/repositories/${workspace}/${repoSlug}/pullrequests`,
-          {
-            headers,
-            params: { state: 'OPEN', q: `reviewers.username="${username}"`, pagelen: 20 },
+          { headers, params: { state: 'OPEN', pagelen: 50 } }
+        );
+
+        const prs = prResponse.data.values || [];
+
+        for (const pr of prs) {
+          const isAuthor = pr.author?.uuid === currentUser.uuid;
+          const isReviewer = (pr.reviewers || []).some((r) => r.uuid === currentUser.uuid);
+
+          if (!isAuthor && !isReviewer) continue;
+
+          if (isAuthor) {
+            const externalId = `${repoSlug}#${pr.id}`;
+            allOpenIds.push(externalId);
+            const existing = await WorkItem.findOne({
+              where: { externalId, externalSource: 'bitbucket' },
+            });
+
+            const data = {
+              title: `PR: ${pr.title}`,
+              externalId,
+              externalUrl: pr.links?.html?.href || '',
+              externalSource: 'bitbucket',
+              type: 'pr',
+              priority: 1,
+            };
+
+            if (existing) {
+              await existing.update({ title: data.title });
+              updated++;
+            } else {
+              await WorkItem.create({ ...data, status: 'active' });
+              created++;
+            }
           }
-        ).catch(() => ({ data: { values: [] } }));
 
-        for (const pr of (reviewResponse.data.values || [])) {
-          const externalId = `review:${repoSlug}#${pr.id}`;
-          allOpenIds.push(externalId);
-          const existing = await WorkItem.findOne({
-            where: { externalId, externalSource: 'bitbucket' },
-          });
+          if (isReviewer) {
+            const externalId = `review:${repoSlug}#${pr.id}`;
+            allOpenIds.push(externalId);
+            const existing = await WorkItem.findOne({
+              where: { externalId, externalSource: 'bitbucket' },
+            });
 
-          const data = {
-            title: `Review: ${pr.title}`,
-            externalId,
-            externalUrl: pr.links?.html?.href || '',
-            externalSource: 'bitbucket',
-            type: 'review',
-            priority: 2,
-          };
+            const data = {
+              title: `Review: ${pr.title}`,
+              externalId,
+              externalUrl: pr.links?.html?.href || '',
+              externalSource: 'bitbucket',
+              type: 'review',
+              priority: 2,
+            };
 
-          if (existing) {
-            await existing.update({ title: data.title });
-            updated++;
-          } else {
-            await WorkItem.create({ ...data, status: 'inbox' });
-            created++;
+            if (existing) {
+              await existing.update({ title: data.title });
+              updated++;
+            } else {
+              await WorkItem.create({ ...data, status: 'inbox' });
+              created++;
+            }
           }
         }
+      } catch (err) {
+        const msg = `${repoSlug}: ${err.response?.data?.error?.message || err.message}`;
+        console.error(`[bitbucket] Error on repo ${msg}`);
+        errors.push(msg);
       }
     }
 
@@ -156,10 +179,17 @@ async function syncBitbucket() {
 
     await integrationConfig.update({
       lastSyncAt: new Date(),
-      lastSyncStatus: 'success',
+      lastSyncStatus: errors.length > 0 ? 'partial' : 'success',
     });
 
-    return { success: true, created, updated, repos: repoList.length };
+    return {
+      success: true,
+      created,
+      updated,
+      repos: repoList.length,
+      user: currentUser.displayName,
+      errors: errors.length > 0 ? errors : undefined,
+    };
   } catch (err) {
     console.error('Bitbucket sync error:', err.response?.data || err.message);
     await integrationConfig.update({
