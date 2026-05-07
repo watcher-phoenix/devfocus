@@ -58,7 +58,7 @@ app.use((err, req, res, _next) => {
 const PORT = process.env.DEVFOCUS_PORT || 3001;
 
 async function start() {
-  await sequelize.sync();
+  await sequelize.sync({ alter: true });
   console.log('Database synced.');
   initScheduler();
   app.listen(PORT, () => console.log(`DevFocus API running on port ${PORT}`));

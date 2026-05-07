@@ -18,6 +18,7 @@ function getWeekStart(dateStr) {
 }
 
 router.get('/:date', async (req, res) => {
+  try {
   const { date } = req.params;
   const targetDate = date === 'today' ? new Date().toISOString().split('T')[0] : date;
 
@@ -104,9 +105,14 @@ router.get('/:date', async (req, res) => {
     done: { today: doneToday, yesterday: doneYesterday },
     alerts: await getAlerts(),
   });
+  } catch (err) {
+    console.error('Daily endpoint error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 async function getAlerts() {
+  try {
   const alerts = [];
   const now = new Date();
   const sevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -145,6 +151,10 @@ async function getAlerts() {
   }
 
   return alerts;
+  } catch (err) {
+    console.error('getAlerts error:', err.message);
+    return [];
+  }
 }
 
 module.exports = router;
