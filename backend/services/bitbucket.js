@@ -174,7 +174,7 @@ async function syncBitbucket() {
       created,
       updated,
       repos: repoList.length,
-      user: currentUser.displayName,
+      user: currentUser?.displayName || 'workspace token',
       errors: errors.length > 0 ? errors : undefined,
     };
   } catch (err) {
