@@ -24,6 +24,7 @@ const STATUSES = [
 
 const TYPES = [
   { value: 'task', label: 'Task' },
+  { value: 'ticket', label: 'Ticket' },
   { value: 'strategic', label: 'Strategic' },
   { value: 'followup', label: 'Follow-up' },
   { value: 'review', label: 'Review' },

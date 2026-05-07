@@ -23,9 +23,11 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import dayjs from 'dayjs';
 import { useActivity, useLogWork } from '../api/activity';
 import { useProjects } from '../api/projects';
+import WorkItemDialog from '../components/WorkItemDialog';
 
 const TYPE_LABELS = {
   task: 'Task',
+  ticket: 'Ticket',
   strategic: 'Strategic',
   followup: 'Follow-up',
   review: 'Review',
@@ -34,6 +36,7 @@ const TYPE_LABELS = {
 };
 
 const TYPE_COLORS = {
+  ticket: '#2684FF',
   task: '#9AA0A6',
   strategic: '#7C4DFF',
   followup: '#00E5FF',
@@ -57,6 +60,7 @@ export default function Activity() {
   const { data: projects = [] } = useProjects();
   const logWork = useLogWork();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
     title: '',
     type: 'task',
@@ -123,7 +127,11 @@ export default function Activity() {
           </Typography>
           <Stack spacing={1}>
             {grouped[date].map((item) => (
-              <Card key={item.id}>
+              <Card
+                key={item.id}
+                sx={{ cursor: 'pointer', '&:hover': { borderColor: 'rgba(255,255,255,0.15)' } }}
+                onClick={() => setEditItem(item)}
+              >
                 <CardContent
                   sx={{
                     display: 'flex',
@@ -258,6 +266,12 @@ export default function Activity() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <WorkItemDialog
+        item={editItem}
+        open={Boolean(editItem)}
+        onClose={() => setEditItem(null)}
+      />
     </Box>
   );
 }

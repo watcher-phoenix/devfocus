@@ -19,7 +19,7 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(30),
         allowNull: false,
         defaultValue: 'task',
-        validate: { isIn: [['task', 'strategic', 'followup', 'review', 'jira', 'pr']] },
+        validate: { isIn: [['task', 'ticket', 'strategic', 'followup', 'review', 'jira', 'pr']] },
       },
       projectId: { type: DataTypes.INTEGER, allowNull: true },
       externalId: { type: DataTypes.STRING(100), allowNull: true },

@@ -34,6 +34,7 @@ const COLUMNS = [
 
 const TYPE_LABELS = {
   task: 'Task',
+  ticket: 'Ticket',
   strategic: 'Strategic',
   followup: 'Follow-up',
   review: 'Review',
