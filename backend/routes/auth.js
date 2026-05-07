@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { login, logout } = require('../utilities/auth');
+const { login, logout, verify } = require('../utilities/auth');
 
 const router = Router();
 
@@ -27,8 +27,8 @@ router.post('/logout', (req, res) => {
   res.json({ success: true });
 });
 
-router.get('/check', (req, res) => {
-  // If we got here past the verify middleware, we're authenticated
+// Auth check — uses verify middleware, returns 401 if not authenticated
+router.get('/check', verify, (req, res) => {
   res.json({ authenticated: true });
 });
 

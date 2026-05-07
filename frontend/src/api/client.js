@@ -8,7 +8,12 @@ async function request(path, options = {}) {
   });
 
   if (res.status === 401) {
-    window.location.href = '/login';
+    // Don't redirect if we're already on login or if this is a login/auth request
+    const isAuthRoute = path.startsWith('/auth/');
+    const onLoginPage = window.location.pathname === '/login';
+    if (!isAuthRoute && !onLoginPage) {
+      window.location.href = '/login';
+    }
     throw new Error('Unauthorized');
   }
 

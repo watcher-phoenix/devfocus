@@ -10,8 +10,15 @@ const { initScheduler } = require('./scheduler');
 
 const app = express();
 
+// Trust proxy (Fly.io terminates SSL) so secure cookies work
+app.set('trust proxy', 1);
+
 const frontendUrl = process.env.DEVFOCUS_FRONTEND_URL || 'http://localhost:5173';
-app.use(cors({ origin: frontendUrl, credentials: true }));
+const corsOrigins = [frontendUrl];
+if (process.env.NODE_ENV === 'production') {
+  corsOrigins.push('https://devfocus.fly.dev');
+}
+app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
