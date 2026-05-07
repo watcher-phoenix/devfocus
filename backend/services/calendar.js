@@ -4,27 +4,21 @@ const { CachedEvent, IntegrationConfig } = require('../database/models');
 const { Op } = require('sequelize');
 
 // Check if the user declined or hasn't accepted this event
+// Outlook ICS uses X-MICROSOFT-CDO-BUSYSTATUS:
+//   BUSY = accepted, TENTATIVE = not accepted, FREE = declined, OOF = out of office
 function isDeclinedOrTentative(event) {
-  // Check attendee participation status
-  // node-ical parses attendees as an object or array
-  const attendees = event.attendee;
-  if (!attendees) return false;
-
-  const attendeeList = Array.isArray(attendees) ? attendees : [attendees];
-
-  for (const attendee of attendeeList) {
-    const partstat = (attendee?.params?.PARTSTAT || attendee?.params?.partstat || '').toUpperCase();
-    // If we find any attendee who declined, and this is likely the user's calendar,
-    // the published ICS only shows the owner's status
-    if (partstat === 'DECLINED') return true;
-  }
-
-  // Also check the event's own status (some ICS feeds use X-MICROSOFT-CDO-BUSYSTATUS)
   const busyStatus = (event['X-MICROSOFT-CDO-BUSYSTATUS'] || '').toUpperCase();
-  if (busyStatus === 'FREE') return true;
+  if (busyStatus === 'TENTATIVE' || busyStatus === 'FREE') return true;
 
-  // Check TRANSP (transparent = declined/free)
-  if ((event.transparency || '').toUpperCase() === 'TRANSPARENT') return true;
+  // Fallback: check PARTSTAT on attendees
+  const attendees = event.attendee;
+  if (attendees) {
+    const attendeeList = Array.isArray(attendees) ? attendees : [attendees];
+    for (const attendee of attendeeList) {
+      const partstat = (attendee?.params?.PARTSTAT || '').toUpperCase();
+      if (partstat === 'DECLINED') return true;
+    }
+  }
 
   return false;
 }
