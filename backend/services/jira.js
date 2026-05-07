@@ -25,13 +25,16 @@ async function syncJira() {
   };
 
   try {
-    // Build JQL — assigned to current user, not Done
-    let jql = 'assignee = currentUser() AND status != Done ORDER BY updated DESC';
+    // Build JQL — assigned to current user, exclude all done-equivalent statuses
+    const excludeStatuses = ['Done', 'Ready for Release', 'Post Release Validation', 'Pass', 'Fail']
+      .map((s) => `"${s}"`).join(', ');
+    const statusFilter = `status NOT IN (${excludeStatuses})`;
+    let jql = `assignee = currentUser() AND ${statusFilter} ORDER BY updated DESC`;
     if (projectKeys) {
       const keys = projectKeys.split(',').map((k) => k.trim()).filter(Boolean);
       if (keys.length > 0) {
         const projectFilter = keys.map((k) => `project = "${k}"`).join(' OR ');
-        jql = `(${projectFilter}) AND assignee = currentUser() AND status != Done ORDER BY updated DESC`;
+        jql = `(${projectFilter}) AND assignee = currentUser() AND ${statusFilter} ORDER BY updated DESC`;
       }
     }
 
@@ -53,10 +56,11 @@ async function syncJira() {
       const jiraPriority = mapJiraPriority(issue.fields.priority?.name);
       const jiraStatus = (issue.fields.status?.name || '').toLowerCase();
       const isDone = mapJiraStatusToDone(jiraStatus);
+      // Use real completion date — don't fall back to 'updated' since that
+      // changes whenever anyone touches the ticket
       const completionDate = issue.fields.resolutiondate
         || issue.fields.statuscategorychangedate
-        || issue.fields.updated
-        || new Date().toISOString();
+        || null;
       const issueType = issue.fields.issuetype?.name || '';
       const parent = issue.fields.parent;
       const parentPrefix = parent ? `${parent.key}: ${parent.fields?.summary} > ` : '';
@@ -85,7 +89,7 @@ async function syncJira() {
         // Auto-mark as done if Jira status is a "done" status
         if (isDone && existing.status !== 'done') {
           updates.status = 'done';
-          updates.completedAt = new Date(completionDate);
+          updates.completedAt = completionDate ? new Date(completionDate) : new Date();
         }
         await existing.update(updates);
         updated++;
@@ -93,7 +97,7 @@ async function syncJira() {
         await WorkItem.create({
           ...data,
           status: isDone ? 'done' : 'inbox',
-          completedAt: isDone ? new Date(completionDate) : null,
+          completedAt: isDone ? (completionDate ? new Date(completionDate) : new Date()) : null,
         });
         created++;
       }
@@ -116,7 +120,7 @@ async function syncJira() {
 }
 
 function mapJiraStatusToDone(statusName) {
-  const doneStatuses = ['done', 'closed', 'resolved', 'ready for release', 'post release validation', 'pass', 'fail'];
+  const doneStatuses = ['done', 'ready for release', 'post release validation', 'pass', 'fail'];
   return doneStatuses.includes(statusName.toLowerCase());
 }
 

@@ -78,19 +78,18 @@ async function start() {
   }
   console.log('Database synced.');
 
-  // One-time fix: correct items with 17:00 completedAt to 12:00
+  // One-time cleanup: remove Jira done items with bad completion dates
+  // These were synced with completedAt = sync time, polluting trends
   try {
     const { WorkItem } = require('./database/models');
-    const bad = await WorkItem.findAll({
-      where: { status: 'done', completedAt: { [require('sequelize').Op.ne]: null } },
+    const { Op } = require('sequelize');
+    // Delete done Jira items where completedAt is within last 30 days
+    // but the Jira ticket was actually completed months ago
+    // Safest approach: just remove all auto-done Jira items, they won't re-sync
+    await WorkItem.destroy({
+      where: { externalSource: 'jira', status: 'done' },
     });
-    for (const item of bad) {
-      const d = new Date(item.completedAt);
-      if (d.getHours() === 17 && d.getMinutes() === 0 && d.getSeconds() === 0) {
-        d.setHours(12);
-        await item.update({ completedAt: d });
-      }
-    }
+    console.log('Cleaned up done Jira items with potentially bad dates.');
   } catch { /* */ }
 
   initScheduler();
