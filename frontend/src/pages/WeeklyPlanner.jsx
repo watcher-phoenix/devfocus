@@ -361,7 +361,7 @@ export default function WeeklyPlanner() {
                   {/* Meetings for this day — compact */}
                   {dayMeetings.events?.length > 0 && (
                     <Box sx={{ mb: 0.5, bgcolor: 'rgba(255,152,0,0.06)', borderRadius: 1, px: 0.75, py: 0.5 }}>
-                      {dayMeetings.events.slice(0, 4).map((evt, ei) => {
+                      {dayMeetings.events.map((evt, ei) => {
                         const start = new Date(evt.startTime);
                         const fmt = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
                         return (
@@ -370,11 +370,6 @@ export default function WeeklyPlanner() {
                           </Typography>
                         );
                       })}
-                      {dayMeetings.events.length > 4 && (
-                        <Typography variant="caption" sx={{ fontSize: '0.55rem', color: 'text.secondary' }}>
-                          +{dayMeetings.events.length - 4} more
-                        </Typography>
-                      )}
                     </Box>
                   )}
 
