@@ -19,9 +19,15 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
 import Checkbox from '@mui/material/Checkbox';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import TextField from '@mui/material/TextField';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useWorkItems, useUpdateWorkItemStatus, useDeleteWorkItem } from '../api/workItems';
+import EditIcon from '@mui/icons-material/Edit';
+import { useWorkItems, useUpdateWorkItem, useUpdateWorkItemStatus, useDeleteWorkItem } from '../api/workItems';
 import { useProjects } from '../api/projects';
 import WorkItemDialog from '../components/WorkItemDialog';
 import NewWorkItemDialog from '../components/NewWorkItemDialog';
@@ -86,20 +92,37 @@ export default function Board() {
     }
   };
 
-  const bulkUpdateStatus = (status) => {
-    selected.forEach((id) => updateStatus.mutate({ id, status }));
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkForm, setBulkForm] = useState({
+    status: '', type: '', priority: '', projectId: '', scheduledDate: '', dueDate: '',
+  });
+
+  const { data: items = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,scheduled,done' });
+  const { data: projects = [] } = useProjects();
+  const updateStatus = useUpdateWorkItemStatus();
+  const updateItem = useUpdateWorkItem();
+  const deleteItem = useDeleteWorkItem();
+
+  const bulkApply = () => {
+    const updates = {};
+    if (bulkForm.status) updates.status = bulkForm.status;
+    if (bulkForm.type) updates.type = bulkForm.type;
+    if (bulkForm.priority !== '') updates.priority = parseInt(bulkForm.priority);
+    if (bulkForm.projectId) updates.projectId = bulkForm.projectId === 'none' ? null : bulkForm.projectId;
+    if (bulkForm.scheduledDate) updates.scheduledDate = bulkForm.scheduledDate;
+    if (bulkForm.dueDate) updates.dueDate = bulkForm.dueDate;
+
+    if (Object.keys(updates).length === 0) return;
+    selected.forEach((id) => updateItem.mutate({ id, ...updates }));
     setSelected(new Set());
+    setBulkDialogOpen(false);
+    setBulkForm({ status: '', type: '', priority: '', projectId: '', scheduledDate: '', dueDate: '' });
   };
 
   const bulkDelete = () => {
     selected.forEach((id) => deleteItem.mutate(id));
     setSelected(new Set());
   };
-
-  const { data: items = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,scheduled,done' });
-  const { data: projects = [] } = useProjects();
-  const updateStatus = useUpdateWorkItemStatus();
-  const deleteItem = useDeleteWorkItem();
 
   const filtered = useMemo(() => {
     let result = items;
@@ -192,15 +215,88 @@ export default function Board() {
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {selected.size} selected
             </Typography>
-            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }} onClick={() => bulkUpdateStatus('active')}>Active</Button>
-            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }} onClick={() => bulkUpdateStatus('done')}>Done</Button>
-            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }} onClick={() => bulkUpdateStatus('later')}>Later</Button>
-            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }} onClick={() => bulkUpdateStatus('archived')}>Archive</Button>
+            <Button size="small" variant="outlined" startIcon={<EditIcon />} sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }} onClick={() => setBulkDialogOpen(true)}>
+              Edit
+            </Button>
             <Button size="small" variant="outlined" sx={{ color: '#FF5252', borderColor: '#FF5252' }} onClick={bulkDelete}>Delete</Button>
             <Button size="small" sx={{ color: 'white', ml: 'auto' }} onClick={() => setSelected(new Set())}>Cancel</Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Bulk edit dialog */}
+      <Dialog open={bulkDialogOpen} onClose={() => setBulkDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit {selected.size} items</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+          <Typography variant="body2" color="text.secondary">
+            Only fields you set will be updated. Leave blank to keep current values.
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select value={bulkForm.status} label="Status" onChange={(e) => setBulkForm({ ...bulkForm, status: e.target.value })}>
+                <MenuItem value="">Don't change</MenuItem>
+                {STATUS_OPTIONS.filter((s) => s.value !== 'all').map((s) => (
+                  <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel>Type</InputLabel>
+              <Select value={bulkForm.type} label="Type" onChange={(e) => setBulkForm({ ...bulkForm, type: e.target.value })}>
+                <MenuItem value="">Don't change</MenuItem>
+                {Object.entries(TYPE_LABELS).map(([key, label]) => (
+                  <MenuItem key={key} value={key}>{label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <FormControl fullWidth>
+              <InputLabel>Priority</InputLabel>
+              <Select value={bulkForm.priority} label="Priority" onChange={(e) => setBulkForm({ ...bulkForm, priority: e.target.value })}>
+                <MenuItem value="">Don't change</MenuItem>
+                <MenuItem value={0}>None</MenuItem>
+                <MenuItem value={1}>Low</MenuItem>
+                <MenuItem value={2}>Medium</MenuItem>
+                <MenuItem value={3}>High</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel>Project</InputLabel>
+              <Select value={bulkForm.projectId} label="Project" onChange={(e) => setBulkForm({ ...bulkForm, projectId: e.target.value })}>
+                <MenuItem value="">Don't change</MenuItem>
+                <MenuItem value="none">Remove project</MenuItem>
+                {projects.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Scheduled date"
+              type="date"
+              value={bulkForm.scheduledDate}
+              onChange={(e) => setBulkForm({ ...bulkForm, scheduledDate: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Due date"
+              type="date"
+              value={bulkForm.dueDate}
+              onChange={(e) => setBulkForm({ ...bulkForm, dueDate: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={bulkApply}>Apply to {selected.size} items</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Table */}
       <TableContainer>
