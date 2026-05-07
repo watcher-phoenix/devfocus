@@ -97,7 +97,7 @@ export default function DailyFocus() {
   };
 
   const activityGrouped = activityData?.grouped || {};
-  const activityDates = Object.keys(activityGrouped).sort((a, b) => b.localeCompare(a));
+  const activityDates = Object.keys(activityGrouped).sort((a, b) => a.localeCompare(b));
 
   return (
     <Box sx={{ maxWidth: 700 }}>
