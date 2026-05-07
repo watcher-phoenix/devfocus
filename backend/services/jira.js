@@ -35,14 +35,11 @@ async function syncJira() {
       }
     }
 
-    const response = await axios.get(`${baseUrl}/rest/api/3/search`, {
-      headers,
-      params: {
-        jql,
-        maxResults: 50,
-        fields: 'summary,status,priority,project,issuetype,updated',
-      },
-    });
+    const response = await axios.post(`${baseUrl}/rest/api/3/search/jql`, {
+      jql,
+      maxResults: 50,
+      fields: ['summary', 'status', 'priority', 'project', 'issuetype', 'updated'],
+    }, { headers });
 
     const issues = response.data.issues || [];
     let created = 0;
