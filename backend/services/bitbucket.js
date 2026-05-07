@@ -1,10 +1,10 @@
 /* eslint-disable no-console */
 const axios = require('axios');
 const { WorkItem, IntegrationConfig, Project } = require('../database/models');
+const { Op } = require('sequelize');
 
 const BB_API = 'https://api.bitbucket.org/2.0';
 
-// Build auth header — supports workspace access token OR app password
 function getHeaders(config) {
   if (config.accessToken) {
     return { Authorization: `Bearer ${config.accessToken}` };
@@ -13,11 +13,9 @@ function getHeaders(config) {
   return { Authorization: `Basic ${auth}` };
 }
 
-// Fetch all repos in the workspace (paginated)
 async function fetchAllRepos(workspace, headers) {
   const repos = [];
   let url = `${BB_API}/repositories/${workspace}?pagelen=100`;
-
   while (url) {
     const response = await axios.get(url, { headers });
     for (const repo of (response.data.values || [])) {
@@ -25,26 +23,16 @@ async function fetchAllRepos(workspace, headers) {
     }
     url = response.data.next || null;
   }
-
   return repos;
 }
 
-// Get the current user's UUID for filtering PRs
 async function getCurrentUser(headers) {
   try {
     const response = await axios.get(`${BB_API}/user`, { headers });
-    return {
-      uuid: response.data.uuid,
-      displayName: response.data.display_name,
-      accountId: response.data.account_id,
-    };
-  } catch (err) {
-    console.error('[bitbucket] Could not fetch current user:', err.response?.data || err.message);
-    return null;
-  }
+    return { uuid: response.data.uuid, displayName: response.data.display_name };
+  } catch { return null; }
 }
 
-// Match a repo slug to a project by checking repoSlug field (supports comma-separated)
 async function findProjectForRepo(repoSlug) {
   const projects = await Project.findAll({ where: { archived: false } });
   for (const project of projects) {
@@ -53,6 +41,20 @@ async function findProjectForRepo(repoSlug) {
     if (slugs.includes(repoSlug.toLowerCase())) return project.id;
   }
   return null;
+}
+
+function makeMatchesUser(currentUser, config) {
+  return (user) => {
+    if (!user) return false;
+    if (currentUser && user.uuid === currentUser.uuid) return true;
+    if (config.username) {
+      const uname = config.username.toLowerCase();
+      return (user.username || '').toLowerCase() === uname
+        || (user.nickname || '').toLowerCase() === uname
+        || (user.display_name || '').toLowerCase() === uname;
+    }
+    return false;
+  };
 }
 
 async function syncBitbucket() {
@@ -68,105 +70,100 @@ async function syncBitbucket() {
   const { workspace } = config;
 
   if (!workspace) {
-    return { success: false, error: 'Bitbucket config incomplete — need workspace' };
+    return { success: false, error: 'Need workspace' };
   }
-
   if (!config.accessToken && (!config.username || !config.appPassword)) {
-    return { success: false, error: 'Need either an access token or username + app password' };
+    return { success: false, error: 'Need access token or username + app password' };
   }
 
   const headers = getHeaders(config);
 
   try {
-    // Try to get current user (may fail with workspace tokens — that's ok)
     const currentUser = await getCurrentUser(headers);
-    if (currentUser) {
-      console.log(`[bitbucket] Authenticated as: ${currentUser.displayName} (${currentUser.uuid})`);
-    } else {
-      console.log('[bitbucket] Using workspace token (no personal user context)');
-    }
+    const matchesUser = makeMatchesUser(currentUser, config);
 
-    let created = 0;
-    let updated = 0;
-
-    // Verify auth by fetching repos — this works with all token types
     let repoList;
     if (config.repos) {
       repoList = config.repos.split(',').map((r) => r.trim()).filter(Boolean);
     } else {
-      console.log('[bitbucket] Fetching all repos in workspace...');
       repoList = await fetchAllRepos(workspace, headers);
-      console.log(`[bitbucket] Found ${repoList.length} repos`);
     }
 
     if (repoList.length === 0) {
-      return { success: false, error: 'No repos found. Check your workspace name and token permissions (needs Repositories:Read).' };
+      return { success: false, error: 'No repos found.' };
     }
 
-    // Get Jira ticket keys assigned to this user (to match PRs to Jira work)
+    // Get Jira keys to match PRs against
     const myJiraKeys = [];
     try {
       const jiraItems = await WorkItem.findAll({
-        where: { externalSource: 'jira', status: { [require('sequelize').Op.ne]: 'done' } },
+        where: { externalSource: 'jira', status: { [Op.ne]: 'done' } },
         attributes: ['externalId'],
       });
-      jiraItems.forEach((item) => {
-        if (item.externalId) myJiraKeys.push(item.externalId.toUpperCase());
-      });
-    } catch { /* no jira items */ }
-    console.log(`[bitbucket] Matching PRs against ${myJiraKeys.length} Jira ticket keys`);
+      jiraItems.forEach((i) => { if (i.externalId) myJiraKeys.push(i.externalId.toUpperCase()); });
+    } catch { /* */ }
 
+    let created = 0;
+    let updated = 0;
+    let deleted = 0;
     const allOpenIds = [];
     const errors = [];
 
     for (const repoSlug of repoList) {
       try {
-        // Fetch ALL open PRs for this repo (no user filter — filter client-side)
         const prResponse = await axios.get(
           `${BB_API}/repositories/${workspace}/${repoSlug}/pullrequests`,
           { headers, params: { state: 'OPEN', pagelen: 50 } }
         );
 
-        const prs = prResponse.data.values || [];
-
-        for (const pr of prs) {
-          // Match by UUID (personal token) or username/nickname (workspace token)
-          const matchesUser = (user) => {
-            if (!user) return false;
-            if (currentUser && user.uuid === currentUser.uuid) return true;
-            if (config.username) {
-              const uname = config.username.toLowerCase();
-              return (user.username || '').toLowerCase() === uname
-                || (user.nickname || '').toLowerCase() === uname
-                || (user.display_name || '').toLowerCase() === uname;
-            }
-            return false;
-          };
-
-          const isAuthor = matchesUser(pr.author);
-
-          // Check if PR is linked to a Jira ticket assigned to this user
-          // Match ticket keys (e.g. PROJ-123) in PR title or source branch
-          const prText = `${pr.title} ${pr.source?.branch?.name || ''}`.toUpperCase();
-          const isLinkedToMyJira = myJiraKeys.some((key) => prText.includes(key));
-
-          // Import PRs you authored OR that are linked to your Jira tickets
+        for (const pr of (prResponse.data.values || [])) {
           const externalId = `${repoSlug}#${pr.id}`;
           const existing = await WorkItem.findOne({
             where: { externalId, externalSource: 'bitbucket' },
           });
 
+          const isAuthor = matchesUser(pr.author);
+          const prText = `${pr.title} ${pr.source?.branch?.name || ''}`.toUpperCase();
+          const isLinkedToMyJira = myJiraKeys.some((key) => prText.includes(key));
+
+          // Check if user approved this PR by fetching individual PR for participants
+          let hasApproved = false;
           if (!isAuthor && !isLinkedToMyJira) {
-            // Delete previously imported PRs user shouldn't see
-            if (existing) await existing.destroy();
+            // Only fetch individual PR if we need to check approval
+            try {
+              const prDetail = await axios.get(
+                `${BB_API}/repositories/${workspace}/${repoSlug}/pullrequests/${pr.id}`,
+                { headers }
+              );
+              hasApproved = (prDetail.data.participants || []).some(
+                (p) => matchesUser(p.user) && p.approved
+              );
+            } catch { /* skip */ }
+          }
+
+          const shouldImport = isAuthor || isLinkedToMyJira || hasApproved;
+
+          if (!shouldImport) {
+            if (existing) { await existing.destroy(); deleted++; }
             continue;
           }
 
           allOpenIds.push(externalId);
-
-          const prType = isAuthor ? 'pr' : 'review';
-          const prTitle = isAuthor ? `PR: ${pr.title}` : `PR (Jira): ${pr.title}`;
           const projectId = await findProjectForRepo(repoSlug);
+
+          let prType = 'pr';
+          let prTitle = `PR: ${pr.title}`;
+          let status = 'active';
+
+          if (hasApproved && !isAuthor) {
+            prType = 'review';
+            prTitle = `Approved: ${pr.title}`;
+            status = 'done';
+          } else if (isLinkedToMyJira && !isAuthor) {
+            prType = 'review';
+            prTitle = `PR (Jira): ${pr.title}`;
+            status = 'inbox';
+          }
 
           const data = {
             title: prTitle,
@@ -174,58 +171,52 @@ async function syncBitbucket() {
             externalUrl: pr.links?.html?.href || '',
             externalSource: 'bitbucket',
             type: prType,
-            priority: prType === 'review' ? 2 : 1,
+            priority: 1,
             projectId,
           };
 
           if (existing) {
-            await existing.update({ title: data.title, projectId: projectId || existing.projectId });
+            const updates = { title: data.title, projectId: projectId || existing.projectId };
+            if (hasApproved && !isAuthor && existing.status !== 'done') {
+              updates.status = 'done';
+              updates.completedAt = new Date();
+            }
+            await existing.update(updates);
             updated++;
           } else {
             await WorkItem.create({
               ...data,
-              status: prType === 'review' ? 'inbox' : 'active',
+              status,
+              completedAt: status === 'done' ? new Date() : null,
             });
             created++;
           }
         }
       } catch (err) {
-        const msg = `${repoSlug}: ${err.response?.data?.error?.message || err.message}`;
-        console.error(`[bitbucket] Error on repo ${msg}`);
-        errors.push(msg);
+        errors.push(`${repoSlug}: ${err.response?.data?.error?.message || err.message}`);
       }
     }
 
-    // Delete BB items that are no longer open PRs you authored
-    const deleted = await WorkItem.destroy({
+    // Delete BB items for PRs no longer open
+    const staleDeleted = await WorkItem.destroy({
       where: {
         externalSource: 'bitbucket',
         ...(allOpenIds.length > 0
-          ? { externalId: { [require('sequelize').Op.notIn]: allOpenIds } }
+          ? { externalId: { [Op.notIn]: allOpenIds } }
           : {}),
       },
     });
+    deleted += staleDeleted;
 
     await integrationConfig.update({
       lastSyncAt: new Date(),
       lastSyncStatus: errors.length > 0 ? 'partial' : 'success',
     });
 
-    return {
-      success: true,
-      created,
-      updated,
-      deleted,
-      repos: repoList.length,
-      user: currentUser?.displayName || 'workspace token',
-      errors: errors.length > 0 ? errors : undefined,
-    };
+    return { success: true, created, updated, deleted, repos: repoList.length, user: currentUser?.displayName || 'workspace token', errors: errors.length > 0 ? errors : undefined };
   } catch (err) {
     console.error('Bitbucket sync error:', err.response?.data || err.message);
-    await integrationConfig.update({
-      lastSyncAt: new Date(),
-      lastSyncStatus: 'error',
-    });
+    await integrationConfig.update({ lastSyncAt: new Date(), lastSyncStatus: 'error' });
     return { success: false, error: err.response?.data?.error?.message || err.message };
   }
 }
