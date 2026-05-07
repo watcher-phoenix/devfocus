@@ -289,11 +289,32 @@ export default function WeeklyPlanner() {
                     />
                   </Box>
 
+                  {/* Meetings for this day */}
+                  {dayMeetings.events?.length > 0 && (
+                    <Box sx={{ mb: 1 }}>
+                      {dayMeetings.events.map((evt, ei) => {
+                        const start = new Date(evt.startTime);
+                        const end = new Date(evt.endTime);
+                        const fmt = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                        return (
+                          <Box key={ei} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25, borderLeft: '2px solid', borderColor: 'warning.main', pl: 0.75, mb: 0.25 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', minWidth: 45 }}>
+                              {fmt(start)}
+                            </Typography>
+                            <Typography variant="caption" sx={{ fontSize: '0.65rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {evt.title}
+                            </Typography>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  )}
+
                   <DroppableDay dayId={date}>
                     {dayItems.map((item) => (
                       <DraggableCard key={item.id} item={item} />
                     ))}
-                    {dayItems.length === 0 && (
+                    {dayItems.length === 0 && dayMeetings.events?.length === 0 && (
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', py: 3, opacity: 0.6 }}>
                         Drop here
                       </Typography>

@@ -370,9 +370,23 @@ export default function Board() {
                     {item.title}
                   </Typography>
                   {item.externalId && (
-                    <Typography variant="caption" sx={{ color: '#2684FF', fontFamily: 'monospace' }}>
-                      {item.externalId}
-                    </Typography>
+                    item.externalUrl ? (
+                      <Typography
+                        variant="caption"
+                        component="a"
+                        href={item.externalUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        sx={{ color: '#2684FF', fontFamily: 'monospace', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                      >
+                        {item.externalId}
+                      </Typography>
+                    ) : (
+                      <Typography variant="caption" sx={{ color: '#2684FF', fontFamily: 'monospace' }}>
+                        {item.externalId}
+                      </Typography>
+                    )
                   )}
                 </TableCell>
                 <TableCell>

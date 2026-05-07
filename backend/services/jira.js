@@ -66,7 +66,7 @@ async function syncJira() {
           issue.fields.project?.name ? `Project: ${issue.fields.project.name}` : null,
         ].filter(Boolean).join('\n'),
         externalId: issue.key,
-        externalUrl: `${baseUrl}/browse/${issue.key}`,
+        externalUrl: parent ? `${baseUrl}/browse/${parent.key}` : `${baseUrl}/browse/${issue.key}`,
         externalSource: 'jira',
         type: 'jira',
         priority: jiraPriority,

@@ -16,6 +16,7 @@ import Alert from '@mui/material/Alert';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
 import WhatshotIcon from '@mui/icons-material/Whatshot';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AddIcon from '@mui/icons-material/Add';
@@ -217,6 +218,30 @@ export default function DailyFocus() {
         </CollapsibleSection>
       )}
 
+      {/* Stale items — things sitting untouched */}
+      {data.staleItems?.length > 0 && (
+        <CollapsibleSection
+          title="Needs Attention"
+          icon={<WarningAmberIcon sx={{ color: 'warning.main', fontSize: 20 }} />}
+          count={data.staleItems.length}
+          defaultOpen={false}
+        >
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem' }}>
+            These items haven't been touched in over a week.
+          </Typography>
+          {data.staleItems.map((item) => (
+            <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, cursor: 'pointer', borderRadius: 1, px: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }} onClick={() => setEditItem(item)}>
+              <WarningAmberIcon sx={{ color: 'warning.main', fontSize: 14 }} />
+              <Typography variant="body2" sx={{ flex: 1, fontSize: '0.85rem' }}>{item.title}</Typography>
+              <Chip label={`${item.daysSinceUpdate}d ago`} size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem' }} />
+              {item.project && (
+                <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />
+              )}
+            </Box>
+          ))}
+        </CollapsibleSection>
+      )}
+
       {/* Context Snapshots — collapsed by default */}
       {snapshots.length > 0 && (
         <CollapsibleSection
@@ -267,6 +292,19 @@ export default function DailyFocus() {
                 >
                   {item.isMeeting ? <VideocamIcon sx={{ color: 'warning.main', fontSize: 14 }} /> : <CheckCircleIcon sx={{ color: 'success.main', fontSize: 14 }} />}
                   <Typography variant="body2" sx={{ flex: 1, fontSize: '0.8rem' }}>{item.title}</Typography>
+                  {item.externalUrl && item.externalId && (
+                    <Typography
+                      variant="caption"
+                      component="a"
+                      href={item.externalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      sx={{ color: '#2684FF', fontFamily: 'monospace', fontSize: '0.7rem', textDecoration: 'none', '&:hover': { textDecoration: 'underline' }, flexShrink: 0 }}
+                    >
+                      {item.externalId}
+                    </Typography>
+                  )}
                   {item.isMeeting && item.duration && <Typography variant="caption" color="text.secondary">{item.duration}m</Typography>}
                 </Box>
               ))}

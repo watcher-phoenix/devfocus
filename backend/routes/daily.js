@@ -112,6 +112,7 @@ router.get('/:date', async (req, res) => {
     snapshot,
     inbox: { count: inboxCount, recent: inboxRecent },
     done: { today: doneToday, yesterday: doneYesterday },
+    staleItems: await getStaleItems(),
     alerts: await getAlerts(),
   });
   } catch (err) {
@@ -120,7 +121,7 @@ router.get('/:date', async (req, res) => {
   }
 });
 
-// Meeting minutes per day for a week — used by Plan page to auto-detect day types
+// Meeting data per day for a week — used by Plan page
 router.get('/week-meetings/:weekStart', async (req, res) => {
   try {
     const { weekStart } = req.params;
@@ -132,6 +133,7 @@ router.get('/week-meetings/:weekStart', async (req, res) => {
 
       const events = await CachedEvent.findAll({
         where: { date, allDay: false },
+        order: [['startTime', 'ASC']],
       });
 
       const meetingMinutes = events.reduce((sum, e) => {
@@ -141,6 +143,11 @@ router.get('/week-meetings/:weekStart', async (req, res) => {
       days[date] = {
         meetingCount: events.length,
         meetingMinutes: Math.round(meetingMinutes),
+        events: events.map((e) => ({
+          title: e.title,
+          startTime: e.startTime,
+          endTime: e.endTime,
+        })),
       };
     }
     res.json(days);
@@ -148,6 +155,30 @@ router.get('/week-meetings/:weekStart', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+async function getStaleItems() {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const stale = await WorkItem.findAll({
+      where: {
+        status: { [Op.in]: ['active', 'waiting', 'scheduled'] },
+        updatedAt: { [Op.lte]: sevenDaysAgo },
+      },
+      include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
+      order: [['updatedAt', 'ASC']],
+      limit: 5,
+    });
+
+    return stale.map((item) => ({
+      ...item.toJSON(),
+      daysSinceUpdate: Math.floor((Date.now() - new Date(item.updatedAt)) / (24 * 60 * 60 * 1000)),
+    }));
+  } catch {
+    return [];
+  }
+}
 
 async function getAlerts() {
   try {
