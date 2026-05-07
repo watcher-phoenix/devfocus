@@ -7,7 +7,18 @@ import Chip from '@mui/material/Chip';
 import dayjs from 'dayjs';
 import EventIcon from '@mui/icons-material/Event';
 import CodeIcon from '@mui/icons-material/Code';
-import { useWorkItems } from '../api/workItems';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+} from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useWorkItems, useUpdateWorkItem } from '../api/workItems';
+import { useState } from 'react';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -31,11 +42,64 @@ const DEFAULT_DAY_TYPES = {
   fri: 'focus',
 };
 
+function DraggableCard({ item }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: `item-${item.id}`,
+    data: { item },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      sx={{ mb: 1, cursor: 'grab', touchAction: 'none' }}
+    >
+      <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px !important' } }}>
+        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+          {item.title}
+        </Typography>
+        {item.project && (
+          <Chip
+            label={item.project.name}
+            size="small"
+            sx={{
+              mt: 0.5,
+              height: 18,
+              fontSize: '0.6rem',
+              bgcolor: item.project.color + '22',
+              color: item.project.color,
+            }}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DroppableDay({ dayId, children }) {
+  const { setNodeRef } = useSortable({ id: dayId, data: { type: 'day', dayId } });
+  return <Box ref={setNodeRef} sx={{ minHeight: 120 }}>{children}</Box>;
+}
+
 export default function WeeklyPlanner() {
   const weekStart = useMemo(() => getWeekStart(), []);
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
+  const [activeItem, setActiveItem] = useState(null);
 
   const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting' });
+  const updateItem = useUpdateWorkItem();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   const itemsByDate = useMemo(() => {
     const map = {};
@@ -48,9 +112,54 @@ export default function WeeklyPlanner() {
     return map;
   }, [allItems, weekDates]);
 
-  const unscheduled = allItems.filter(
-    (i) => !i.scheduledDate && i.status !== 'done'
-  );
+  const unscheduled = allItems.filter((i) => !i.scheduledDate && i.status !== 'done');
+
+  // Build all sortable IDs
+  const allSortableIds = useMemo(() => {
+    const ids = [...weekDates, 'unscheduled'];
+    allItems.forEach((i) => ids.push(`item-${i.id}`));
+    return ids;
+  }, [allItems, weekDates]);
+
+  const handleDragStart = (event) => {
+    const match = String(event.active.id).match(/^item-(\d+)$/);
+    if (match) {
+      const item = allItems.find((i) => i.id === parseInt(match[1]));
+      setActiveItem(item || null);
+    }
+  };
+
+  const handleDragEnd = (event) => {
+    setActiveItem(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeMatch = String(active.id).match(/^item-(\d+)$/);
+    if (!activeMatch) return;
+    const itemId = parseInt(activeMatch[1]);
+
+    let targetDate = null;
+
+    // Dropped on a day column
+    if (weekDates.includes(over.id)) {
+      targetDate = over.id;
+    } else if (over.id === 'unscheduled') {
+      targetDate = null;
+    } else {
+      // Dropped on another item — use that item's date
+      const overMatch = String(over.id).match(/^item-(\d+)$/);
+      if (overMatch) {
+        const overItem = allItems.find((i) => i.id === parseInt(overMatch[1]));
+        targetDate = overItem?.scheduledDate || null;
+      }
+    }
+
+    const draggedItem = allItems.find((i) => i.id === itemId);
+    if (!draggedItem) return;
+    if (draggedItem.scheduledDate === targetDate) return;
+
+    updateItem.mutate({ id: itemId, scheduledDate: targetDate });
+  };
 
   return (
     <Box>
@@ -58,115 +167,122 @@ export default function WeeklyPlanner() {
         Weekly Planner
       </Typography>
 
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(5, 1fr) 200px' },
-          gap: 2,
-          alignItems: 'flex-start',
-        }}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
       >
-        {DAYS.map((day, i) => {
-          const date = weekDates[i];
-          const dayType = DEFAULT_DAY_TYPES[day];
-          const isToday = date === dayjs().format('YYYY-MM-DD');
-          const dayItems = itemsByDate[date] || [];
+        <SortableContext items={allSortableIds} strategy={verticalListSortingStrategy}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(5, 1fr) 200px' },
+              gap: 2,
+              alignItems: 'flex-start',
+            }}
+          >
+            {DAYS.map((day, i) => {
+              const date = weekDates[i];
+              const dayType = DEFAULT_DAY_TYPES[day];
+              const isToday = date === dayjs().format('YYYY-MM-DD');
+              const dayItems = itemsByDate[date] || [];
 
-          return (
-            <Box key={day}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  mb: 1,
-                  px: 0.5,
-                }}
-              >
-                <Box>
-                  <Typography
-                    variant="subtitle2"
+              return (
+                <Box key={day}>
+                  <Box
                     sx={{
-                      fontWeight: 600,
-                      color: isToday ? 'primary.main' : 'text.primary',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      mb: 1,
+                      px: 0.5,
                     }}
                   >
-                    {DAY_LABELS[i]}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {dayjs(date).format('MMM D')}
-                  </Typography>
-                </Box>
-                <Chip
-                  icon={dayType === 'meetings' ? <EventIcon /> : <CodeIcon />}
-                  label={dayType === 'meetings' ? 'Mtgs' : 'Focus'}
-                  size="small"
-                  variant="outlined"
-                  color={dayType === 'focus' ? 'success' : 'default'}
-                  sx={{ height: 24, fontSize: '0.65rem' }}
-                />
-              </Box>
-
-              <Box sx={{ minHeight: 120 }}>
-                {dayItems.map((item) => (
-                  <Card key={item.id} sx={{ mb: 1 }}>
-                    <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px !important' } }}>
-                      <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                        {item.title}
+                    <Box>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          fontWeight: 600,
+                          color: isToday ? 'primary.main' : 'text.primary',
+                        }}
+                      >
+                        {DAY_LABELS[i]}
                       </Typography>
-                      {item.project && (
-                        <Chip
-                          label={item.project.name}
-                          size="small"
-                          sx={{
-                            mt: 0.5,
-                            height: 18,
-                            fontSize: '0.6rem',
-                            bgcolor: item.project.color + '22',
-                            color: item.project.color,
-                          }}
-                        />
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-                {dayItems.length === 0 && (
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: 'block', textAlign: 'center', py: 3 }}
-                  >
-                    Empty
-                  </Typography>
-                )}
-              </Box>
-            </Box>
-          );
-        })}
+                      <Typography variant="caption" color="text.secondary">
+                        {dayjs(date).format('MMM D')}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      icon={dayType === 'meetings' ? <EventIcon /> : <CodeIcon />}
+                      label={dayType === 'meetings' ? 'Mtgs' : 'Focus'}
+                      size="small"
+                      variant="outlined"
+                      color={dayType === 'focus' ? 'success' : 'default'}
+                      sx={{ height: 24, fontSize: '0.65rem' }}
+                    />
+                  </Box>
 
-        {/* Unscheduled sidebar */}
-        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, px: 0.5 }}>
-            Unscheduled
-          </Typography>
-          <Box sx={{ maxHeight: 500, overflow: 'auto' }}>
-            {unscheduled.slice(0, 10).map((item) => (
-              <Card key={item.id} sx={{ mb: 1 }}>
-                <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px !important' } }}>
-                  <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                    {item.title}
-                  </Typography>
-                </CardContent>
-              </Card>
-            ))}
-            {unscheduled.length > 10 && (
-              <Typography variant="caption" color="text.secondary">
-                +{unscheduled.length - 10} more
+                  <DroppableDay dayId={date}>
+                    {dayItems.map((item) => (
+                      <DraggableCard key={item.id} item={item} />
+                    ))}
+                    {dayItems.length === 0 && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: 'block', textAlign: 'center', py: 3, opacity: 0.6 }}
+                      >
+                        Drop items here
+                      </Typography>
+                    )}
+                  </DroppableDay>
+                </Box>
+              );
+            })}
+
+            {/* Unscheduled sidebar */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, px: 0.5 }}>
+                Unscheduled
               </Typography>
-            )}
+              <DroppableDay dayId="unscheduled">
+                <Box sx={{ maxHeight: 500, overflow: 'auto' }}>
+                  {unscheduled.slice(0, 15).map((item) => (
+                    <DraggableCard key={item.id} item={item} />
+                  ))}
+                  {unscheduled.length > 15 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
+                      +{unscheduled.length - 15} more
+                    </Typography>
+                  )}
+                  {unscheduled.length === 0 && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'block', textAlign: 'center', py: 3 }}
+                    >
+                      All scheduled
+                    </Typography>
+                  )}
+                </Box>
+              </DroppableDay>
+            </Box>
           </Box>
-        </Box>
-      </Box>
+        </SortableContext>
+
+        <DragOverlay>
+          {activeItem ? (
+            <Card sx={{ width: 180, opacity: 0.9 }}>
+              <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px !important' } }}>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  {activeItem.title}
+                </Typography>
+              </CardContent>
+            </Card>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </Box>
   );
 }

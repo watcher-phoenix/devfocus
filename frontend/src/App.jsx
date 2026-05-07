@@ -6,6 +6,7 @@ import Board from './pages/Board';
 import WeeklyPlanner from './pages/WeeklyPlanner';
 import ContextSnapshots from './pages/ContextSnapshots';
 import Settings from './pages/Settings';
+import Activity from './pages/Activity';
 import Login from './pages/Login';
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/board" element={<Board />} />
           <Route path="/week" element={<WeeklyPlanner />} />
           <Route path="/snapshots" element={<ContextSnapshots />} />
+          <Route path="/activity" element={<Activity />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>

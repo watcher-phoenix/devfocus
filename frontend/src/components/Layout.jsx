@@ -16,6 +16,7 @@ import InboxIcon from '@mui/icons-material/Inbox';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
+import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AddIcon from '@mui/icons-material/Add';
 import Fab from '@mui/material/Fab';
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { label: 'Board', path: '/board', icon: <ViewKanbanIcon /> },
   { label: 'Week', path: '/week', icon: <CalendarMonthIcon /> },
   { label: 'Snapshots', path: '/snapshots', icon: <BookmarkIcon /> },
+  { label: 'Activity', path: '/activity', icon: <TaskAltIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];
 
