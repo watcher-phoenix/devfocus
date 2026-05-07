@@ -7,7 +7,8 @@ const { Op } = require('sequelize');
 // Outlook ICS uses X-MICROSOFT-CDO-BUSYSTATUS:
 //   BUSY = accepted, TENTATIVE = not accepted, FREE = declined, OOF = out of office
 function isDeclinedOrTentative(event) {
-  const busyStatus = (event['X-MICROSOFT-CDO-BUSYSTATUS'] || '').toUpperCase();
+  // node-ical strips the X- prefix from Microsoft fields
+  const busyStatus = (event['MICROSOFT-CDO-BUSYSTATUS'] || event['X-MICROSOFT-CDO-BUSYSTATUS'] || '').toUpperCase();
   if (busyStatus === 'TENTATIVE' || busyStatus === 'FREE') return true;
 
   // Fallback: check PARTSTAT on attendees
