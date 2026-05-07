@@ -7,9 +7,7 @@ const BB_API = 'https://api.bitbucket.org/2.0';
 // Build auth header — supports workspace access token OR app password
 function getHeaders(config) {
   if (config.accessToken) {
-    // Workspace access tokens use Basic auth with x-token-auth as username
-    const auth = Buffer.from(`x-token-auth:${config.accessToken}`).toString('base64');
-    return { Authorization: `Basic ${auth}` };
+    return { Authorization: `Bearer ${config.accessToken}` };
   }
   const auth = Buffer.from(`${config.username}:${config.appPassword}`).toString('base64');
   return { Authorization: `Basic ${auth}` };
