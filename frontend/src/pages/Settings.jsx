@@ -30,7 +30,6 @@ import {
   useIntegrations,
   useUpdateIntegration,
   useSyncIntegration,
-  useCalendarDeviceCode,
 } from '../api/integrations';
 
 const PRESET_COLORS = [
@@ -151,11 +150,9 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
   const { data: integrations = [] } = useIntegrations();
   const updateIntegration = useUpdateIntegration();
   const syncIntegration = useSyncIntegration();
-  const calendarDeviceCode = useCalendarDeviceCode();
   const [configOpen, setConfigOpen] = useState(false);
   const [form, setForm] = useState({});
   const [syncResult, setSyncResult] = useState(null);
-  const [deviceCode, setDeviceCode] = useState(null);
 
   const integration = integrations.find((i) => i.provider === provider);
   const isConfigured = integration?.config?.configured;
@@ -195,16 +192,6 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
       setSyncResult(result);
     } catch (err) {
       setSyncResult({ success: false, error: err.message });
-    }
-  };
-
-  const handleCalendarAuth = async () => {
-    setDeviceCode(null);
-    try {
-      const result = await calendarDeviceCode.mutateAsync();
-      setDeviceCode(result);
-    } catch (err) {
-      setDeviceCode({ error: err.message });
     }
   };
 
@@ -268,26 +255,6 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
             </Alert>
           )}
 
-          {deviceCode && (
-            <Alert severity="info" sx={{ mt: 1 }} onClose={() => setDeviceCode(null)}>
-              {deviceCode.error
-                ? deviceCode.error
-                : (
-                  <Box>
-                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                      Enter code: {deviceCode.userCode}
-                    </Typography>
-                    <Typography variant="body2">
-                      Go to{' '}
-                      <a href={deviceCode.verificationUri} target="_blank" rel="noreferrer" style={{ color: '#7C4DFF' }}>
-                        {deviceCode.verificationUri}
-                      </a>
-                      {' '}and enter the code above to authorize.
-                    </Typography>
-                  </Box>
-                )}
-            </Alert>
-          )}
         </CardContent>
       </Card>
 
@@ -315,11 +282,6 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
               control={<Switch checked={isEnabled} onChange={handleToggle} />}
               label="Enabled"
             />
-          )}
-          {provider === 'calendar' && isConfigured && (
-            <Button variant="outlined" onClick={handleCalendarAuth}>
-              Authenticate with Microsoft
-            </Button>
           )}
         </DialogContent>
         <DialogActions>
@@ -366,12 +328,11 @@ function IntegrationsTab() {
 
       <IntegrationCard
         provider="calendar"
-        label="Microsoft Calendar"
+        label="Outlook Calendar"
         description="Pull Outlook/Teams meetings to calculate your available focus time"
-        configHint="Register an app in Azure AD > App Registrations. Set 'Allow public client flows' to Yes. Add Calendars.Read delegated permission."
+        configHint="In Outlook: Settings > Calendar > Shared calendars > Publish a calendar. Select your calendar and choose 'Can view all details'. Copy the ICS link."
         fields={[
-          { key: 'clientId', label: 'Application (Client) ID', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' },
-          { key: 'tenantId', label: 'Tenant ID', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx or common', helper: 'Use "common" for personal Microsoft accounts' },
+          { key: 'icsUrl', label: 'ICS Calendar URL', placeholder: 'https://outlook.office365.com/owa/calendar/...', helper: 'The published ICS link from Outlook. No Azure setup needed.' },
         ]}
       />
     </Box>

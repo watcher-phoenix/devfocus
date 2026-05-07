@@ -1,7 +1,6 @@
 const { Router } = require('express');
 const { IntegrationConfig } = require('../database/models');
 const { syncProvider } = require('../services/sync');
-const { startDeviceCodeFlow } = require('../services/calendar');
 
 const router = Router();
 
@@ -32,7 +31,6 @@ router.put('/:provider', async (req, res) => {
   let config = await IntegrationConfig.findOne({ where: { provider: req.params.provider } });
 
   const updateData = { ...req.body };
-  // If config is an object, stringify it
   if (updateData.config && typeof updateData.config === 'object') {
     updateData.config = JSON.stringify(updateData.config);
   }
@@ -63,22 +61,6 @@ router.post('/:provider/sync', async (req, res) => {
   return res.json(result);
 });
 
-// Microsoft Calendar: Start device code flow
-router.post('/calendar/auth/device-code', async (req, res) => {
-  const config = await IntegrationConfig.findOne({ where: { provider: 'calendar' } });
-  if (!config || !config.config) {
-    return res.status(400).json({ error: 'Calendar integration not configured — set clientId and tenantId first' });
-  }
-
-  try {
-    const parsed = JSON.parse(config.config);
-    const result = await startDeviceCodeFlow(parsed);
-    return res.json(result);
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
 // Test connection for a provider
 router.post('/:provider/test', async (req, res) => {
   const config = await IntegrationConfig.findOne({ where: { provider: req.params.provider } });
@@ -86,7 +68,6 @@ router.post('/:provider/test', async (req, res) => {
     return res.status(400).json({ error: 'Not configured' });
   }
 
-  // Simple test: try a sync and return result
   try {
     const result = await syncProvider(req.params.provider);
     return res.json({ success: result.success, message: result.error || 'Connection successful' });
@@ -105,7 +86,7 @@ function safeConfigSummary(provider, configStr) {
       case 'bitbucket':
         return { workspace: parsed.workspace, username: parsed.username, repos: parsed.repos };
       case 'calendar':
-        return { clientId: parsed.clientId, tenantId: parsed.tenantId };
+        return { icsUrl: parsed.icsUrl ? '(configured)' : null };
       default:
         return {};
     }

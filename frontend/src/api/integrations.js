@@ -41,8 +41,3 @@ export function useTestIntegration() {
   });
 }
 
-export function useCalendarDeviceCode() {
-  return useMutation({
-    mutationFn: () => api.post('/integrations/calendar/auth/device-code'),
-  });
-}
