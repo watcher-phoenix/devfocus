@@ -61,13 +61,20 @@ export default function Activity() {
   const logWork = useLogWork();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({
+  const defaultForm = {
     title: '',
+    description: '',
+    notes: '',
     type: 'task',
+    priority: 0,
     projectId: '',
     ticketId: '',
+    ticketUrl: '',
+    scheduledDate: '',
+    dueDate: '',
     date: dayjs().format('YYYY-MM-DD'),
-  });
+  };
+  const [form, setForm] = useState(defaultForm);
 
   const handleLog = async () => {
     if (!form.title.trim()) return;
@@ -76,13 +83,7 @@ export default function Activity() {
       projectId: form.projectId || null,
       ticketId: form.ticketId || null,
     });
-    setForm({
-      title: '',
-      type: 'task',
-      projectId: '',
-      ticketId: '',
-      date: dayjs().format('YYYY-MM-DD'),
-    });
+    setForm({ ...defaultForm, date: dayjs().format('YYYY-MM-DD') });
     setDialogOpen(false);
   };
 
@@ -213,12 +214,29 @@ export default function Activity() {
             placeholder="e.g. Fixed pagination bug on contacts page"
           />
           <TextField
-            label="Ticket ID (optional)"
-            value={form.ticketId}
-            onChange={(e) => setForm({ ...form, ticketId: e.target.value })}
+            label="Description (optional)"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
             fullWidth
-            placeholder="e.g. PROJ-1234"
+            multiline
+            rows={2}
           />
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Ticket ID (optional)"
+              value={form.ticketId}
+              onChange={(e) => setForm({ ...form, ticketId: e.target.value })}
+              fullWidth
+              placeholder="e.g. PROJ-1234"
+            />
+            <TextField
+              label="Ticket URL (optional)"
+              value={form.ticketUrl}
+              onChange={(e) => setForm({ ...form, ticketUrl: e.target.value })}
+              fullWidth
+              placeholder="e.g. https://yourcompany.atlassian.net/browse/PROJ-1234"
+            />
+          </Stack>
           <Stack direction="row" spacing={2}>
             <FormControl fullWidth>
               <InputLabel>Type</InputLabel>
@@ -233,6 +251,21 @@ export default function Activity() {
               </Select>
             </FormControl>
             <FormControl fullWidth>
+              <InputLabel>Priority</InputLabel>
+              <Select
+                value={form.priority}
+                label="Priority"
+                onChange={(e) => setForm({ ...form, priority: e.target.value })}
+              >
+                <MenuItem value={0}>None</MenuItem>
+                <MenuItem value={1}>Low</MenuItem>
+                <MenuItem value={2}>Medium</MenuItem>
+                <MenuItem value={3}>High</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <FormControl fullWidth>
               <InputLabel>Project</InputLabel>
               <Select
                 value={form.projectId}
@@ -245,14 +278,40 @@ export default function Activity() {
                 ))}
               </Select>
             </FormControl>
+            <TextField
+              label="Completed on"
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Scheduled date (optional)"
+              type="date"
+              value={form.scheduledDate}
+              onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Due date (optional)"
+              type="date"
+              value={form.dueDate}
+              onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
           </Stack>
           <TextField
-            label="Date"
-            type="date"
-            value={form.date}
-            onChange={(e) => setForm({ ...form, date: e.target.value })}
+            label="Notes (optional)"
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
             fullWidth
-            slotProps={{ inputLabel: { shrink: true } }}
+            multiline
+            rows={3}
           />
         </DialogContent>
         <DialogActions>

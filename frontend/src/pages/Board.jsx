@@ -29,6 +29,7 @@ const COLUMNS = [
   { key: 'inbox', label: 'Brain Dump', color: '#9AA0A6' },
   { key: 'active', label: 'Active', color: '#7C4DFF' },
   { key: 'waiting', label: 'Waiting', color: '#FFD600' },
+  { key: 'later', label: 'Later', color: '#03A9F4' },
   { key: 'done', label: 'Done', color: '#00C853' },
 ];
 
@@ -202,7 +203,7 @@ function DroppableColumn({ col, items, onEdit, onStatusChange, onDelete }) {
 }
 
 export default function Board() {
-  const { data: items = [] } = useWorkItems({ statuses: 'inbox,active,waiting,done' });
+  const { data: items = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,done' });
   const updateStatus = useUpdateWorkItemStatus();
   const deleteItem = useDeleteWorkItem();
   const [editItem, setEditItem] = useState(null);
@@ -270,7 +271,7 @@ export default function Board() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' },
             gap: 2,
             alignItems: 'flex-start',
           }}

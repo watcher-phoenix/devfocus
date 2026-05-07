@@ -19,6 +19,7 @@ const STATUSES = [
   { value: 'inbox', label: 'Brain Dump' },
   { value: 'active', label: 'Active' },
   { value: 'waiting', label: 'Waiting' },
+  { value: 'later', label: 'Later' },
   { value: 'done', label: 'Done' },
 ];
 

@@ -155,6 +155,7 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
   const syncIntegration = useSyncIntegration();
   const [configOpen, setConfigOpen] = useState(false);
   const [form, setForm] = useState({});
+  const [syncResult, setSyncResult] = useState(null);
   const [tokenExpiresAt, setTokenExpiresAt] = useState('');
   const [tokenLabel, setTokenLabel] = useState('');
 

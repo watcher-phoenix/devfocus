@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -7,6 +7,10 @@ import Chip from '@mui/material/Chip';
 import dayjs from 'dayjs';
 import EventIcon from '@mui/icons-material/Event';
 import CodeIcon from '@mui/icons-material/Code';
+import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import {
   DndContext,
   DragOverlay,
@@ -18,7 +22,6 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useWorkItems, useUpdateWorkItem } from '../api/workItems';
-import { useState } from 'react';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -90,11 +93,17 @@ function DroppableDay({ dayId, children }) {
 }
 
 export default function WeeklyPlanner() {
-  const weekStart = useMemo(() => getWeekStart(), []);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const currentWeekStart = useMemo(() => getWeekStart(), []);
+  const weekStart = useMemo(
+    () => dayjs(currentWeekStart).add(weekOffset * 7, 'day').format('YYYY-MM-DD'),
+    [currentWeekStart, weekOffset]
+  );
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
+  const isCurrentWeek = weekOffset === 0;
   const [activeItem, setActiveItem] = useState(null);
 
-  const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting' });
+  const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later' });
   const updateItem = useUpdateWorkItem();
 
   const sensors = useSensors(
@@ -163,9 +172,25 @@ export default function WeeklyPlanner() {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ mb: 3 }}>
-        Weekly Planner
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5">Weekly Planner</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton onClick={() => setWeekOffset((o) => o - 1)} size="small">
+            <ChevronLeftIcon />
+          </IconButton>
+          <Typography variant="body2" sx={{ minWidth: 140, textAlign: 'center', fontWeight: 500 }}>
+            {dayjs(weekStart).format('MMM D')} — {dayjs(weekStart).add(4, 'day').format('MMM D, YYYY')}
+          </Typography>
+          <IconButton onClick={() => setWeekOffset((o) => o + 1)} size="small">
+            <ChevronRightIcon />
+          </IconButton>
+          {!isCurrentWeek && (
+            <Button size="small" variant="outlined" onClick={() => setWeekOffset(0)}>
+              This Week
+            </Button>
+          )}
+        </Box>
+      </Box>
 
       <DndContext
         sensors={sensors}

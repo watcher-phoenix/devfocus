@@ -34,22 +34,28 @@ router.get('/', async (req, res) => {
 
 // Quick log — record something you already finished
 router.post('/log', async (req, res) => {
-  const { title, type, projectId, ticketId, ticketUrl, date } = req.body;
+  const {
+    title, description, notes, type, priority,
+    projectId, ticketId, ticketUrl, date, scheduledDate, dueDate,
+  } = req.body;
   if (!title || !title.trim()) return res.status(400).json({ error: 'Title required' });
 
   const completedAt = date ? new Date(date + 'T17:00:00') : new Date();
 
   const item = await WorkItem.create({
     title: title.trim(),
+    description: description || null,
+    notes: notes || null,
     status: 'done',
     type: type || 'task',
-    priority: 0,
+    priority: priority || 0,
     projectId: projectId || null,
     externalId: ticketId || null,
     externalUrl: ticketUrl || null,
     externalSource: ticketId ? 'jira' : null,
     completedAt,
-    scheduledDate: completedAt.toISOString().split('T')[0],
+    scheduledDate: scheduledDate || completedAt.toISOString().split('T')[0],
+    dueDate: dueDate || null,
   });
 
   const full = await WorkItem.findByPk(item.id, {
