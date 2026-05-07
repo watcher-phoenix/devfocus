@@ -53,9 +53,10 @@ export default function ChatBot() {
           sx={{
             position: 'fixed',
             bottom: 24,
-            left: 24,
+            left: { xs: 24, md: 264 },
             bgcolor: 'secondary.main',
             color: 'background.default',
+            zIndex: 1200,
             '&:hover': { bgcolor: 'secondary.dark' },
           }}
         >
@@ -70,7 +71,7 @@ export default function ChatBot() {
           sx={{
             position: 'fixed',
             bottom: 24,
-            left: 24,
+            left: { xs: 24, md: 264 },
             width: 360,
             height: 480,
             display: 'flex',
