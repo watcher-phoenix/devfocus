@@ -131,25 +131,23 @@ async function syncBitbucket() {
           };
 
           const isAuthor = matchesUser(pr.author);
-          const isReviewer = (pr.reviewers || []).some((r) => matchesUser(r));
 
-          if (!isAuthor && !isReviewer) {
-            // If this PR was previously imported but user is no longer on it, mark done
-            if (existing && existing.status !== 'done') {
-              await existing.update({ status: 'done', completedAt: new Date() });
-            }
-            continue;
-          }
-
-          // Create as authored PR
+          // Only import PRs you authored — reviewer PRs are too noisy
           const externalId = `${repoSlug}#${pr.id}`;
-          allOpenIds.push(externalId);
           const existing = await WorkItem.findOne({
             where: { externalId, externalSource: 'bitbucket' },
           });
 
-          const prType = isReviewer && !isAuthor ? 'review' : 'pr';
-          const prTitle = prType === 'review' ? `Review: ${pr.title}` : `PR: ${pr.title}`;
+          if (!isAuthor) {
+            // Delete previously imported PRs user shouldn't see
+            if (existing) await existing.destroy();
+            continue;
+          }
+
+          allOpenIds.push(externalId);
+
+          const prType = 'pr';
+          const prTitle = `PR: ${pr.title}`;
           const projectId = await findProjectForRepo(repoSlug);
 
           const data = {
@@ -180,19 +178,15 @@ async function syncBitbucket() {
       }
     }
 
-    // Mark merged/closed PRs as done
-    if (allOpenIds.length > 0) {
-      const stale = await WorkItem.findAll({
-        where: {
-          externalSource: 'bitbucket',
-          status: { [require('sequelize').Op.ne]: 'done' },
-          externalId: { [require('sequelize').Op.notIn]: allOpenIds },
-        },
-      });
-      for (const item of stale) {
-        await item.update({ status: 'done', completedAt: new Date() });
-      }
-    }
+    // Delete BB items that are no longer open PRs you authored
+    const deleted = await WorkItem.destroy({
+      where: {
+        externalSource: 'bitbucket',
+        ...(allOpenIds.length > 0
+          ? { externalId: { [require('sequelize').Op.notIn]: allOpenIds } }
+          : {}),
+      },
+    });
 
     await integrationConfig.update({
       lastSyncAt: new Date(),
@@ -203,6 +197,7 @@ async function syncBitbucket() {
       success: true,
       created,
       updated,
+      deleted,
       repos: repoList.length,
       user: currentUser?.displayName || 'workspace token',
       errors: errors.length > 0 ? errors : undefined,
