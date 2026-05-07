@@ -11,6 +11,8 @@ module.exports = (sequelize) => {
       lastSyncAt: { type: DataTypes.DATE, allowNull: true },
       lastSyncStatus: { type: DataTypes.STRING(20), allowNull: true },
       syncIntervalMinutes: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 30 },
+      tokenExpiresAt: { type: DataTypes.DATE, allowNull: true },
+      tokenLabel: { type: DataTypes.STRING(100), allowNull: true },
     },
     { tableName: 'integration_configs', timestamps: true }
   );

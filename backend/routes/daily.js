@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
-const { WorkItem, Project, ContextSnapshot, CachedEvent } = require('../database/models');
+const { WorkItem, Project, ContextSnapshot, CachedEvent, IntegrationConfig } = require('../database/models');
 
 const router = Router();
 
@@ -102,7 +102,49 @@ router.get('/:date', async (req, res) => {
     snapshot,
     inbox: { count: inboxCount, recent: inboxRecent },
     done: { today: doneToday, yesterday: doneYesterday },
+    alerts: await getAlerts(),
   });
 });
+
+async function getAlerts() {
+  const alerts = [];
+  const now = new Date();
+  const sevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const fourteenDays = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+  const configs = await IntegrationConfig.findAll({
+    where: { enabled: true, tokenExpiresAt: { [Op.ne]: null } },
+  });
+
+  for (const config of configs) {
+    const expires = new Date(config.tokenExpiresAt);
+    if (expires <= now) {
+      alerts.push({
+        type: 'error',
+        provider: config.provider,
+        label: config.tokenLabel || config.provider,
+        message: `${config.tokenLabel || config.provider} token has expired. Renew it in Settings.`,
+      });
+    } else if (expires <= sevenDays) {
+      const days = Math.ceil((expires - now) / (24 * 60 * 60 * 1000));
+      alerts.push({
+        type: 'warning',
+        provider: config.provider,
+        label: config.tokenLabel || config.provider,
+        message: `${config.tokenLabel || config.provider} token expires in ${days} day${days !== 1 ? 's' : ''}. Renew it in Settings.`,
+      });
+    } else if (expires <= fourteenDays) {
+      const days = Math.ceil((expires - now) / (24 * 60 * 60 * 1000));
+      alerts.push({
+        type: 'info',
+        provider: config.provider,
+        label: config.tokenLabel || config.provider,
+        message: `${config.tokenLabel || config.provider} token expires in ${days} days.`,
+      });
+    }
+  }
+
+  return alerts;
+}
 
 module.exports = router;

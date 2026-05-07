@@ -13,6 +13,7 @@ import WhatshotIcon from '@mui/icons-material/Whatshot';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import Alert from '@mui/material/Alert';
 import { useDaily } from '../api/daily';
 import { useUpdateWorkItemStatus } from '../api/workItems';
 
@@ -78,6 +79,17 @@ export default function DailyFocus() {
 
   return (
     <Box sx={{ maxWidth: 700 }}>
+      {/* Token expiry alerts */}
+      {data.alerts?.length > 0 && (
+        <Stack spacing={1} sx={{ mb: 2 }}>
+          {data.alerts.map((alert, i) => (
+            <Alert key={i} severity={alert.type === 'error' ? 'error' : alert.type === 'warning' ? 'warning' : 'info'}>
+              {alert.message}
+            </Alert>
+          ))}
+        </Stack>
+      )}
+
       {/* Day header */}
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: '16px !important' }}>

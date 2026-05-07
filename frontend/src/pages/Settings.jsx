@@ -152,7 +152,8 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
   const syncIntegration = useSyncIntegration();
   const [configOpen, setConfigOpen] = useState(false);
   const [form, setForm] = useState({});
-  const [syncResult, setSyncResult] = useState(null);
+  const [tokenExpiresAt, setTokenExpiresAt] = useState('');
+  const [tokenLabel, setTokenLabel] = useState('');
 
   const integration = integrations.find((i) => i.provider === provider);
   const isConfigured = integration?.config?.configured;
@@ -161,11 +162,12 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
   const lastStatus = integration?.lastSyncStatus;
 
   const openConfig = () => {
-    // Pre-fill from existing safe config summary
     const existing = integration?.config || {};
     const initial = {};
     fields.forEach((f) => { initial[f.key] = existing[f.key] || ''; });
     setForm(initial);
+    setTokenExpiresAt(integration?.tokenExpiresAt ? integration.tokenExpiresAt.split('T')[0] : '');
+    setTokenLabel(integration?.tokenLabel || '');
     setConfigOpen(true);
   };
 
@@ -174,6 +176,8 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
       provider,
       config: form,
       enabled: true,
+      tokenExpiresAt: tokenExpiresAt || null,
+      tokenLabel: tokenLabel || null,
     });
     setConfigOpen(false);
   };
@@ -277,6 +281,25 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
               helperText={field.helper}
             />
           ))}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Token expiry date"
+              type="date"
+              value={tokenExpiresAt}
+              onChange={(e) => setTokenExpiresAt(e.target.value)}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+              helperText="We'll remind you before it expires"
+            />
+            <TextField
+              label="Token label"
+              value={tokenLabel}
+              onChange={(e) => setTokenLabel(e.target.value)}
+              fullWidth
+              placeholder={`e.g. ${label} API Token`}
+              helperText="Name to show in reminders"
+            />
+          </Stack>
           {isConfigured && (
             <FormControlLabel
               control={<Switch checked={isEnabled} onChange={handleToggle} />}
