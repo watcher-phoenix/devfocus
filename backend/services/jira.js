@@ -112,7 +112,7 @@ async function syncJira() {
 }
 
 function mapJiraStatusToDone(statusName) {
-  const doneStatuses = ['done', 'closed', 'resolved', 'ready for release', 'post release validation'];
+  const doneStatuses = ['done', 'closed', 'resolved', 'ready for release', 'post release validation', 'pass', 'fail'];
   return doneStatuses.includes(statusName.toLowerCase());
 }
 
