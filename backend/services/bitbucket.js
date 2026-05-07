@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 const axios = require('axios');
-const { WorkItem, IntegrationConfig } = require('../database/models');
+const { WorkItem, IntegrationConfig, Project } = require('../database/models');
 
 const BB_API = 'https://api.bitbucket.org/2.0';
 
@@ -42,6 +42,17 @@ async function getCurrentUser(headers) {
     console.error('[bitbucket] Could not fetch current user:', err.response?.data || err.message);
     return null;
   }
+}
+
+// Match a repo slug to a project by checking repoSlug field (supports comma-separated)
+async function findProjectForRepo(repoSlug) {
+  const projects = await Project.findAll({ where: { archived: false } });
+  for (const project of projects) {
+    if (!project.repoSlug) continue;
+    const slugs = project.repoSlug.split(',').map((s) => s.trim().toLowerCase());
+    if (slugs.includes(repoSlug.toLowerCase())) return project.id;
+  }
+  return null;
 }
 
 async function syncBitbucket() {
@@ -125,6 +136,7 @@ async function syncBitbucket() {
 
           const prType = isReviewer && !isAuthor ? 'review' : 'pr';
           const prTitle = isReviewer && !isAuthor ? `Review: ${pr.title}` : `PR: ${pr.title}`;
+          const projectId = await findProjectForRepo(repoSlug);
 
           const data = {
             title: prTitle,
@@ -133,10 +145,11 @@ async function syncBitbucket() {
             externalSource: 'bitbucket',
             type: prType,
             priority: prType === 'review' ? 2 : 1,
+            projectId,
           };
 
           if (existing) {
-            await existing.update({ title: data.title });
+            await existing.update({ title: data.title, projectId: projectId || existing.projectId });
             updated++;
           } else {
             await WorkItem.create({ ...data, status: prType === 'review' ? 'inbox' : 'active' });
