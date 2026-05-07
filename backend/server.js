@@ -77,6 +77,22 @@ async function start() {
     await sequelize.query('PRAGMA foreign_keys = ON;');
   }
   console.log('Database synced.');
+
+  // One-time fix: correct items with 17:00 completedAt to 12:00
+  try {
+    const { WorkItem } = require('./database/models');
+    const bad = await WorkItem.findAll({
+      where: { status: 'done', completedAt: { [require('sequelize').Op.ne]: null } },
+    });
+    for (const item of bad) {
+      const d = new Date(item.completedAt);
+      if (d.getHours() === 17 && d.getMinutes() === 0 && d.getSeconds() === 0) {
+        d.setHours(12);
+        await item.update({ completedAt: d });
+      }
+    }
+  } catch { /* */ }
+
   initScheduler();
   app.listen(PORT, () => console.log(`DevFocus API running on port ${PORT}`));
 }

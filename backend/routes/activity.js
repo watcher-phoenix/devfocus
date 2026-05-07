@@ -81,7 +81,7 @@ router.post('/log', async (req, res) => {
   } = req.body;
   if (!title || !title.trim()) return res.status(400).json({ error: 'Title required' });
 
-  const completedAt = date ? new Date(date + 'T17:00:00') : new Date();
+  const completedAt = date ? new Date(date + 'T12:00:00') : new Date();
 
   const item = await WorkItem.create({
     title: title.trim(),
