@@ -254,8 +254,15 @@ export default function WeeklyPlanner() {
           : 510;
 
         const suggestions = [];
-        const highPriority = unscheduled.filter((i) => i.priority >= 2).slice(0, 3);
-        const quickTasks = unscheduled.filter((i) => i.type === 'review' || i.type === 'followup').slice(0, 3);
+        // All unscheduled sorted by priority (high first), then by type
+        const sorted = [...unscheduled].sort((a, b) => {
+          if (b.priority !== a.priority) return b.priority - a.priority;
+          // Reviews and follow-ups are quicker tasks, good for meeting days
+          const quickTypes = ['review', 'followup'];
+          const aQuick = quickTypes.includes(a.type) ? 1 : 0;
+          const bQuick = quickTypes.includes(b.type) ? 1 : 0;
+          return bQuick - aQuick;
+        });
 
         weekDates.forEach((date, di) => {
           const mtgs = weekMeetings[date] || { meetingMinutes: 0 };
@@ -263,12 +270,16 @@ export default function WeeklyPlanner() {
           const scheduled = (itemsByDate[date] || []).length;
           const isPast = date < dayjs().format('YYYY-MM-DD');
 
-          if (isPast || scheduled >= 5) return;
+          if (isPast || sorted.length === 0) return;
 
-          if (focusMins >= 240 && highPriority.length > 0) {
-            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: highPriority, reason: 'Focus day — schedule deep work' });
-          } else if (focusMins < 120 && focusMins > 0 && quickTasks.length > 0) {
-            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: quickTasks, reason: 'Light gaps — fit in quick tasks' });
+          if (focusMins >= 240) {
+            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: sorted.slice(0, 5), reason: 'Focus day — schedule deep work' });
+          } else if (focusMins >= 120) {
+            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: sorted.slice(0, 3), reason: 'Some focus time — fit in a few tasks' });
+          } else if (focusMins > 0) {
+            const quickItems = sorted.filter((i) => ['review', 'followup', 'pr'].includes(i.type)).slice(0, 3);
+            const fallback = quickItems.length > 0 ? quickItems : sorted.slice(0, 2);
+            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: fallback, reason: 'Light gaps — quick tasks only' });
           }
         });
 
