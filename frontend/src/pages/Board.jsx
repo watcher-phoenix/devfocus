@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
@@ -16,6 +18,7 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
+import Checkbox from '@mui/material/Checkbox';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useWorkItems, useUpdateWorkItemStatus, useDeleteWorkItem } from '../api/workItems';
@@ -30,6 +33,7 @@ const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'waiting', label: 'Waiting' },
   { value: 'later', label: 'Later' },
+  { value: 'scheduled', label: 'Scheduled' },
   { value: 'done', label: 'Done' },
 ];
 
@@ -38,6 +42,7 @@ const STATUS_COLORS = {
   active: '#7C4DFF',
   waiting: '#FFD600',
   later: '#03A9F4',
+  scheduled: '#AB47BC',
   done: '#00C853',
 };
 
@@ -62,8 +67,36 @@ export default function Board() {
   const [sortDir, setSortDir] = useState('desc');
   const [editItem, setEditItem] = useState(null);
   const [newItemOpen, setNewItemOpen] = useState(false);
+  const [selected, setSelected] = useState(new Set());
 
-  const { data: items = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,done' });
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((i) => i.id)));
+    }
+  };
+
+  const bulkUpdateStatus = (status) => {
+    selected.forEach((id) => updateStatus.mutate({ id, status }));
+    setSelected(new Set());
+  };
+
+  const bulkDelete = () => {
+    selected.forEach((id) => deleteItem.mutate(id));
+    setSelected(new Set());
+  };
+
+  const { data: items = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,scheduled,done' });
   const { data: projects = [] } = useProjects();
   const updateStatus = useUpdateWorkItemStatus();
   const deleteItem = useDeleteWorkItem();
@@ -93,7 +126,7 @@ export default function Board() {
       if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [items, projectFilter, sortField, sortDir]);
+  }, [items, statusFilter, typeFilter, projectFilter, sortField, sortDir]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -152,11 +185,36 @@ export default function Board() {
         </Typography>
       </Stack>
 
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <Card sx={{ mb: 2, bgcolor: 'primary.main', backgroundImage: 'none' }}>
+          <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: '8px !important', '&:last-child': { pb: '8px !important' } }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {selected.size} selected
+            </Typography>
+            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }} onClick={() => bulkUpdateStatus('active')}>Active</Button>
+            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }} onClick={() => bulkUpdateStatus('done')}>Done</Button>
+            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }} onClick={() => bulkUpdateStatus('later')}>Later</Button>
+            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }} onClick={() => bulkUpdateStatus('archived')}>Archive</Button>
+            <Button size="small" variant="outlined" sx={{ color: '#FF5252', borderColor: '#FF5252' }} onClick={bulkDelete}>Delete</Button>
+            <Button size="small" sx={{ color: 'white', ml: 'auto' }} onClick={() => setSelected(new Set())}>Cancel</Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Table */}
       <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
+              <TableCell padding="checkbox" sx={{ width: 40 }}>
+                <Checkbox
+                  size="small"
+                  checked={filtered.length > 0 && selected.size === filtered.length}
+                  indeterminate={selected.size > 0 && selected.size < filtered.length}
+                  onChange={toggleSelectAll}
+                />
+              </TableCell>
               <TableCell sx={{ fontWeight: 600, width: 80 }}>
                 <TableSortLabel active={sortField === 'status'} direction={sortField === 'status' ? sortDir : 'asc'} onClick={() => handleSort('status')}>
                   Status
@@ -189,6 +247,14 @@ export default function Board() {
                 sx={{ cursor: 'pointer', '&:last-child td': { borderBottom: 0 } }}
                 onClick={() => setEditItem(item)}
               >
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    size="small"
+                    checked={selected.has(item.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleSelect(item.id)}
+                  />
+                </TableCell>
                 <TableCell>
                   <Select
                     value={item.status}
@@ -253,7 +319,7 @@ export default function Board() {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} sx={{ textAlign: 'center', py: 4 }}>
+                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
                   <Typography variant="body2" color="text.secondary">
                     {statusFilter === 'all' ? 'No items yet. Use "New Item" or Ctrl+K to add one.' : 'No items with this filter.'}
                   </Typography>

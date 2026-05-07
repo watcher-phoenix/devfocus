@@ -51,6 +51,8 @@ async function syncJira() {
       });
 
       const jiraPriority = mapJiraPriority(issue.fields.priority?.name);
+      const jiraStatus = (issue.fields.status?.name || '').toLowerCase();
+      const isDone = mapJiraStatusToDone(jiraStatus);
       const issueType = issue.fields.issuetype?.name || '';
       const parent = issue.fields.parent;
       const parentPrefix = parent ? `${parent.key}: ${parent.fields?.summary} > ` : '';
@@ -71,17 +73,23 @@ async function syncJira() {
       };
 
       if (existing) {
-        // Update title, description, priority but don't reset user's scheduling/status choices
-        await existing.update({
+        const updates = {
           title: data.title,
           description: data.description,
           priority: jiraPriority,
-        });
+        };
+        // Auto-mark as done if Jira status is a "done" status
+        if (isDone && existing.status !== 'done') {
+          updates.status = 'done';
+          updates.completedAt = new Date();
+        }
+        await existing.update(updates);
         updated++;
       } else {
         await WorkItem.create({
           ...data,
-          status: 'inbox',
+          status: isDone ? 'done' : 'inbox',
+          completedAt: isDone ? new Date() : null,
         });
         created++;
       }
@@ -101,6 +109,11 @@ async function syncJira() {
     });
     return { success: false, error: err.response?.data?.errorMessages?.[0] || err.message };
   }
+}
+
+function mapJiraStatusToDone(statusName) {
+  const doneStatuses = ['done', 'closed', 'resolved', 'ready for release', 'post release validation'];
+  return doneStatuses.includes(statusName.toLowerCase());
 }
 
 function mapJiraPriority(jiraPriorityName) {

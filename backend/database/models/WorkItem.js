@@ -12,7 +12,7 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(20),
         allowNull: false,
         defaultValue: 'inbox',
-        validate: { isIn: [['inbox', 'active', 'waiting', 'later', 'done', 'archived']] },
+        validate: { isIn: [['inbox', 'active', 'waiting', 'later', 'scheduled', 'done', 'archived']] },
       },
       priority: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       type: {

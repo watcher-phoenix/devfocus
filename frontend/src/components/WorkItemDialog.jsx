@@ -20,6 +20,7 @@ const STATUSES = [
   { value: 'active', label: 'Active' },
   { value: 'waiting', label: 'Waiting' },
   { value: 'later', label: 'Later' },
+  { value: 'scheduled', label: 'Scheduled' },
   { value: 'done', label: 'Done' },
 ];
 

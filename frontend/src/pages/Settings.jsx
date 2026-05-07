@@ -56,15 +56,19 @@ function ProjectsTab() {
 
   const filtered = showArchived ? projects : projects.filter((p) => !p.archived);
 
+  const usedColors = projects
+    .filter((p) => p.color && (!editId || p.id !== editId))
+    .map((p) => p.color);
+
   const openNew = () => {
     setEditId(null);
-    setForm({ name: '', repoSlug: '', color: '#7C4DFF' });
+    setForm({ name: '', repoSlug: '', color: '' });
     setDialogOpen(true);
   };
 
   const openEdit = (project) => {
     setEditId(project.id);
-    setForm({ name: project.name, repoSlug: project.repoSlug || '', color: project.color || '#7C4DFF' });
+    setForm({ name: project.name, repoSlug: project.repoSlug || '', color: project.color || '' });
     setDialogOpen(true);
   };
 
@@ -133,11 +137,31 @@ function ProjectsTab() {
           <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth autoFocus placeholder="e.g. CRM Backend, Builder Scraper" />
           <TextField label="Repo slugs (optional)" value={form.repoSlug} onChange={(e) => setForm({ ...form, repoSlug: e.target.value })} fullWidth placeholder="e.g. crm-backend-services, land-crm" helperText="Comma-separated if multiple repos belong to this project" />
           <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Color</Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              {PRESET_COLORS.map((c) => (
-                <Box key={c} onClick={() => setForm({ ...form, color: c })} sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: c, cursor: 'pointer', border: form.color === c ? '3px solid white' : '3px solid transparent', '&:hover': { border: '3px solid rgba(255,255,255,0.5)' } }} />
-              ))}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Color (optional)</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Box
+                onClick={() => setForm({ ...form, color: '' })}
+                sx={{ width: 32, height: 32, borderRadius: '50%', border: !form.color ? '3px solid white' : '3px solid rgba(255,255,255,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { border: '3px solid rgba(255,255,255,0.5)' } }}
+              >
+                <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>None</Typography>
+              </Box>
+              {PRESET_COLORS.map((c) => {
+                const isUsed = usedColors.includes(c);
+                return (
+                  <Box
+                    key={c}
+                    onClick={() => setForm({ ...form, color: c })}
+                    sx={{
+                      width: 32, height: 32, borderRadius: '50%', bgcolor: c, cursor: 'pointer',
+                      border: form.color === c ? '3px solid white' : '3px solid transparent',
+                      opacity: isUsed ? 0.35 : 1,
+                      '&:hover': { border: '3px solid rgba(255,255,255,0.5)', opacity: 1 },
+                      position: 'relative',
+                    }}
+                    title={isUsed ? 'Already used by another project' : ''}
+                  />
+                );
+              })}
             </Stack>
           </Box>
         </DialogContent>

@@ -323,7 +323,7 @@ export default function WeeklyPlanner() {
                         <Chip label={item.project.name} size="small" sx={{ mt: 0.5, height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />
                       )}
                     </Box>
-                    <Stack direction="row" spacing={0.5}>
+                    <Stack direction="row" spacing={0.5} alignItems="center">
                       {DAY_LABELS.map((dayLabel, di) => (
                         <Button
                           key={di}
@@ -335,6 +335,18 @@ export default function WeeklyPlanner() {
                           {dayLabel.slice(0, 3)}
                         </Button>
                       ))}
+                      <input
+                        type="date"
+                        onChange={(e) => {
+                          if (e.target.value) updateItem.mutate({ id: item.id, scheduledDate: e.target.value });
+                        }}
+                        style={{
+                          background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
+                          borderRadius: 4, color: '#9AA0A6', padding: '2px 4px', fontSize: '0.7rem',
+                          width: 30, cursor: 'pointer',
+                        }}
+                        title="Pick a date"
+                      />
                     </Stack>
                   </CardContent>
                 </Card>
