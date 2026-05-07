@@ -104,6 +104,58 @@ export default function DailyFocus() {
         </CardContent>
       </Card>
 
+      {/* Meetings */}
+      {data.meetings.events?.length > 0 && (
+        <Card sx={{ mb: 2 }}>
+          <CardContent>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+              <EventIcon sx={{ color: 'warning.main', fontSize: 20 }} />
+              <Typography variant="h6" sx={{ fontSize: '1rem' }}>
+                Today's Meetings
+              </Typography>
+            </Stack>
+            {data.meetings.events.map((event) => {
+              const start = new Date(event.startTime);
+              const end = new Date(event.endTime);
+              const formatTime = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+              const durationMin = Math.round((end - start) / 60000);
+              return (
+                <Box
+                  key={event.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    py: 0.75,
+                    borderLeft: '3px solid',
+                    borderColor: event.allDay ? 'info.main' : 'warning.main',
+                    pl: 1.5,
+                    mb: 0.5,
+                  }}
+                >
+                  <Box sx={{ minWidth: 100 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem' }}>
+                      {event.allDay ? 'All day' : `${formatTime(start)} - ${formatTime(end)}`}
+                    </Typography>
+                    {!event.allDay && (
+                      <Typography variant="caption" color="text.secondary">
+                        {durationMin >= 60 ? `${Math.floor(durationMin / 60)}h ${durationMin % 60}m` : `${durationMin}m`}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2">{event.title}</Typography>
+                    {event.location && (
+                      <Typography variant="caption" color="text.secondary">{event.location}</Typography>
+                    )}
+                  </Box>
+                </Box>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Priorities */}
       <Card sx={{ mb: 2 }}>
         <CardContent>
