@@ -162,6 +162,9 @@ async function syncBitbucket() {
           let prTitle = `PR: ${pr.title}`;
           let status = 'active';
 
+          // Use PR's updated_on as the real completion timestamp
+          const prCompletedAt = pr.updated_on ? new Date(pr.updated_on) : new Date();
+
           if (hasApproved && !isAuthor) {
             prType = 'review';
             prTitle = `Approved: ${pr.title}`;
@@ -186,7 +189,7 @@ async function syncBitbucket() {
             const updates = { title: data.title, projectId: projectId || existing.projectId };
             if (hasApproved && !isAuthor && existing.status !== 'done') {
               updates.status = 'done';
-              updates.completedAt = new Date();
+              updates.completedAt = prCompletedAt;
             }
             await existing.update(updates);
             updated++;
@@ -194,7 +197,7 @@ async function syncBitbucket() {
             await WorkItem.create({
               ...data,
               status,
-              completedAt: status === 'done' ? new Date() : null,
+              completedAt: status === 'done' ? prCompletedAt : null,
             });
             created++;
           }

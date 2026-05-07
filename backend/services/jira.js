@@ -38,7 +38,7 @@ async function syncJira() {
     const response = await axios.post(`${baseUrl}/rest/api/3/search/jql`, {
       jql,
       maxResults: 50,
-      fields: ['summary', 'status', 'priority', 'project', 'issuetype', 'updated', 'parent'],
+      fields: ['summary', 'status', 'priority', 'project', 'issuetype', 'updated', 'parent', 'resolutiondate', 'statuscategorychangedate'],
     }, { headers });
 
     const issues = response.data.issues || [];
@@ -53,6 +53,10 @@ async function syncJira() {
       const jiraPriority = mapJiraPriority(issue.fields.priority?.name);
       const jiraStatus = (issue.fields.status?.name || '').toLowerCase();
       const isDone = mapJiraStatusToDone(jiraStatus);
+      const completionDate = issue.fields.resolutiondate
+        || issue.fields.statuscategorychangedate
+        || issue.fields.updated
+        || new Date().toISOString();
       const issueType = issue.fields.issuetype?.name || '';
       const parent = issue.fields.parent;
       const parentPrefix = parent ? `${parent.key}: ${parent.fields?.summary} > ` : '';
@@ -81,7 +85,7 @@ async function syncJira() {
         // Auto-mark as done if Jira status is a "done" status
         if (isDone && existing.status !== 'done') {
           updates.status = 'done';
-          updates.completedAt = new Date();
+          updates.completedAt = new Date(completionDate);
         }
         await existing.update(updates);
         updated++;
@@ -89,7 +93,7 @@ async function syncJira() {
         await WorkItem.create({
           ...data,
           status: isDone ? 'done' : 'inbox',
-          completedAt: isDone ? new Date() : null,
+          completedAt: isDone ? new Date(completionDate) : null,
         });
         created++;
       }
