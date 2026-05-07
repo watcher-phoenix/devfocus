@@ -25,26 +25,38 @@ async function syncJira() {
   };
 
   try {
-    // Build JQL — assigned to current user, exclude all done-equivalent statuses
-    const excludeStatuses = ['Done', 'Ready for Release', 'Post Release Validation', 'Pass', 'Fail']
-      .map((s) => `"${s}"`).join(', ');
-    const statusFilter = `status NOT IN (${excludeStatuses})`;
-    let jql = `assignee = currentUser() AND ${statusFilter} ORDER BY updated DESC`;
+    // Two queries:
+    // 1. Active tickets (not done) — to track current work
+    // 2. Recently completed tickets (last 14 days) — to capture completions with real dates
+    const doneStatuses = ['Done', 'Ready for Release', 'Post Release Validation', 'Pass', 'Fail'];
+    const doneFilter = doneStatuses.map((s) => `"${s}"`).join(', ');
+    const notDoneFilter = `status NOT IN (${doneFilter})`;
+    const recentDoneFilter = `status IN (${doneFilter}) AND updated >= -14d`;
+
+    let activeJql = `assignee = currentUser() AND ${notDoneFilter} ORDER BY updated DESC`;
+    let doneJql = `assignee = currentUser() AND ${recentDoneFilter} ORDER BY updated DESC`;
     if (projectKeys) {
       const keys = projectKeys.split(',').map((k) => k.trim()).filter(Boolean);
       if (keys.length > 0) {
         const projectFilter = keys.map((k) => `project = "${k}"`).join(' OR ');
-        jql = `(${projectFilter}) AND assignee = currentUser() AND ${statusFilter} ORDER BY updated DESC`;
+        activeJql = `(${projectFilter}) AND assignee = currentUser() AND ${notDoneFilter} ORDER BY updated DESC`;
+        doneJql = `(${projectFilter}) AND assignee = currentUser() AND ${recentDoneFilter} ORDER BY updated DESC`;
       }
     }
 
-    const response = await axios.post(`${baseUrl}/rest/api/3/search/jql`, {
-      jql,
-      maxResults: 50,
-      fields: ['summary', 'status', 'priority', 'project', 'issuetype', 'updated', 'parent', 'resolutiondate', 'statuscategorychangedate'],
-    }, { headers });
+    const jiraFields = ['summary', 'status', 'priority', 'project', 'issuetype', 'updated', 'parent', 'resolutiondate', 'statuscategorychangedate'];
 
-    const issues = response.data.issues || [];
+    const [activeResponse, doneResponse] = await Promise.all([
+      axios.post(`${baseUrl}/rest/api/3/search/jql`, { jql: activeJql, maxResults: 50, fields: jiraFields }, { headers }),
+      axios.post(`${baseUrl}/rest/api/3/search/jql`, { jql: doneJql, maxResults: 50, fields: jiraFields }, { headers }),
+    ]);
+
+    // Merge and dedupe
+    const issueMap = new Map();
+    for (const issue of (activeResponse.data.issues || [])) issueMap.set(issue.key, issue);
+    for (const issue of (doneResponse.data.issues || [])) issueMap.set(issue.key, issue);
+    const issues = Array.from(issueMap.values());
+
     let created = 0;
     let updated = 0;
 
