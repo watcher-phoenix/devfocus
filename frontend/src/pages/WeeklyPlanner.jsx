@@ -4,6 +4,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
+import TextField from '@mui/material/TextField';
 import dayjs from 'dayjs';
 import EventIcon from '@mui/icons-material/Event';
 import CodeIcon from '@mui/icons-material/Code';
@@ -323,7 +324,7 @@ export default function WeeklyPlanner() {
                         <Chip label={item.project.name} size="small" sx={{ mt: 0.5, height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />
                       )}
                     </Box>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
                       {DAY_LABELS.map((dayLabel, di) => (
                         <Button
                           key={di}
@@ -335,17 +336,18 @@ export default function WeeklyPlanner() {
                           {dayLabel.slice(0, 3)}
                         </Button>
                       ))}
-                      <input
+                      <TextField
                         type="date"
+                        size="small"
                         onChange={(e) => {
                           if (e.target.value) updateItem.mutate({ id: item.id, scheduledDate: e.target.value });
                         }}
-                        style={{
-                          background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
-                          borderRadius: 4, color: '#9AA0A6', padding: '2px 4px', fontSize: '0.7rem',
-                          width: 30, cursor: 'pointer',
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        sx={{
+                          width: 140,
+                          '& .MuiInputBase-input': { fontSize: '0.75rem', py: 0.5, px: 1 },
                         }}
-                        title="Pick a date"
+                        label="Other date"
                       />
                     </Stack>
                   </CardContent>
