@@ -63,19 +63,21 @@ export default function Board() {
   const [editItem, setEditItem] = useState(null);
   const [newItemOpen, setNewItemOpen] = useState(false);
 
-  const statuses = statusFilter === 'all' ? 'inbox,active,waiting,later,done' : statusFilter;
-  const { data: items = [] } = useWorkItems({ statuses });
+  const { data: items = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,done' });
   const { data: projects = [] } = useProjects();
   const updateStatus = useUpdateWorkItemStatus();
   const deleteItem = useDeleteWorkItem();
 
   const filtered = useMemo(() => {
     let result = items;
+    if (statusFilter !== 'all') {
+      result = result.filter((i) => i.status === statusFilter);
+    }
     if (typeFilter !== 'all') {
       result = result.filter((i) => i.type === typeFilter);
     }
     if (projectFilter !== 'all') {
-      result = result.filter((i) => String(i.projectId) === String(projectFilter));
+      result = result.filter((i) => i.projectId && String(i.projectId) === String(projectFilter));
     }
     return result.sort((a, b) => {
       let aVal, bVal;

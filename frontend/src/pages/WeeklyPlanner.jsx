@@ -243,6 +243,7 @@ export default function WeeklyPlanner() {
         </Box>
       </Box>
 
+      {/* Week calendar — full width, 5 columns */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -253,9 +254,10 @@ export default function WeeklyPlanner() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'repeat(5, 1fr) 200px' },
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' },
               gap: 2,
               alignItems: 'flex-start',
+              mb: 3,
             }}
           >
             {DAYS.map((day, i) => {
@@ -267,23 +269,9 @@ export default function WeeklyPlanner() {
 
               return (
                 <Box key={day}>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      mb: 1,
-                      px: 0.5,
-                    }}
-                  >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, px: 0.5 }}>
                     <Box>
-                      <Typography
-                        variant="subtitle2"
-                        sx={{
-                          fontWeight: 600,
-                          color: isToday ? 'primary.main' : 'text.primary',
-                        }}
-                      >
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: isToday ? 'primary.main' : 'text.primary' }}>
                         {DAY_LABELS[i]}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -305,56 +293,61 @@ export default function WeeklyPlanner() {
                       <DraggableCard key={item.id} item={item} />
                     ))}
                     {dayItems.length === 0 && (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: 'block', textAlign: 'center', py: 3, opacity: 0.6 }}
-                      >
-                        Drop items here
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', py: 3, opacity: 0.6 }}>
+                        Drop here
                       </Typography>
                     )}
                   </DroppableDay>
                 </Box>
               );
             })}
-
-            {/* Unscheduled sidebar */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, px: 0.5 }}>
-                Unscheduled
-              </Typography>
-              <DroppableDay dayId="unscheduled">
-                <Box sx={{ maxHeight: 500, overflow: 'auto' }}>
-                  {unscheduled.slice(0, 15).map((item) => (
-                    <DraggableCard key={item.id} item={item} />
-                  ))}
-                  {unscheduled.length > 15 && (
-                    <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
-                      +{unscheduled.length - 15} more
-                    </Typography>
-                  )}
-                  {unscheduled.length === 0 && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: 'block', textAlign: 'center', py: 3 }}
-                    >
-                      All scheduled
-                    </Typography>
-                  )}
-                </Box>
-              </DroppableDay>
-            </Box>
           </Box>
         </SortableContext>
 
+        {/* Unscheduled items — list below calendar */}
+        {unscheduled.length > 0 && (
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
+              Unscheduled ({unscheduled.length})
+            </Typography>
+            <SortableContext items={allSortableIds} strategy={verticalListSortingStrategy}>
+              {unscheduled.map((item) => (
+                <Card
+                  key={item.id}
+                  sx={{ mb: 1, '&:hover': { borderColor: 'rgba(255,255,255,0.15)' } }}
+                >
+                  <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: '8px !important', '&:last-child': { pb: '8px !important' } }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>{item.title}</Typography>
+                      {item.project && (
+                        <Chip label={item.project.name} size="small" sx={{ mt: 0.5, height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />
+                      )}
+                    </Box>
+                    <Stack direction="row" spacing={0.5}>
+                      {DAY_LABELS.map((dayLabel, di) => (
+                        <Button
+                          key={di}
+                          size="small"
+                          variant="outlined"
+                          onClick={() => updateItem.mutate({ id: item.id, scheduledDate: weekDates[di] })}
+                          sx={{ minWidth: 36, px: 0.5, fontSize: '0.65rem', py: 0.25 }}
+                        >
+                          {dayLabel.slice(0, 3)}
+                        </Button>
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </SortableContext>
+          </Box>
+        )}
+
         <DragOverlay>
           {activeItem ? (
-            <Card sx={{ width: 180, opacity: 0.9 }}>
+            <Card sx={{ width: 250, opacity: 0.9 }}>
               <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px !important' } }}>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                  {activeItem.title}
-                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>{activeItem.title}</Typography>
               </CardContent>
             </Card>
           ) : null}

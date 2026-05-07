@@ -14,6 +14,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import TodayIcon from '@mui/icons-material/Today';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import SettingsIcon from '@mui/icons-material/Settings';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import AddIcon from '@mui/icons-material/Add';
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { label: 'Today', path: '/', icon: <TodayIcon /> },
   { label: 'Work', path: '/work', icon: <ViewKanbanIcon /> },
   { label: 'Plan', path: '/plan', icon: <CalendarMonthIcon /> },
+  { label: 'Trends', path: '/trends', icon: <TrendingUpIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];
 
