@@ -59,6 +59,16 @@ app.use((err, req, res, _next) => {
 const PORT = process.env.DEVFOCUS_PORT || 3001;
 
 async function start() {
+  // Drop stale backup tables from previous alter attempts, then sync
+  try {
+    const qi = sequelize.getQueryInterface();
+    const tables = await qi.showAllTables();
+    for (const table of tables) {
+      if (table.endsWith('_backup')) {
+        await qi.dropTable(table);
+      }
+    }
+  } catch { /* ignore */ }
   await sequelize.sync({ alter: true });
   console.log('Database synced.');
   initScheduler();
