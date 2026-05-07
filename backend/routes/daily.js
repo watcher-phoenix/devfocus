@@ -97,8 +97,8 @@ router.get('/:date', async (req, res) => {
   } catch { /* use default */ }
 
   const isExcluded = (title) => {
-    const lower = (title || '').toLowerCase();
-    return excludeKeywords.some((kw) => kw && lower.includes(kw));
+    const lower = (title || '').trim().toLowerCase();
+    return excludeKeywords.some((kw) => kw && lower === kw.toLowerCase());
   };
 
   const meetingEvents = events.filter((e) => !e.allDay && !isExcluded(e.title));
@@ -144,7 +144,7 @@ router.get('/week-meetings/:weekStart', async (req, res) => {
         excludeKw = s.meetingExcludeKeywords.split(',').map((k) => k.trim().toLowerCase());
       }
     } catch { /* use defaults */ }
-    const isExcl = (title) => excludeKw.some((kw) => kw && (title || '').toLowerCase().includes(kw));
+    const isExcl = (title) => excludeKw.some((kw) => kw && (title || '').trim().toLowerCase() === kw.toLowerCase());
 
     const days = {};
     for (let i = 0; i < 5; i++) {
