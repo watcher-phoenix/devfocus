@@ -6,6 +6,7 @@ const ContextSnapshot = require('./ContextSnapshot')(sequelize);
 const WeekPlan = require('./WeekPlan')(sequelize);
 const IntegrationConfig = require('./IntegrationConfig')(sequelize);
 const CachedEvent = require('./CachedEvent')(sequelize);
+const UserSettings = require('./UserSettings')(sequelize);
 
 // Associations
 Project.hasMany(WorkItem, { foreignKey: 'projectId', as: 'workItems' });
@@ -22,4 +23,5 @@ module.exports = {
   WeekPlan,
   IntegrationConfig,
   CachedEvent,
+  UserSettings,
 };

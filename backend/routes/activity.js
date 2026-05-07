@@ -1,14 +1,15 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
-const { WorkItem, Project, sequelize } = require('../database/models');
+const { WorkItem, Project, CachedEvent } = require('../database/models');
 
 const router = Router();
 
-// Get completed items grouped by date
+// Get completed items + meetings grouped by date
 router.get('/', async (req, res) => {
   const { days = 14 } = req.query;
   const since = new Date();
   since.setDate(since.getDate() - parseInt(days));
+  const sinceDate = since.toISOString().split('T')[0];
 
   const items = await WorkItem.findAll({
     where: {
@@ -19,17 +20,57 @@ router.get('/', async (req, res) => {
     order: [['completedAt', 'DESC']],
   });
 
+  // Fetch meetings from the same period
+  const meetings = await CachedEvent.findAll({
+    where: {
+      date: { [Op.gte]: sinceDate },
+      allDay: false,
+    },
+    order: [['startTime', 'ASC']],
+  });
+
   // Group by date
   const grouped = {};
+
   items.forEach((item) => {
     const date = item.completedAt
       ? new Date(item.completedAt).toISOString().split('T')[0]
       : 'unknown';
     if (!grouped[date]) grouped[date] = [];
-    grouped[date].push(item);
+    grouped[date].push(item.toJSON());
   });
 
-  res.json({ items, grouped, totalCount: items.length });
+  meetings.forEach((event) => {
+    const { date } = event;
+    if (!grouped[date]) grouped[date] = [];
+    const durationMin = Math.round(
+      (new Date(event.endTime) - new Date(event.startTime)) / 60000
+    );
+    grouped[date].push({
+      id: `meeting-${event.id}`,
+      title: event.title,
+      type: 'meeting',
+      isMeeting: true,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      duration: durationMin,
+      location: event.location,
+      completedAt: event.startTime,
+      date,
+    });
+  });
+
+  // Sort each day's items by completedAt/startTime
+  Object.keys(grouped).forEach((date) => {
+    grouped[date].sort((a, b) => {
+      const aTime = new Date(a.completedAt || a.startTime || 0);
+      const bTime = new Date(b.completedAt || b.startTime || 0);
+      return aTime - bTime;
+    });
+  });
+
+  const totalCount = items.length + meetings.length;
+  res.json({ items, grouped, totalCount });
 });
 
 // Quick log — record something you already finished

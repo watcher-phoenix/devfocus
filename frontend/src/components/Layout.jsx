@@ -12,27 +12,27 @@ import ListItemText from '@mui/material/ListItemText';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import TodayIcon from '@mui/icons-material/Today';
-import PsychologyIcon from '@mui/icons-material/Psychology';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import BookmarkIcon from '@mui/icons-material/Bookmark';
-import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import SettingsIcon from '@mui/icons-material/Settings';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import AddIcon from '@mui/icons-material/Add';
 import Fab from '@mui/material/Fab';
 import Tooltip from '@mui/material/Tooltip';
+import Divider from '@mui/material/Divider';
 import QuickCapture from './QuickCapture';
 
 const DRAWER_WIDTH = 240;
 
 const NAV_ITEMS = [
   { label: 'Today', path: '/', icon: <TodayIcon /> },
-  { label: 'Brain Dump', path: '/braindump', icon: <PsychologyIcon /> },
-  { label: 'Board', path: '/board', icon: <ViewKanbanIcon /> },
-  { label: 'Week', path: '/week', icon: <CalendarMonthIcon /> },
-  { label: 'Snapshots', path: '/snapshots', icon: <BookmarkIcon /> },
-  { label: 'Activity', path: '/activity', icon: <TaskAltIcon /> },
+  { label: 'Work', path: '/work', icon: <ViewKanbanIcon /> },
+  { label: 'Plan', path: '/plan', icon: <CalendarMonthIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
+];
+
+const SECONDARY_NAV = [
+  { label: 'Guide', path: '/guide', icon: <HelpOutlineIcon /> },
 ];
 
 export default function Layout() {
@@ -73,6 +73,23 @@ export default function Layout() {
           >
             <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
             <ListItemText primary={item.label} />
+          </ListItemButton>
+        ))}
+      </List>
+      <Divider sx={{ mx: 2, my: 1 }} />
+      <List>
+        {SECONDARY_NAV.map((item) => (
+          <ListItemButton
+            key={item.path}
+            selected={location.pathname === item.path}
+            onClick={() => {
+              navigate(item.path);
+              setMobileOpen(false);
+            }}
+            sx={{ mx: 1, borderRadius: 2, mb: 0.5 }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+            <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: '0.9rem' }} />
           </ListItemButton>
         ))}
       </List>

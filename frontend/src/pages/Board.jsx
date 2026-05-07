@@ -24,6 +24,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useWorkItems, useUpdateWorkItemStatus, useDeleteWorkItem } from '../api/workItems';
 import WorkItemDialog from '../components/WorkItemDialog';
 import NewWorkItemDialog from '../components/NewWorkItemDialog';
+import ContextualHint from '../components/ContextualHint';
 
 const COLUMNS = [
   { key: 'inbox', label: 'Brain Dump', color: '#9AA0A6' },
@@ -256,8 +257,13 @@ export default function Board() {
 
   return (
     <Box>
+      <ContextualHint hintId="work">
+        Drag items between columns to organize your work. Brain Dump is your inbox — anything
+        captured with Ctrl+K lands here. Move items to Active when you're working on them,
+        Waiting when blocked, Later to defer, or Done when finished.
+      </ContextualHint>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5">Board</Typography>
+        <Typography variant="h5">Work</Typography>
         <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setNewItemOpen(true)}>
           New Item
         </Button>

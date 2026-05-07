@@ -5,12 +5,10 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Layout from './components/Layout';
 
 const DailyFocus = lazy(() => import('./pages/DailyFocus'));
-const BrainDump = lazy(() => import('./pages/BrainDump'));
 const Board = lazy(() => import('./pages/Board'));
 const WeeklyPlanner = lazy(() => import('./pages/WeeklyPlanner'));
-const ContextSnapshots = lazy(() => import('./pages/ContextSnapshots'));
-const Activity = lazy(() => import('./pages/Activity'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Guide = lazy(() => import('./pages/Guide'));
 const Login = lazy(() => import('./pages/Login'));
 
 function PageLoader() {
@@ -29,12 +27,10 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route element={<Layout />}>
             <Route path="/" element={<DailyFocus />} />
-            <Route path="/braindump" element={<BrainDump />} />
-            <Route path="/board" element={<Board />} />
-            <Route path="/week" element={<WeeklyPlanner />} />
-            <Route path="/snapshots" element={<ContextSnapshots />} />
-            <Route path="/activity" element={<Activity />} />
+            <Route path="/work" element={<Board />} />
+            <Route path="/plan" element={<WeeklyPlanner />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/guide" element={<Guide />} />
           </Route>
         </Routes>
       </Suspense>

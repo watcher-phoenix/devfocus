@@ -10,6 +10,13 @@ import CodeIcon from '@mui/icons-material/Code';
 import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import Stack from '@mui/material/Stack';
+import AddIcon from '@mui/icons-material/Add';
+import ContextualHint from '../components/ContextualHint';
+import SnapshotDialog from '../components/SnapshotDialog';
+import { useSnapshots } from '../api/snapshots';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import {
   DndContext,
@@ -93,6 +100,7 @@ function DroppableDay({ dayId, children }) {
 }
 
 export default function WeeklyPlanner() {
+  const [tab, setTab] = useState(0);
   const [weekOffset, setWeekOffset] = useState(0);
   const currentWeekStart = useMemo(() => getWeekStart(), []);
   const weekStart = useMemo(
@@ -105,6 +113,9 @@ export default function WeeklyPlanner() {
 
   const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later' });
   const updateItem = useUpdateWorkItem();
+  const { data: snapshots = [] } = useSnapshots({ active: true });
+  const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
+  const [editSnapshot, setEditSnapshot] = useState(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -172,23 +183,66 @@ export default function WeeklyPlanner() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5">Weekly Planner</Typography>
+      <ContextualHint hintId="plan">
+        Drag unscheduled items onto days to plan your week. Use the Snapshots tab to save where
+        you left off on a project — branch name, what you were doing, and next steps — so you
+        can pick up without losing context.
+      </ContextualHint>
+      <Typography variant="h5" sx={{ mb: 2 }}>Plan</Typography>
+      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }}>
+        <Tab label="Week" />
+        <Tab label="Snapshots" />
+      </Tabs>
+
+      {tab === 1 && (
+        <Box sx={{ maxWidth: 700 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Save where you left off in a project so you can pick it up without losing context.
+            </Typography>
+            <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => { setEditSnapshot(null); setSnapshotDialogOpen(true); }}>
+              New
+            </Button>
+          </Box>
+          <Stack spacing={1.5}>
+            {snapshots.map((snap) => (
+              <Card
+                key={snap.id}
+                sx={{ cursor: 'pointer', '&:hover': { borderColor: 'rgba(255,255,255,0.15)' } }}
+                onClick={() => { setEditSnapshot(snap); setSnapshotDialogOpen(true); }}
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    <Chip label={snap.project?.name || 'No project'} size="small" sx={{ bgcolor: (snap.project?.color || '#666') + '22', color: snap.project?.color || '#666', fontWeight: 500 }} />
+                    {snap.branch && <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{snap.branch}</Typography>}
+                  </Box>
+                  <Typography variant="body1" sx={{ mb: 0.5 }}>{snap.summary}</Typography>
+                  {snap.nextSteps && <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>{snap.nextSteps}</Typography>}
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    Last touched: {new Date(snap.lastTouchedAt).toLocaleString()}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+            {snapshots.length === 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                No active snapshots. Create one when you stop working on a project.
+              </Typography>
+            )}
+          </Stack>
+          <SnapshotDialog open={snapshotDialogOpen} onClose={() => setSnapshotDialogOpen(false)} editSnapshot={editSnapshot} />
+        </Box>
+      )}
+
+      {tab === 0 && (<>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton onClick={() => setWeekOffset((o) => o - 1)} size="small">
-            <ChevronLeftIcon />
-          </IconButton>
+          <IconButton onClick={() => setWeekOffset((o) => o - 1)} size="small"><ChevronLeftIcon /></IconButton>
           <Typography variant="body2" sx={{ minWidth: 140, textAlign: 'center', fontWeight: 500 }}>
             {dayjs(weekStart).format('MMM D')} — {dayjs(weekStart).add(4, 'day').format('MMM D, YYYY')}
           </Typography>
-          <IconButton onClick={() => setWeekOffset((o) => o + 1)} size="small">
-            <ChevronRightIcon />
-          </IconButton>
-          {!isCurrentWeek && (
-            <Button size="small" variant="outlined" onClick={() => setWeekOffset(0)}>
-              This Week
-            </Button>
-          )}
+          <IconButton onClick={() => setWeekOffset((o) => o + 1)} size="small"><ChevronRightIcon /></IconButton>
+          {!isCurrentWeek && <Button size="small" variant="outlined" onClick={() => setWeekOffset(0)}>This Week</Button>}
         </Box>
       </Box>
 
@@ -308,6 +362,7 @@ export default function WeeklyPlanner() {
           ) : null}
         </DragOverlay>
       </DndContext>
+      </>)}
     </Box>
   );
 }

@@ -22,6 +22,10 @@ cd frontend && npx vite build
 
 Do not commit if the build fails.
 
+## Documentation
+
+The app has a built-in Guide page at `frontend/src/pages/Guide.jsx`. When committing changes that affect user-facing features, behavior, or workflow, update the Guide to reflect those changes. Each page also has a contextual hint banner (`ContextualHint` component) — update those if the page's purpose changes.
+
 ## Running locally
 
 ```bash

@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
-const { WorkItem, Project, ContextSnapshot, CachedEvent, IntegrationConfig } = require('../database/models');
+const { WorkItem, Project, ContextSnapshot, CachedEvent, IntegrationConfig, UserSettings } = require('../database/models');
 
 const router = Router();
 
@@ -86,7 +86,16 @@ router.get('/:date', async (req, res) => {
     return sum + (new Date(e.endTime) - new Date(e.startTime)) / 60000;
   }, 0);
 
-  const workdayMinutes = 8 * 60;
+  // Dynamic work hours from user settings
+  let workdayMinutes = 8.5 * 60; // default 7:30-4:00
+  try {
+    const settings = await UserSettings.findOne();
+    if (settings) {
+      const [startH, startM] = settings.workStartTime.split(':').map(Number);
+      const [endH, endM] = settings.workEndTime.split(':').map(Number);
+      workdayMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+    }
+  } catch { /* use default */ }
   const focusMinutes = Math.max(0, workdayMinutes - meetingMinutes);
 
   res.json({

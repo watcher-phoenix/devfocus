@@ -38,6 +38,7 @@ app.use('/api/inbox', require('./routes/inbox'));
 app.use('/api/week-plan', require('./routes/weekPlan'));
 app.use('/api/integrations', require('./routes/integrations'));
 app.use('/api/activity', require('./routes/activity'));
+app.use('/api/settings', require('./routes/userSettings'));
 
 // In production, serve the built frontend
 if (process.env.NODE_ENV === 'production') {

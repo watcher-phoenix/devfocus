@@ -25,7 +25,10 @@ import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
+import Divider from '@mui/material/Divider';
 import { useProjects, useCreateProject, useUpdateProject } from '../api/projects';
+import { useSettings, useUpdateSettings } from '../api/settings';
+import ContextualHint from '../components/ContextualHint';
 import {
   useIntegrations,
   useUpdateIntegration,
@@ -367,6 +370,71 @@ function IntegrationsTab() {
   );
 }
 
+// ── General Tab ───────────────────────────────────────────────────────────
+
+function GeneralTab() {
+  const { data: settings, isLoading } = useSettings();
+  const updateSettings = useUpdateSettings();
+
+  if (isLoading || !settings) return null;
+
+  const handleTimeChange = (field, value) => {
+    updateSettings.mutate({ [field]: value });
+  };
+
+  const startMinutes = settings.workStartTime ? (() => {
+    const [h, m] = settings.workStartTime.split(':').map(Number);
+    return h * 60 + m;
+  })() : 450;
+  const endMinutes = settings.workEndTime ? (() => {
+    const [h, m] = settings.workEndTime.split(':').map(Number);
+    return h * 60 + m;
+  })() : 960;
+  const totalMinutes = Math.max(0, endMinutes - startMinutes);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  return (
+    <Box>
+      <Typography variant="h6" sx={{ fontSize: '1rem', mb: 2 }}>Work Hours</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Used to calculate your available focus time on the Today page.
+      </Typography>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <TextField
+          label="Start time"
+          type="time"
+          value={settings.workStartTime || '07:30'}
+          onChange={(e) => handleTimeChange('workStartTime', e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ width: 180 }}
+        />
+        <TextField
+          label="End time"
+          type="time"
+          value={settings.workEndTime || '16:00'}
+          onChange={(e) => handleTimeChange('workEndTime', e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ width: 180 }}
+        />
+      </Stack>
+      <Typography variant="body2" color="text.secondary">
+        {hours}h {mins}m workday ({settings.workStartTime} — {settings.workEndTime})
+      </Typography>
+
+      <Divider sx={{ my: 3 }} />
+
+      <Typography variant="h6" sx={{ fontSize: '1rem', mb: 1 }}>Help</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        New to DevFocus? Check out the guide for how everything works.
+      </Typography>
+      <Button variant="outlined" size="small" href="/guide">
+        View Guide
+      </Button>
+    </Box>
+  );
+}
+
 // ── Settings Page ─────────────────────────────────────────────────────────
 
 export default function Settings() {
@@ -374,13 +442,19 @@ export default function Settings() {
 
   return (
     <Box sx={{ maxWidth: 700 }}>
+      <ContextualHint hintId="settings">
+        Configure your work hours so focus time calculations are accurate. Set up integrations
+        to pull in Jira tickets, Bitbucket PRs, and Outlook meetings automatically.
+      </ContextualHint>
       <Typography variant="h5" sx={{ mb: 2 }}>Settings</Typography>
       <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3 }}>
+        <Tab label="General" />
         <Tab label="Projects" />
         <Tab label="Integrations" />
       </Tabs>
-      {tab === 0 && <ProjectsTab />}
-      {tab === 1 && <IntegrationsTab />}
+      {tab === 0 && <GeneralTab />}
+      {tab === 1 && <ProjectsTab />}
+      {tab === 2 && <IntegrationsTab />}
     </Box>
   );
 }
