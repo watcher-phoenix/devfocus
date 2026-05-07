@@ -111,21 +111,33 @@ async function syncBitbucket() {
         // Fetch ALL open PRs for this repo (no user filter — filter client-side)
         const prResponse = await axios.get(
           `${BB_API}/repositories/${workspace}/${repoSlug}/pullrequests`,
-          { headers, params: { state: 'OPEN', pagelen: 50 } }
+          { headers, params: { state: 'OPEN', pagelen: 50, fields: '+values.participants,+values.reviewers' } }
         );
 
         const prs = prResponse.data.values || [];
 
         for (const pr of prs) {
-          // With a personal token, filter by user. With workspace token, take all PRs.
-          const isAuthor = currentUser
-            ? pr.author?.uuid === currentUser.uuid
-            : true;
-          const isReviewer = currentUser
-            ? (pr.reviewers || []).some((r) => r.uuid === currentUser.uuid)
-            : false;
+          // Match by UUID (personal token) or username/nickname (workspace token)
+          const matchesUser = (user) => {
+            if (!user) return false;
+            if (currentUser && user.uuid === currentUser.uuid) return true;
+            if (config.username) {
+              const uname = config.username.toLowerCase();
+              return (user.username || '').toLowerCase() === uname
+                || (user.nickname || '').toLowerCase() === uname
+                || (user.display_name || '').toLowerCase() === uname;
+            }
+            return false;
+          };
 
-          if (!isAuthor && !isReviewer) continue;
+          const isAuthor = matchesUser(pr.author);
+          const isReviewer = (pr.reviewers || []).some((r) => matchesUser(r));
+          // Also check participants for approved status
+          const hasApproved = (pr.participants || []).some(
+            (p) => matchesUser(p.user) && p.approved
+          );
+
+          if (!isAuthor && !isReviewer && !hasApproved) continue;
 
           // Create as authored PR
           const externalId = `${repoSlug}#${pr.id}`;
@@ -134,9 +146,12 @@ async function syncBitbucket() {
             where: { externalId, externalSource: 'bitbucket' },
           });
 
-          const prType = isReviewer && !isAuthor ? 'review' : 'pr';
-          const prTitle = isReviewer && !isAuthor ? `Review: ${pr.title}` : `PR: ${pr.title}`;
+          const prType = isReviewer || hasApproved ? 'review' : 'pr';
+          const prTitle = prType === 'review' ? `Review: ${pr.title}` : `PR: ${pr.title}`;
           const projectId = await findProjectForRepo(repoSlug);
+
+          // If user approved this PR, it's done work
+          const autoStatus = hasApproved && !isAuthor ? 'done' : (prType === 'review' ? 'inbox' : 'active');
 
           const data = {
             title: prTitle,
@@ -149,10 +164,20 @@ async function syncBitbucket() {
           };
 
           if (existing) {
-            await existing.update({ title: data.title, projectId: projectId || existing.projectId });
+            const updates = { title: data.title, projectId: projectId || existing.projectId };
+            // If user just approved, mark as done
+            if (hasApproved && !isAuthor && existing.status !== 'done') {
+              updates.status = 'done';
+              updates.completedAt = new Date();
+            }
+            await existing.update(updates);
             updated++;
           } else {
-            await WorkItem.create({ ...data, status: prType === 'review' ? 'inbox' : 'active' });
+            await WorkItem.create({
+              ...data,
+              status: autoStatus,
+              completedAt: autoStatus === 'done' ? new Date() : null,
+            });
             created++;
           }
         }
