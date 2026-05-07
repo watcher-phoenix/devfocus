@@ -9,6 +9,10 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import LinearProgress from '@mui/material/LinearProgress';
 import Divider from '@mui/material/Divider';
+import Collapse from '@mui/material/Collapse';
+import IconButton from '@mui/material/IconButton';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { useTrends } from '../api/trends';
 
 const TYPE_LABELS = {
@@ -79,34 +83,58 @@ function BarChart({ data, label, color, unit }) {
   );
 }
 
-function TypeBreakdown({ data, total }) {
+function TypeBreakdown({ data, total, details }) {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  const [expanded, setExpanded] = useState(null);
 
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>Work Type Breakdown</Typography>
       {entries.map(([type, count]) => {
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        const isOpen = expanded === type;
+        const items = details?.[type] || [];
         return (
-          <Box key={type} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-            <Typography variant="body2" sx={{ minWidth: 90, fontWeight: 500 }}>
-              {TYPE_LABELS[type] || type}
-            </Typography>
-            <Box sx={{ flex: 1 }}>
-              <LinearProgress
-                variant="determinate"
-                value={pct}
-                sx={{
-                  height: 16,
-                  borderRadius: 1,
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  '& .MuiLinearProgress-bar': { bgcolor: TYPE_COLORS[type] || '#666', borderRadius: 1 },
-                }}
-              />
+          <Box key={type} sx={{ mb: 0.5 }}>
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', py: 0.5 }}
+              onClick={() => setExpanded(isOpen ? null : type)}
+            >
+              <Typography variant="body2" sx={{ minWidth: 90, fontWeight: 500 }}>
+                {TYPE_LABELS[type] || type}
+              </Typography>
+              <Box sx={{ flex: 1 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={pct}
+                  sx={{
+                    height: 16,
+                    borderRadius: 1,
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                    '& .MuiLinearProgress-bar': { bgcolor: TYPE_COLORS[type] || '#666', borderRadius: 1 },
+                  }}
+                />
+              </Box>
+              <Typography variant="body2" sx={{ minWidth: 50, textAlign: 'right' }}>
+                {count} ({pct}%)
+              </Typography>
+              <IconButton size="small">{isOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}</IconButton>
             </Box>
-            <Typography variant="body2" sx={{ minWidth: 50, textAlign: 'right' }}>
-              {count} ({pct}%)
-            </Typography>
+            <Collapse in={isOpen}>
+              <Box sx={{ pl: 2, pb: 1 }}>
+                {items.map((item) => (
+                  <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25 }}>
+                    <Typography variant="caption" sx={{ flex: 1, fontSize: '0.75rem' }}>{item.title}</Typography>
+                    {item.externalUrl && item.externalId && (
+                      <Typography variant="caption" component="a" href={item.externalUrl} target="_blank" rel="noreferrer" sx={{ color: '#2684FF', fontFamily: 'monospace', fontSize: '0.65rem', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                        {item.externalId}
+                      </Typography>
+                    )}
+                    {item.project && <Chip label={item.project} size="small" sx={{ height: 16, fontSize: '0.55rem' }} />}
+                  </Box>
+                ))}
+              </Box>
+            </Collapse>
           </Box>
         );
       })}
@@ -209,7 +237,7 @@ export default function Trends() {
       {/* Type breakdown */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <TypeBreakdown data={data.typeBreakdown} total={summary.totalCompleted} />
+          <TypeBreakdown data={data.typeBreakdown} total={summary.totalCompleted} details={data.typeDetails} />
         </CardContent>
       </Card>
 

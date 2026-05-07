@@ -48,6 +48,20 @@ router.get('/', async (req, res) => {
       projectBreakdown[name] = (projectBreakdown[name] || 0) + 1;
     });
 
+    // Items grouped by type with details
+    const typeDetails = {};
+    completedItems.forEach((item) => {
+      if (!typeDetails[item.type]) typeDetails[item.type] = [];
+      typeDetails[item.type].push({
+        id: item.id,
+        title: item.title,
+        externalId: item.externalId,
+        externalUrl: item.externalUrl,
+        project: item.project?.name || null,
+        completedAt: item.completedAt,
+      });
+    });
+
     // Meeting hours per week
     const weeklyMeetingMinutes = {};
     meetings.forEach((event) => {
@@ -103,6 +117,7 @@ router.get('/', async (req, res) => {
       weeklyMeetingMinutes,
       typeBreakdown,
       projectBreakdown,
+      typeDetails,
       dailyBreakdown,
     });
   } catch (err) {

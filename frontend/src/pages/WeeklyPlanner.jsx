@@ -31,6 +31,8 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { useWorkItems, useUpdateWorkItem } from '../api/workItems';
 import { useWeekMeetings } from '../api/daily';
+import { useSettings } from '../api/settings';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -112,6 +114,7 @@ export default function WeeklyPlanner() {
   const updateItem = useUpdateWorkItem();
   const { data: weekMeetings = {} } = useWeekMeetings(weekStart);
   const { data: snapshots = [] } = useSnapshots({ active: true });
+  const { data: settingsData } = useSettings();
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
   const [editSnapshot, setEditSnapshot] = useState(null);
 
@@ -289,24 +292,23 @@ export default function WeeklyPlanner() {
                     />
                   </Box>
 
-                  {/* Meetings for this day */}
+                  {/* Meetings for this day — compact */}
                   {dayMeetings.events?.length > 0 && (
-                    <Box sx={{ mb: 1 }}>
-                      {dayMeetings.events.map((evt, ei) => {
+                    <Box sx={{ mb: 0.5, bgcolor: 'rgba(255,152,0,0.06)', borderRadius: 1, px: 0.75, py: 0.5 }}>
+                      {dayMeetings.events.slice(0, 4).map((evt, ei) => {
                         const start = new Date(evt.startTime);
-                        const end = new Date(evt.endTime);
                         const fmt = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
                         return (
-                          <Box key={ei} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25, borderLeft: '2px solid', borderColor: 'warning.main', pl: 0.75, mb: 0.25 }}>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', minWidth: 45 }}>
-                              {fmt(start)}
-                            </Typography>
-                            <Typography variant="caption" sx={{ fontSize: '0.65rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {evt.title}
-                            </Typography>
-                          </Box>
+                          <Typography key={ei} variant="caption" sx={{ display: 'block', fontSize: '0.6rem', color: 'text.secondary', lineHeight: 1.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {fmt(start)} {evt.title}
+                          </Typography>
                         );
                       })}
+                      {dayMeetings.events.length > 4 && (
+                        <Typography variant="caption" sx={{ fontSize: '0.55rem', color: 'text.secondary' }}>
+                          +{dayMeetings.events.length - 4} more
+                        </Typography>
+                      )}
                     </Box>
                   )}
 
@@ -314,8 +316,8 @@ export default function WeeklyPlanner() {
                     {dayItems.map((item) => (
                       <DraggableCard key={item.id} item={item} />
                     ))}
-                    {dayItems.length === 0 && dayMeetings.events?.length === 0 && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', py: 3, opacity: 0.6 }}>
+                    {dayItems.length === 0 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', py: 2, opacity: 0.6 }}>
                         Drop here
                       </Typography>
                     )}
@@ -377,6 +379,63 @@ export default function WeeklyPlanner() {
             </SortableContext>
           </Box>
         )}
+
+        {/* Smart suggestions */}
+        {(() => {
+          const workdayMinutes = settingsData
+            ? (() => { const [sh, sm] = (settingsData.workStartTime || '07:30').split(':').map(Number); const [eh, em] = (settingsData.workEndTime || '16:00').split(':').map(Number); return (eh * 60 + em) - (sh * 60 + sm); })()
+            : 510;
+
+          const suggestions = [];
+          const highPriority = unscheduled.filter((i) => i.priority >= 2).slice(0, 3);
+          const quickTasks = unscheduled.filter((i) => i.type === 'review' || i.type === 'followup').slice(0, 3);
+
+          weekDates.forEach((date, di) => {
+            const mtgs = weekMeetings[date] || { meetingMinutes: 0 };
+            const focusMins = workdayMinutes - mtgs.meetingMinutes;
+            const scheduled = (itemsByDate[date] || []).length;
+            const isPast = date < dayjs().format('YYYY-MM-DD');
+
+            if (isPast || scheduled >= 5) return;
+
+            if (focusMins >= 240 && highPriority.length > 0) {
+              suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: highPriority, reason: 'Focus day — schedule deep work' });
+            } else if (focusMins < 120 && focusMins > 0 && quickTasks.length > 0) {
+              suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: quickTasks, reason: 'Light gaps — fit in quick tasks' });
+            }
+          });
+
+          if (suggestions.length === 0) return null;
+
+          return (
+            <Box sx={{ mt: 3 }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                <LightbulbIcon sx={{ color: '#FFD600', fontSize: 20 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Suggestions</Typography>
+              </Stack>
+              {suggestions.map((sug) => (
+                <Card key={sug.date} sx={{ mb: 1 }}>
+                  <CardContent sx={{ py: '10px !important', '&:last-child': { pb: '10px !important' } }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                      {sug.day} — {Math.floor(sug.focusMins / 60)}h {sug.focusMins % 60}m available
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+                      {sug.reason}
+                    </Typography>
+                    {sug.items.map((item) => (
+                      <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25 }}>
+                        <Typography variant="body2" sx={{ flex: 1, fontSize: '0.8rem' }}>{item.title}</Typography>
+                        <Button size="small" variant="outlined" onClick={() => updateItem.mutate({ id: item.id, scheduledDate: sug.date })} sx={{ fontSize: '0.65rem', py: 0, minWidth: 60 }}>
+                          Schedule
+                        </Button>
+                      </Box>
+                    ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          );
+        })()}
 
         <DragOverlay>
           {activeItem ? (
