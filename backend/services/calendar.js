@@ -3,7 +3,57 @@ const ical = require('node-ical');
 const { CachedEvent, IntegrationConfig } = require('../database/models');
 const { Op } = require('sequelize');
 
-// Sync calendar events from an ICS URL (Outlook published calendar)
+// Expand recurring events into individual instances within a date range
+function expandRecurring(events, startDate, endDate) {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T23:59:59');
+  const expanded = [];
+
+  for (const [uid, event] of Object.entries(events)) {
+    if (event.type !== 'VEVENT') continue;
+
+    // If it has a recurrence rule, expand it
+    if (event.rrule) {
+      try {
+        const instances = event.rrule.between(start, end, true);
+        const duration = new Date(event.end) - new Date(event.start);
+
+        for (const instanceStart of instances) {
+          const instanceEnd = new Date(instanceStart.getTime() + duration);
+          expanded.push({
+            uid: `${uid}_${instanceStart.toISOString()}`,
+            title: event.summary || '(No title)',
+            start: instanceStart,
+            end: instanceEnd,
+            allDay: event.datetype === 'date',
+            location: event.location || null,
+          });
+        }
+      } catch (err) {
+        console.error(`[calendar] Failed to expand rrule for ${uid}:`, err.message);
+      }
+    } else {
+      const eventStart = new Date(event.start);
+      const eventEnd = new Date(event.end);
+
+      // Skip events outside our date range
+      if (eventEnd < start || eventStart > end) continue;
+
+      expanded.push({
+        uid: event.recurrenceid ? `${uid}_${eventStart.toISOString()}` : uid,
+        title: event.summary || '(No title)',
+        start: eventStart,
+        end: eventEnd,
+        allDay: event.datetype === 'date',
+        location: event.location || null,
+      });
+    }
+  }
+
+  return expanded;
+}
+
+// Sync calendar events from an ICS URL
 async function syncCalendar(startDate, endDate) {
   const integrationConfig = await IntegrationConfig.findOne({
     where: { provider: 'calendar', enabled: true },
@@ -21,40 +71,24 @@ async function syncCalendar(startDate, endDate) {
   }
 
   try {
-    const events = await ical.async.fromURL(icsUrl);
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T23:59:59');
+    const rawEvents = await ical.async.fromURL(icsUrl);
+    const events = expandRecurring(rawEvents, startDate, endDate);
 
     let created = 0;
     let updated = 0;
     const processedIds = [];
 
-    for (const [uid, event] of Object.entries(events)) {
-      if (event.type !== 'VEVENT') continue;
-
-      const eventStart = new Date(event.start);
-      const eventEnd = new Date(event.end);
-
-      // Skip events outside our date range
-      if (eventEnd < start || eventStart > end) continue;
-
-      // Handle recurring events — node-ical expands them
-      const externalId = event.recurrenceid
-        ? `${uid}_${eventStart.toISOString()}`
-        : uid;
-
-      const date = eventStart.toISOString().split('T')[0];
-      const allDay = event.datetype === 'date';
-
-      processedIds.push(externalId);
+    for (const event of events) {
+      const date = event.start.toISOString().split('T')[0];
+      processedIds.push(event.uid);
 
       const [, wasCreated] = await CachedEvent.upsert({
-        externalId,
-        title: event.summary || '(No title)',
-        startTime: eventStart,
-        endTime: eventEnd,
-        allDay,
-        location: event.location || null,
+        externalId: event.uid,
+        title: event.title,
+        startTime: event.start,
+        endTime: event.end,
+        allDay: event.allDay,
+        location: event.location,
         date,
       });
 

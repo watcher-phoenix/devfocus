@@ -110,7 +110,7 @@ export default function WeeklyPlanner() {
   const isCurrentWeek = weekOffset === 0;
   const [activeItem, setActiveItem] = useState(null);
 
-  const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later' });
+  const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,scheduled' });
   const updateItem = useUpdateWorkItem();
   const { data: weekMeetings = {} } = useWeekMeetings(weekStart);
   const { data: snapshots = [] } = useSnapshots({ active: true });
@@ -277,24 +277,30 @@ export default function WeeklyPlanner() {
         return (
           <Card sx={{ mb: 2, border: '1px solid rgba(255,215,0,0.15)' }}>
             <CardContent sx={{ py: '10px !important', '&:last-child': { pb: '10px !important' } }}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
                 <LightbulbIcon sx={{ color: '#FFD600', fontSize: 18 }} />
                 <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Suggestions</Typography>
               </Stack>
-              <Stack direction="row" spacing={2} sx={{ overflowX: 'auto' }}>
+              <Stack spacing={1.5}>
                 {suggestions.map((sug) => (
-                  <Box key={sug.date} sx={{ minWidth: 200, flex: '0 0 auto' }}>
-                    <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                      {sug.day} — {Math.floor(sug.focusMins / 60)}h {sug.focusMins % 60}m free
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontSize: '0.65rem' }}>
-                      {sug.reason}
-                    </Typography>
+                  <Box key={sug.date}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                        {sug.day}
+                      </Typography>
+                      <Chip label={`${Math.floor(sug.focusMins / 60)}h ${sug.focusMins % 60}m free`} size="small" variant="outlined" color="success" sx={{ height: 20, fontSize: '0.65rem' }} />
+                      <Typography variant="caption" color="text.secondary">{sug.reason}</Typography>
+                    </Stack>
                     {sug.items.map((item) => (
-                      <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
-                        <Typography variant="caption" sx={{ flex: 1, fontSize: '0.7rem' }}>{item.title}</Typography>
-                        <Button size="small" onClick={() => updateItem.mutate({ id: item.id, scheduledDate: sug.date })} sx={{ fontSize: '0.6rem', py: 0, px: 0.5, minWidth: 0 }}>
-                          +
+                      <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25, pl: 1 }}>
+                        <Typography variant="body2" sx={{ flex: 1, fontSize: '0.8rem' }}>{item.title}</Typography>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => updateItem.mutate({ id: item.id, scheduledDate: sug.date })}
+                          sx={{ fontSize: '0.7rem', py: 0.25, px: 1.5, minWidth: 0 }}
+                        >
+                          Schedule for {sug.day.slice(0, 3)}
                         </Button>
                       </Box>
                     ))}

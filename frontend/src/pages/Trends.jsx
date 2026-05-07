@@ -214,6 +214,8 @@ export default function Trends() {
         <StatCard label="PRs Merged" value={summary.prsMerged} color="success.main" />
         <StatCard label="Jira Tickets" value={summary.jiraTickets} color="info.main" />
         <StatCard label="Strategic Work" value={summary.strategicItems} color="primary.main" />
+        <StatCard label="After Hours Work" value={summary.afterHoursItems || 0} subtitle="outside work hours" color="error.main" />
+        <StatCard label="After Hours Mtgs" value={summary.afterHoursMeetings || 0} subtitle="outside work hours" color="warning.main" />
       </Stack>
 
       <Divider sx={{ my: 3 }} />
