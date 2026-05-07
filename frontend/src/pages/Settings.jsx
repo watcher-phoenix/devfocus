@@ -33,8 +33,11 @@ import {
 } from '../api/integrations';
 
 const PRESET_COLORS = [
-  '#7C4DFF', '#2196F3', '#00BCD4', '#00C853', '#FFD600',
-  '#FF9800', '#FF5252', '#E91E63', '#9C27B0', '#607D8B',
+  '#7C4DFF', '#651FFF', '#536DFE', '#2196F3', '#03A9F4',
+  '#00BCD4', '#009688', '#4CAF50', '#00C853', '#8BC34A',
+  '#CDDC39', '#FFD600', '#FFC107', '#FF9800', '#FF5722',
+  '#FF5252', '#E91E63', '#F06292', '#CE93D8', '#9C27B0',
+  '#795548', '#607D8B', '#9E9E9E', '#263238',
 ];
 
 // ── Projects Tab ──────────────────────────────────────────────────────────
@@ -125,7 +128,7 @@ function ProjectsTab() {
         <DialogTitle>{editId ? 'Edit Project' : 'New Project'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
           <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth autoFocus placeholder="e.g. CRM Backend, Builder Scraper" />
-          <TextField label="Repo slug (optional)" value={form.repoSlug} onChange={(e) => setForm({ ...form, repoSlug: e.target.value })} fullWidth placeholder="e.g. crm-backend-services" />
+          <TextField label="Repo slugs (optional)" value={form.repoSlug} onChange={(e) => setForm({ ...form, repoSlug: e.target.value })} fullWidth placeholder="e.g. crm-backend-services, land-crm" helperText="Comma-separated if multiple repos belong to this project" />
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Color</Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap">
