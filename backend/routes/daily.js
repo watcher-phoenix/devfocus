@@ -81,21 +81,30 @@ router.get('/:date', async (req, res) => {
     order: [['startTime', 'ASC']],
   });
 
-  const meetingMinutes = events.reduce((sum, e) => {
-    if (e.allDay) return sum;
-    return sum + (new Date(e.endTime) - new Date(e.startTime)) / 60000;
-  }, 0);
-
-  // Dynamic work hours from user settings
-  let workdayMinutes = 8.5 * 60; // default 7:30-4:00
+  // Dynamic work hours + meeting exclude keywords from user settings
+  let workdayMinutes = 8.5 * 60;
+  let excludeKeywords = ['lunch'];
   try {
     const settings = await UserSettings.findOne();
     if (settings) {
       const [startH, startM] = settings.workStartTime.split(':').map(Number);
       const [endH, endM] = settings.workEndTime.split(':').map(Number);
       workdayMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+      if (settings.meetingExcludeKeywords) {
+        excludeKeywords = settings.meetingExcludeKeywords.split(',').map((k) => k.trim().toLowerCase());
+      }
     }
   } catch { /* use default */ }
+
+  const isExcluded = (title) => {
+    const lower = (title || '').toLowerCase();
+    return excludeKeywords.some((kw) => kw && lower.includes(kw));
+  };
+
+  const meetingEvents = events.filter((e) => !e.allDay && !isExcluded(e.title));
+  const meetingMinutes = meetingEvents.reduce((sum, e) => {
+    return sum + (new Date(e.endTime) - new Date(e.startTime)) / 60000;
+  }, 0);
   const focusMinutes = Math.max(0, workdayMinutes - meetingMinutes);
 
   res.json({
@@ -103,9 +112,10 @@ router.get('/:date', async (req, res) => {
     dayOfWeek: getDayOfWeek(targetDate),
     weekStart: getWeekStart(targetDate),
     meetings: {
-      count: events.filter((e) => !e.allDay).length,
+      count: meetingEvents.length,
       totalMinutes: Math.round(meetingMinutes),
       events,
+      excludedCount: events.filter((e) => !e.allDay && isExcluded(e.title)).length,
     },
     focusMinutes: Math.round(focusMinutes),
     priorities,
@@ -125,6 +135,17 @@ router.get('/:date', async (req, res) => {
 router.get('/week-meetings/:weekStart', async (req, res) => {
   try {
     const { weekStart } = req.params;
+
+    // Get exclude keywords from settings
+    let excludeKw = ['lunch'];
+    try {
+      const s = await UserSettings.findOne();
+      if (s?.meetingExcludeKeywords) {
+        excludeKw = s.meetingExcludeKeywords.split(',').map((k) => k.trim().toLowerCase());
+      }
+    } catch { /* use defaults */ }
+    const isExcl = (title) => excludeKw.some((kw) => kw && (title || '').toLowerCase().includes(kw));
+
     const days = {};
     for (let i = 0; i < 5; i++) {
       const d = new Date(weekStart + 'T12:00:00');
@@ -136,17 +157,19 @@ router.get('/week-meetings/:weekStart', async (req, res) => {
         order: [['startTime', 'ASC']],
       });
 
-      const meetingMinutes = events.reduce((sum, e) => {
+      const realMeetings = events.filter((e) => !isExcl(e.title));
+      const meetingMinutes = realMeetings.reduce((sum, e) => {
         return sum + (new Date(e.endTime) - new Date(e.startTime)) / 60000;
       }, 0);
 
       days[date] = {
-        meetingCount: events.length,
+        meetingCount: realMeetings.length,
         meetingMinutes: Math.round(meetingMinutes),
         events: events.map((e) => ({
           title: e.title,
           startTime: e.startTime,
           endTime: e.endTime,
+          excluded: isExcl(e.title),
         })),
       };
     }

@@ -247,7 +247,66 @@ export default function WeeklyPlanner() {
         </Box>
       </Box>
 
-      {/* Week calendar — full width, 5 columns */}
+      {/* Smart suggestions — above the calendar so they're visible */}
+      {(() => {
+        const workdayMinutes = settingsData
+          ? (() => { const [sh, sm] = (settingsData.workStartTime || '07:30').split(':').map(Number); const [eh, em] = (settingsData.workEndTime || '16:00').split(':').map(Number); return (eh * 60 + em) - (sh * 60 + sm); })()
+          : 510;
+
+        const suggestions = [];
+        const highPriority = unscheduled.filter((i) => i.priority >= 2).slice(0, 3);
+        const quickTasks = unscheduled.filter((i) => i.type === 'review' || i.type === 'followup').slice(0, 3);
+
+        weekDates.forEach((date, di) => {
+          const mtgs = weekMeetings[date] || { meetingMinutes: 0 };
+          const focusMins = workdayMinutes - mtgs.meetingMinutes;
+          const scheduled = (itemsByDate[date] || []).length;
+          const isPast = date < dayjs().format('YYYY-MM-DD');
+
+          if (isPast || scheduled >= 5) return;
+
+          if (focusMins >= 240 && highPriority.length > 0) {
+            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: highPriority, reason: 'Focus day — schedule deep work' });
+          } else if (focusMins < 120 && focusMins > 0 && quickTasks.length > 0) {
+            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: quickTasks, reason: 'Light gaps — fit in quick tasks' });
+          }
+        });
+
+        if (suggestions.length === 0) return null;
+
+        return (
+          <Card sx={{ mb: 2, border: '1px solid rgba(255,215,0,0.15)' }}>
+            <CardContent sx={{ py: '10px !important', '&:last-child': { pb: '10px !important' } }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                <LightbulbIcon sx={{ color: '#FFD600', fontSize: 18 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Suggestions</Typography>
+              </Stack>
+              <Stack direction="row" spacing={2} sx={{ overflowX: 'auto' }}>
+                {suggestions.map((sug) => (
+                  <Box key={sug.date} sx={{ minWidth: 200, flex: '0 0 auto' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                      {sug.day} — {Math.floor(sug.focusMins / 60)}h {sug.focusMins % 60}m free
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontSize: '0.65rem' }}>
+                      {sug.reason}
+                    </Typography>
+                    {sug.items.map((item) => (
+                      <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+                        <Typography variant="caption" sx={{ flex: 1, fontSize: '0.7rem' }}>{item.title}</Typography>
+                        <Button size="small" onClick={() => updateItem.mutate({ id: item.id, scheduledDate: sug.date })} sx={{ fontSize: '0.6rem', py: 0, px: 0.5, minWidth: 0 }}>
+                          +
+                        </Button>
+                      </Box>
+                    ))}
+                  </Box>
+                ))}
+              </Stack>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Week calendar */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -259,9 +318,10 @@ export default function WeeklyPlanner() {
             sx={{
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' },
-              gap: 2,
+              gap: 1.5,
               alignItems: 'flex-start',
               mb: 3,
+              overflow: 'hidden',
             }}
           >
             {DAYS.map((day, i) => {
@@ -272,7 +332,7 @@ export default function WeeklyPlanner() {
               const dayItems = itemsByDate[date] || [];
 
               return (
-                <Box key={day}>
+                <Box key={day} sx={{ minWidth: 0, overflow: 'hidden' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, px: 0.5 }}>
                     <Box>
                       <Typography variant="subtitle2" sx={{ fontWeight: 600, color: isToday ? 'primary.main' : 'text.primary' }}>
@@ -379,63 +439,6 @@ export default function WeeklyPlanner() {
             </SortableContext>
           </Box>
         )}
-
-        {/* Smart suggestions */}
-        {(() => {
-          const workdayMinutes = settingsData
-            ? (() => { const [sh, sm] = (settingsData.workStartTime || '07:30').split(':').map(Number); const [eh, em] = (settingsData.workEndTime || '16:00').split(':').map(Number); return (eh * 60 + em) - (sh * 60 + sm); })()
-            : 510;
-
-          const suggestions = [];
-          const highPriority = unscheduled.filter((i) => i.priority >= 2).slice(0, 3);
-          const quickTasks = unscheduled.filter((i) => i.type === 'review' || i.type === 'followup').slice(0, 3);
-
-          weekDates.forEach((date, di) => {
-            const mtgs = weekMeetings[date] || { meetingMinutes: 0 };
-            const focusMins = workdayMinutes - mtgs.meetingMinutes;
-            const scheduled = (itemsByDate[date] || []).length;
-            const isPast = date < dayjs().format('YYYY-MM-DD');
-
-            if (isPast || scheduled >= 5) return;
-
-            if (focusMins >= 240 && highPriority.length > 0) {
-              suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: highPriority, reason: 'Focus day — schedule deep work' });
-            } else if (focusMins < 120 && focusMins > 0 && quickTasks.length > 0) {
-              suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: quickTasks, reason: 'Light gaps — fit in quick tasks' });
-            }
-          });
-
-          if (suggestions.length === 0) return null;
-
-          return (
-            <Box sx={{ mt: 3 }}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-                <LightbulbIcon sx={{ color: '#FFD600', fontSize: 20 }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Suggestions</Typography>
-              </Stack>
-              {suggestions.map((sug) => (
-                <Card key={sug.date} sx={{ mb: 1 }}>
-                  <CardContent sx={{ py: '10px !important', '&:last-child': { pb: '10px !important' } }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                      {sug.day} — {Math.floor(sug.focusMins / 60)}h {sug.focusMins % 60}m available
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
-                      {sug.reason}
-                    </Typography>
-                    {sug.items.map((item) => (
-                      <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25 }}>
-                        <Typography variant="body2" sx={{ flex: 1, fontSize: '0.8rem' }}>{item.title}</Typography>
-                        <Button size="small" variant="outlined" onClick={() => updateItem.mutate({ id: item.id, scheduledDate: sug.date })} sx={{ fontSize: '0.65rem', py: 0, minWidth: 60 }}>
-                          Schedule
-                        </Button>
-                      </Box>
-                    ))}
-                  </CardContent>
-                </Card>
-              ))}
-            </Box>
-          );
-        })()}
 
         <DragOverlay>
           {activeItem ? (
