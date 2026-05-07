@@ -38,7 +38,7 @@ async function syncJira() {
     const response = await axios.post(`${baseUrl}/rest/api/3/search/jql`, {
       jql,
       maxResults: 50,
-      fields: ['summary', 'status', 'priority', 'project', 'issuetype', 'updated'],
+      fields: ['summary', 'status', 'priority', 'project', 'issuetype', 'updated', 'parent'],
     }, { headers });
 
     const issues = response.data.issues || [];
@@ -51,8 +51,18 @@ async function syncJira() {
       });
 
       const jiraPriority = mapJiraPriority(issue.fields.priority?.name);
+      const issueType = issue.fields.issuetype?.name || '';
+      const parent = issue.fields.parent;
+      const parentPrefix = parent ? `${parent.key}: ${parent.fields?.summary} > ` : '';
+      const typeTag = issueType ? `[${issueType}] ` : '';
+
       const data = {
-        title: `${issue.key}: ${issue.fields.summary}`,
+        title: `${typeTag}${parentPrefix}${issue.key}: ${issue.fields.summary}`,
+        description: [
+          parent ? `Parent: ${parent.key} — ${parent.fields?.summary}` : null,
+          issueType ? `Type: ${issueType}` : null,
+          issue.fields.project?.name ? `Project: ${issue.fields.project.name}` : null,
+        ].filter(Boolean).join('\n'),
         externalId: issue.key,
         externalUrl: `${baseUrl}/browse/${issue.key}`,
         externalSource: 'jira',
@@ -61,9 +71,10 @@ async function syncJira() {
       };
 
       if (existing) {
-        // Update title and priority but don't reset user's scheduling/status choices
+        // Update title, description, priority but don't reset user's scheduling/status choices
         await existing.update({
           title: data.title,
+          description: data.description,
           priority: jiraPriority,
         });
         updated++;
