@@ -52,8 +52,8 @@ export default function ChatBot() {
           onClick={() => setOpen(true)}
           sx={{
             position: 'fixed',
-            bottom: 24,
-            left: { xs: 24, md: 264 },
+            top: 16,
+            right: 24,
             bgcolor: 'secondary.main',
             color: 'background.default',
             zIndex: 1200,
@@ -65,13 +65,13 @@ export default function ChatBot() {
       )}
 
       {/* Chat panel */}
-      <Slide direction="right" in={open} mountOnEnter unmountOnExit>
+      <Slide direction="left" in={open} mountOnEnter unmountOnExit>
         <Paper
           elevation={8}
           sx={{
             position: 'fixed',
-            bottom: 24,
-            left: { xs: 24, md: 264 },
+            top: 60,
+            right: 24,
             width: 360,
             height: 480,
             display: 'flex',
