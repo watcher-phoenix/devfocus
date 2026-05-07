@@ -69,17 +69,18 @@ async function syncBitbucket() {
   const headers = getHeaders(config);
 
   try {
-    // First verify auth works by getting current user
+    // Try to get current user (may fail with workspace tokens — that's ok)
     const currentUser = await getCurrentUser(headers);
-    if (!currentUser) {
-      return { success: false, error: 'Authentication failed — check your token or credentials' };
+    if (currentUser) {
+      console.log(`[bitbucket] Authenticated as: ${currentUser.displayName} (${currentUser.uuid})`);
+    } else {
+      console.log('[bitbucket] Using workspace token (no personal user context)');
     }
-    console.log(`[bitbucket] Authenticated as: ${currentUser.displayName} (${currentUser.uuid})`);
 
     let created = 0;
     let updated = 0;
 
-    // Get repo list
+    // Verify auth by fetching repos — this works with all token types
     let repoList;
     if (config.repos) {
       repoList = config.repos.split(',').map((r) => r.trim()).filter(Boolean);
@@ -87,6 +88,10 @@ async function syncBitbucket() {
       console.log('[bitbucket] Fetching all repos in workspace...');
       repoList = await fetchAllRepos(workspace, headers);
       console.log(`[bitbucket] Found ${repoList.length} repos`);
+    }
+
+    if (repoList.length === 0) {
+      return { success: false, error: 'No repos found. Check your workspace name and token permissions (needs Repositories:Read).' };
     }
 
     const allOpenIds = [];
@@ -103,59 +108,41 @@ async function syncBitbucket() {
         const prs = prResponse.data.values || [];
 
         for (const pr of prs) {
-          const isAuthor = pr.author?.uuid === currentUser.uuid;
-          const isReviewer = (pr.reviewers || []).some((r) => r.uuid === currentUser.uuid);
+          // With a personal token, filter by user. With workspace token, take all PRs.
+          const isAuthor = currentUser
+            ? pr.author?.uuid === currentUser.uuid
+            : true;
+          const isReviewer = currentUser
+            ? (pr.reviewers || []).some((r) => r.uuid === currentUser.uuid)
+            : false;
 
           if (!isAuthor && !isReviewer) continue;
 
-          if (isAuthor) {
-            const externalId = `${repoSlug}#${pr.id}`;
-            allOpenIds.push(externalId);
-            const existing = await WorkItem.findOne({
-              where: { externalId, externalSource: 'bitbucket' },
-            });
+          // Create as authored PR
+          const externalId = `${repoSlug}#${pr.id}`;
+          allOpenIds.push(externalId);
+          const existing = await WorkItem.findOne({
+            where: { externalId, externalSource: 'bitbucket' },
+          });
 
-            const data = {
-              title: `PR: ${pr.title}`,
-              externalId,
-              externalUrl: pr.links?.html?.href || '',
-              externalSource: 'bitbucket',
-              type: 'pr',
-              priority: 1,
-            };
+          const prType = isReviewer && !isAuthor ? 'review' : 'pr';
+          const prTitle = isReviewer && !isAuthor ? `Review: ${pr.title}` : `PR: ${pr.title}`;
 
-            if (existing) {
-              await existing.update({ title: data.title });
-              updated++;
-            } else {
-              await WorkItem.create({ ...data, status: 'active' });
-              created++;
-            }
-          }
+          const data = {
+            title: prTitle,
+            externalId,
+            externalUrl: pr.links?.html?.href || '',
+            externalSource: 'bitbucket',
+            type: prType,
+            priority: prType === 'review' ? 2 : 1,
+          };
 
-          if (isReviewer) {
-            const externalId = `review:${repoSlug}#${pr.id}`;
-            allOpenIds.push(externalId);
-            const existing = await WorkItem.findOne({
-              where: { externalId, externalSource: 'bitbucket' },
-            });
-
-            const data = {
-              title: `Review: ${pr.title}`,
-              externalId,
-              externalUrl: pr.links?.html?.href || '',
-              externalSource: 'bitbucket',
-              type: 'review',
-              priority: 2,
-            };
-
-            if (existing) {
-              await existing.update({ title: data.title });
-              updated++;
-            } else {
-              await WorkItem.create({ ...data, status: 'inbox' });
-              created++;
-            }
+          if (existing) {
+            await existing.update({ title: data.title });
+            updated++;
+          } else {
+            await WorkItem.create({ ...data, status: prType === 'review' ? 'inbox' : 'active' });
+            created++;
           }
         }
       } catch (err) {
