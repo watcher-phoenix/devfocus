@@ -16,22 +16,29 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
+import SyncIcon from '@mui/icons-material/Sync';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useProjects, useCreateProject, useUpdateProject } from '../api/projects';
+import {
+  useIntegrations,
+  useUpdateIntegration,
+  useSyncIntegration,
+  useCalendarDeviceCode,
+} from '../api/integrations';
 
 const PRESET_COLORS = [
   '#7C4DFF', '#2196F3', '#00BCD4', '#00C853', '#FFD600',
   '#FF9800', '#FF5252', '#E91E63', '#9C27B0', '#607D8B',
 ];
 
-const INTEGRATIONS = [
-  { provider: 'jira', label: 'Jira', description: 'Pull assigned tickets into your work items' },
-  { provider: 'bitbucket', label: 'Bitbucket', description: 'Track open PRs and review requests' },
-  { provider: 'calendar', label: 'Microsoft Calendar', description: 'Pull Outlook/Teams meetings for focus time calculation' },
-];
+// ── Projects Tab ──────────────────────────────────────────────────────────
 
 function ProjectsTab() {
   const [showArchived, setShowArchived] = useState(false);
@@ -74,16 +81,12 @@ function ProjectsTab() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
-          <Typography variant="h6" sx={{ fontSize: '1rem' }}>
-            Projects
-          </Typography>
+          <Typography variant="h6" sx={{ fontSize: '1rem' }}>Projects</Typography>
           <Typography variant="body2" color="text.secondary">
             Map to your repos. Assign work items and snapshots to projects.
           </Typography>
         </Box>
-        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openNew}>
-          New
-        </Button>
+        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openNew}>New</Button>
       </Box>
 
       <FormControlLabel
@@ -95,43 +98,17 @@ function ProjectsTab() {
       <Stack spacing={1}>
         {filtered.map((project) => (
           <Card key={project.id} sx={{ opacity: project.archived ? 0.5 : 1 }}>
-            <CardContent
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                py: '12px !important',
-                '&:last-child': { pb: '12px !important' },
-              }}
-            >
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  bgcolor: project.color || '#666',
-                  flexShrink: 0,
-                }}
-              />
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: '12px !important', '&:last-child': { pb: '12px !important' } }}>
+              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: project.color || '#666', flexShrink: 0 }} />
               <Box sx={{ flex: 1 }}>
-                <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                  {project.name}
-                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>{project.name}</Typography>
                 {project.repoSlug && (
-                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                    {project.repoSlug}
-                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>{project.repoSlug}</Typography>
                 )}
               </Box>
               <Stack direction="row" spacing={0.5}>
-                <IconButton size="small" onClick={() => openEdit(project)} title="Edit">
-                  <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => handleArchive(project)}
-                  title={project.archived ? 'Unarchive' : 'Archive'}
-                >
+                <IconButton size="small" onClick={() => openEdit(project)} title="Edit"><EditIcon fontSize="small" /></IconButton>
+                <IconButton size="small" onClick={() => handleArchive(project)} title={project.archived ? 'Unarchive' : 'Archive'}>
                   {project.archived ? <UnarchiveIcon fontSize="small" /> : <ArchiveIcon fontSize="small" />}
                 </IconButton>
               </Stack>
@@ -148,102 +125,271 @@ function ProjectsTab() {
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editId ? 'Edit Project' : 'New Project'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-          <TextField
-            label="Project name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            fullWidth
-            autoFocus
-            placeholder="e.g. CRM Backend, Builder Scraper"
-          />
-          <TextField
-            label="Repo slug (optional)"
-            value={form.repoSlug}
-            onChange={(e) => setForm({ ...form, repoSlug: e.target.value })}
-            fullWidth
-            placeholder="e.g. crm-backend-services"
-          />
+          <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth autoFocus placeholder="e.g. CRM Backend, Builder Scraper" />
+          <TextField label="Repo slug (optional)" value={form.repoSlug} onChange={(e) => setForm({ ...form, repoSlug: e.target.value })} fullWidth placeholder="e.g. crm-backend-services" />
           <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Color
-            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Color</Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap">
               {PRESET_COLORS.map((c) => (
-                <Box
-                  key={c}
-                  onClick={() => setForm({ ...form, color: c })}
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    bgcolor: c,
-                    cursor: 'pointer',
-                    border: form.color === c ? '3px solid white' : '3px solid transparent',
-                    transition: 'border-color 0.2s',
-                    '&:hover': { border: '3px solid rgba(255,255,255,0.5)' },
-                  }}
-                />
+                <Box key={c} onClick={() => setForm({ ...form, color: c })} sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: c, cursor: 'pointer', border: form.color === c ? '3px solid white' : '3px solid transparent', '&:hover': { border: '3px solid rgba(255,255,255,0.5)' } }} />
               ))}
             </Stack>
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave} disabled={!form.name.trim()}>
-            {editId ? 'Save' : 'Create'}
-          </Button>
+          <Button variant="contained" onClick={handleSave} disabled={!form.name.trim()}>{editId ? 'Save' : 'Create'}</Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
 }
 
+// ── Integration Config Card ───────────────────────────────────────────────
+
+function IntegrationCard({ provider, label, description, fields, configHint }) {
+  const { data: integrations = [] } = useIntegrations();
+  const updateIntegration = useUpdateIntegration();
+  const syncIntegration = useSyncIntegration();
+  const calendarDeviceCode = useCalendarDeviceCode();
+  const [configOpen, setConfigOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [syncResult, setSyncResult] = useState(null);
+  const [deviceCode, setDeviceCode] = useState(null);
+
+  const integration = integrations.find((i) => i.provider === provider);
+  const isConfigured = integration?.config?.configured;
+  const isEnabled = integration?.enabled;
+  const lastSync = integration?.lastSyncAt;
+  const lastStatus = integration?.lastSyncStatus;
+
+  const openConfig = () => {
+    // Pre-fill from existing safe config summary
+    const existing = integration?.config || {};
+    const initial = {};
+    fields.forEach((f) => { initial[f.key] = existing[f.key] || ''; });
+    setForm(initial);
+    setConfigOpen(true);
+  };
+
+  const handleSaveConfig = async () => {
+    await updateIntegration.mutateAsync({
+      provider,
+      config: form,
+      enabled: true,
+    });
+    setConfigOpen(false);
+  };
+
+  const handleToggle = async () => {
+    await updateIntegration.mutateAsync({
+      provider,
+      enabled: !isEnabled,
+    });
+  };
+
+  const handleSync = async () => {
+    setSyncResult(null);
+    try {
+      const result = await syncIntegration.mutateAsync(provider);
+      setSyncResult(result);
+    } catch (err) {
+      setSyncResult({ success: false, error: err.message });
+    }
+  };
+
+  const handleCalendarAuth = async () => {
+    setDeviceCode(null);
+    try {
+      const result = await calendarDeviceCode.mutateAsync();
+      setDeviceCode(result);
+    } catch (err) {
+      setDeviceCode({ error: err.message });
+    }
+  };
+
+  return (
+    <>
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+            <Box>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{label}</Typography>
+                {isEnabled && isConfigured && (
+                  <Chip icon={<CheckCircleIcon />} label="Active" size="small" color="success" sx={{ height: 24 }} />
+                )}
+                {isConfigured && !isEnabled && (
+                  <Chip label="Disabled" size="small" variant="outlined" sx={{ height: 24 }} />
+                )}
+                {!isConfigured && (
+                  <Chip label="Not configured" size="small" variant="outlined" sx={{ height: 24 }} />
+                )}
+              </Stack>
+              <Typography variant="body2" color="text.secondary">{description}</Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              {isEnabled && isConfigured && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={syncIntegration.isPending ? <CircularProgress size={16} /> : <SyncIcon />}
+                  onClick={handleSync}
+                  disabled={syncIntegration.isPending}
+                >
+                  Sync
+                </Button>
+              )}
+              <Button size="small" variant="contained" onClick={openConfig}>
+                {isConfigured ? 'Edit' : 'Configure'}
+              </Button>
+            </Stack>
+          </Box>
+
+          {lastSync && (
+            <Typography variant="caption" color="text.secondary">
+              Last sync: {new Date(lastSync).toLocaleString()}
+              {lastStatus && (
+                <Chip
+                  label={lastStatus}
+                  size="small"
+                  color={lastStatus === 'success' ? 'success' : 'error'}
+                  sx={{ ml: 1, height: 18, fontSize: '0.6rem' }}
+                />
+              )}
+            </Typography>
+          )}
+
+          {syncResult && (
+            <Alert severity={syncResult.success ? 'success' : 'error'} sx={{ mt: 1 }} onClose={() => setSyncResult(null)}>
+              {syncResult.success
+                ? `Synced: ${syncResult.created || 0} new, ${syncResult.updated || 0} updated, ${syncResult.total || 0} total`
+                : syncResult.error}
+            </Alert>
+          )}
+
+          {deviceCode && (
+            <Alert severity="info" sx={{ mt: 1 }} onClose={() => setDeviceCode(null)}>
+              {deviceCode.error
+                ? deviceCode.error
+                : (
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                      Enter code: {deviceCode.userCode}
+                    </Typography>
+                    <Typography variant="body2">
+                      Go to{' '}
+                      <a href={deviceCode.verificationUri} target="_blank" rel="noreferrer" style={{ color: '#7C4DFF' }}>
+                        {deviceCode.verificationUri}
+                      </a>
+                      {' '}and enter the code above to authorize.
+                    </Typography>
+                  </Box>
+                )}
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Config dialog */}
+      <Dialog open={configOpen} onClose={() => setConfigOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Configure {label}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+          {configHint && (
+            <Alert severity="info" sx={{ mb: 1 }}>{configHint}</Alert>
+          )}
+          {fields.map((field) => (
+            <TextField
+              key={field.key}
+              label={field.label}
+              value={form[field.key] || ''}
+              onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+              fullWidth
+              placeholder={field.placeholder}
+              type={field.secret ? 'password' : 'text'}
+              helperText={field.helper}
+            />
+          ))}
+          {isConfigured && (
+            <FormControlLabel
+              control={<Switch checked={isEnabled} onChange={handleToggle} />}
+              label="Enabled"
+            />
+          )}
+          {provider === 'calendar' && isConfigured && (
+            <Button variant="outlined" onClick={handleCalendarAuth}>
+              Authenticate with Microsoft
+            </Button>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfigOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSaveConfig}>Save</Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
+// ── Integrations Tab ──────────────────────────────────────────────────────
+
 function IntegrationsTab() {
   return (
     <Box>
-      <Typography variant="h6" sx={{ fontSize: '1rem', mb: 2 }}>
-        Integrations
-      </Typography>
-      {INTEGRATIONS.map((integration) => (
-        <Card key={integration.provider} sx={{ mb: 2 }}>
-          <CardContent
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              py: '16px !important',
-            }}
-          >
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                {integration.label}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {integration.description}
-              </Typography>
-            </Box>
-            <Chip label="Coming soon" size="small" variant="outlined" />
-          </CardContent>
-        </Card>
-      ))}
+      <Typography variant="h6" sx={{ fontSize: '1rem', mb: 2 }}>Integrations</Typography>
+
+      <IntegrationCard
+        provider="jira"
+        label="Jira"
+        description="Pull assigned tickets into your work items automatically"
+        configHint="Create an API token at https://id.atlassian.com/manage-profile/security/api-tokens"
+        fields={[
+          { key: 'baseUrl', label: 'Jira Base URL', placeholder: 'https://yourcompany.atlassian.net' },
+          { key: 'email', label: 'Email', placeholder: 'you@company.com' },
+          { key: 'apiToken', label: 'API Token', placeholder: 'Your Jira API token', secret: true },
+          { key: 'projectKeys', label: 'Project Keys (optional)', placeholder: 'PROJ,TEAM,OPS', helper: 'Comma-separated. Leave empty for all projects.' },
+        ]}
+      />
+
+      <IntegrationCard
+        provider="bitbucket"
+        label="Bitbucket"
+        description="Track your open PRs and review requests"
+        configHint="Create an App Password at Bitbucket > Personal Settings > App Passwords (needs Repositories:Read and Pull Requests:Read)"
+        fields={[
+          { key: 'workspace', label: 'Workspace', placeholder: 'your-workspace' },
+          { key: 'username', label: 'Username', placeholder: 'your-bb-username' },
+          { key: 'appPassword', label: 'App Password', placeholder: 'Your Bitbucket app password', secret: true },
+          { key: 'repos', label: 'Repos to track', placeholder: 'crm-backend-services,land-crm,builder-scraper-api', helper: 'Comma-separated repo slugs' },
+        ]}
+      />
+
+      <IntegrationCard
+        provider="calendar"
+        label="Microsoft Calendar"
+        description="Pull Outlook/Teams meetings to calculate your available focus time"
+        configHint="Register an app in Azure AD > App Registrations. Set 'Allow public client flows' to Yes. Add Calendars.Read delegated permission."
+        fields={[
+          { key: 'clientId', label: 'Application (Client) ID', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' },
+          { key: 'tenantId', label: 'Tenant ID', placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx or common', helper: 'Use "common" for personal Microsoft accounts' },
+        ]}
+      />
     </Box>
   );
 }
+
+// ── Settings Page ─────────────────────────────────────────────────────────
 
 export default function Settings() {
   const [tab, setTab] = useState(0);
 
   return (
     <Box sx={{ maxWidth: 700 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        Settings
-      </Typography>
-
+      <Typography variant="h5" sx={{ mb: 2 }}>Settings</Typography>
       <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3 }}>
         <Tab label="Projects" />
         <Tab label="Integrations" />
       </Tabs>
-
       {tab === 0 && <ProjectsTab />}
       {tab === 1 && <IntegrationsTab />}
     </Box>

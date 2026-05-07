@@ -1,45 +1,117 @@
 const { Router } = require('express');
 const { IntegrationConfig } = require('../database/models');
+const { syncProvider } = require('../services/sync');
+const { startDeviceCodeFlow } = require('../services/calendar');
 
 const router = Router();
 
+// List all integration configs
 router.get('/', async (req, res) => {
   const configs = await IntegrationConfig.findAll();
-  // Strip sensitive config data from response
   const safe = configs.map((c) => ({
     ...c.toJSON(),
-    config: c.config ? { configured: true } : null,
+    config: c.config ? { configured: true, ...safeConfigSummary(c.provider, c.config) } : null,
   }));
   res.json(safe);
 });
 
-router.put('/:provider', async (req, res) => {
+// Get or create a specific integration config
+router.get('/:provider', async (req, res) => {
   let config = await IntegrationConfig.findOne({ where: { provider: req.params.provider } });
   if (!config) {
-    config = await IntegrationConfig.create({ provider: req.params.provider, ...req.body });
-  } else {
-    await config.update(req.body);
+    config = await IntegrationConfig.create({ provider: req.params.provider });
   }
   res.json({
     ...config.toJSON(),
-    config: config.config ? { configured: true } : null,
+    config: config.config ? { configured: true, ...safeConfigSummary(config.provider, config.config) } : null,
   });
 });
 
+// Update integration config
+router.put('/:provider', async (req, res) => {
+  let config = await IntegrationConfig.findOne({ where: { provider: req.params.provider } });
+
+  const updateData = { ...req.body };
+  // If config is an object, stringify it
+  if (updateData.config && typeof updateData.config === 'object') {
+    updateData.config = JSON.stringify(updateData.config);
+  }
+
+  if (!config) {
+    config = await IntegrationConfig.create({ provider: req.params.provider, ...updateData });
+  } else {
+    await config.update(updateData);
+  }
+
+  res.json({
+    ...config.toJSON(),
+    config: config.config ? { configured: true, ...safeConfigSummary(config.provider, config.config) } : null,
+  });
+});
+
+// Trigger sync for a provider
 router.post('/:provider/sync', async (req, res) => {
-  // Placeholder — will be wired up in Phase 3/4
-  res.json({ message: `Sync for ${req.params.provider} not yet implemented` });
+  const config = await IntegrationConfig.findOne({
+    where: { provider: req.params.provider, enabled: true },
+  });
+
+  if (!config) {
+    return res.status(400).json({ error: `${req.params.provider} is not enabled` });
+  }
+
+  const result = await syncProvider(req.params.provider);
+  return res.json(result);
 });
 
-router.get('/:provider/status', async (req, res) => {
-  const config = await IntegrationConfig.findOne({ where: { provider: req.params.provider } });
-  if (!config) return res.status(404).json({ error: 'Integration not found' });
-  return res.json({
-    provider: config.provider,
-    enabled: config.enabled,
-    lastSyncAt: config.lastSyncAt,
-    lastSyncStatus: config.lastSyncStatus,
-  });
+// Microsoft Calendar: Start device code flow
+router.post('/calendar/auth/device-code', async (req, res) => {
+  const config = await IntegrationConfig.findOne({ where: { provider: 'calendar' } });
+  if (!config || !config.config) {
+    return res.status(400).json({ error: 'Calendar integration not configured — set clientId and tenantId first' });
+  }
+
+  try {
+    const parsed = JSON.parse(config.config);
+    const result = await startDeviceCodeFlow(parsed);
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
+
+// Test connection for a provider
+router.post('/:provider/test', async (req, res) => {
+  const config = await IntegrationConfig.findOne({ where: { provider: req.params.provider } });
+  if (!config || !config.config) {
+    return res.status(400).json({ error: 'Not configured' });
+  }
+
+  // Simple test: try a sync and return result
+  try {
+    const result = await syncProvider(req.params.provider);
+    return res.json({ success: result.success, message: result.error || 'Connection successful' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Return safe config summary without secrets
+function safeConfigSummary(provider, configStr) {
+  try {
+    const parsed = JSON.parse(configStr);
+    switch (provider) {
+      case 'jira':
+        return { baseUrl: parsed.baseUrl, email: parsed.email, projectKeys: parsed.projectKeys };
+      case 'bitbucket':
+        return { workspace: parsed.workspace, username: parsed.username, repos: parsed.repos };
+      case 'calendar':
+        return { clientId: parsed.clientId, tenantId: parsed.tenantId };
+      default:
+        return {};
+    }
+  } catch {
+    return {};
+  }
+}
 
 module.exports = router;

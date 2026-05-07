@@ -6,6 +6,7 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const { sequelize } = require('./database/models');
 const { verify } = require('./utilities/auth');
+const { initScheduler } = require('./scheduler');
 
 const app = express();
 
@@ -52,6 +53,7 @@ const PORT = process.env.DEVFOCUS_PORT || 3001;
 async function start() {
   await sequelize.sync();
   console.log('Database synced.');
+  initScheduler();
   app.listen(PORT, () => console.log(`DevFocus API running on port ${PORT}`));
 }
 

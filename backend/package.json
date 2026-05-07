@@ -11,6 +11,8 @@
     "prettify": "prettier './**/*.js' --write"
   },
   "dependencies": {
+    "@azure/msal-node": "^5.1.5",
+    "axios": "^1.16.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
