@@ -59,8 +59,10 @@ app.use((err, req, res, _next) => {
 const PORT = process.env.DEVFOCUS_PORT || 3001;
 
 async function start() {
-  // Drop stale backup tables from previous alter attempts, then sync
+  // Disable FK constraints during sync so alter can drop/recreate tables
+  await sequelize.query('PRAGMA foreign_keys = OFF;');
   try {
+    // Drop stale backup tables from previous alter attempts
     const qi = sequelize.getQueryInterface();
     const tables = await qi.showAllTables();
     for (const table of tables) {
@@ -68,8 +70,10 @@ async function start() {
         await qi.dropTable(table);
       }
     }
-  } catch { /* ignore */ }
-  await sequelize.sync({ alter: true });
+    await sequelize.sync({ alter: true });
+  } finally {
+    await sequelize.query('PRAGMA foreign_keys = ON;');
+  }
   console.log('Database synced.');
   initScheduler();
   app.listen(PORT, () => console.log(`DevFocus API running on port ${PORT}`));
