@@ -12,6 +12,7 @@ import EventIcon from '@mui/icons-material/Event';
 import WhatshotIcon from '@mui/icons-material/Whatshot';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import InboxIcon from '@mui/icons-material/Inbox';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useDaily } from '../api/daily';
 import { useUpdateWorkItemStatus } from '../api/workItems';
 
@@ -161,6 +162,68 @@ export default function DailyFocus() {
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
               Last touched: {new Date(data.snapshot.lastTouchedAt).toLocaleString()}
             </Typography>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* What you got done */}
+      {((data.done?.today?.length > 0) || (data.done?.yesterday?.length > 0)) && (
+        <Card sx={{ mb: 2 }}>
+          <CardContent>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+              <CheckCircleOutlineIcon sx={{ color: 'success.main', fontSize: 20 }} />
+              <Typography variant="h6" sx={{ fontSize: '1rem' }}>
+                What You Got Done
+              </Typography>
+            </Stack>
+            {data.done.today?.length > 0 && (
+              <Box sx={{ mb: data.done.yesterday?.length > 0 ? 1.5 : 0 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5, display: 'block' }}>
+                  Today
+                </Typography>
+                {data.done.today.map((item) => (
+                  <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25 }}>
+                    <CheckCircleOutlineIcon sx={{ color: 'success.main', fontSize: 16 }} />
+                    <Typography variant="body2" sx={{ flex: 1 }}>{item.title}</Typography>
+                    {item.externalId && (
+                      <Typography variant="caption" sx={{ color: '#2684FF', fontFamily: 'monospace' }}>
+                        {item.externalId}
+                      </Typography>
+                    )}
+                    {item.project && (
+                      <Chip
+                        label={item.project.name}
+                        size="small"
+                        sx={{
+                          height: 18,
+                          fontSize: '0.6rem',
+                          bgcolor: item.project.color + '22',
+                          color: item.project.color,
+                        }}
+                      />
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            )}
+            {data.done.yesterday?.length > 0 && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5, display: 'block' }}>
+                  Yesterday
+                </Typography>
+                {data.done.yesterday.map((item) => (
+                  <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25, opacity: 0.7 }}>
+                    <CheckCircleOutlineIcon sx={{ color: 'success.main', fontSize: 16 }} />
+                    <Typography variant="body2" sx={{ flex: 1 }}>{item.title}</Typography>
+                    {item.externalId && (
+                      <Typography variant="caption" sx={{ color: '#2684FF', fontFamily: 'monospace' }}>
+                        {item.externalId}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            )}
           </CardContent>
         </Card>
       )}

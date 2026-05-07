@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
 
-export function useProjects() {
+export function useProjects(includeArchived = false) {
   return useQuery({
-    queryKey: ['projects'],
-    queryFn: () => api.get('/projects'),
+    queryKey: ['projects', { includeArchived }],
+    queryFn: () => api.get(`/projects${includeArchived ? '?archived=true' : ''}`),
   });
 }
 

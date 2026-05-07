@@ -49,6 +49,31 @@ router.get('/:date', async (req, res) => {
     limit: 5,
   });
 
+  // Recently completed items (today + yesterday for context)
+  const yesterday = new Date(targetDate + 'T12:00:00');
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  const recentlyDone = await WorkItem.findAll({
+    where: {
+      status: 'done',
+      completedAt: {
+        [Op.gte]: new Date(yesterdayStr + 'T00:00:00'),
+        [Op.lte]: new Date(targetDate + 'T23:59:59'),
+      },
+    },
+    include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
+    order: [['completedAt', 'DESC']],
+    limit: 10,
+  });
+
+  const doneToday = recentlyDone.filter(
+    (i) => i.completedAt && new Date(i.completedAt).toISOString().split('T')[0] === targetDate
+  );
+  const doneYesterday = recentlyDone.filter(
+    (i) => i.completedAt && new Date(i.completedAt).toISOString().split('T')[0] === yesterdayStr
+  );
+
   // Calendar events for today
   const events = await CachedEvent.findAll({
     where: { date: targetDate },
@@ -76,6 +101,7 @@ router.get('/:date', async (req, res) => {
     priorities,
     snapshot,
     inbox: { count: inboxCount, recent: inboxRecent },
+    done: { today: doneToday, yesterday: doneYesterday },
   });
 });
 

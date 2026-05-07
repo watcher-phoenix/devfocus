@@ -9,6 +9,8 @@ import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import Button from '@mui/material/Button';
+import AddIcon from '@mui/icons-material/Add';
 import {
   DndContext,
   DragOverlay,
@@ -21,6 +23,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { useWorkItems, useUpdateWorkItemStatus, useDeleteWorkItem } from '../api/workItems';
 import WorkItemDialog from '../components/WorkItemDialog';
+import NewWorkItemDialog from '../components/NewWorkItemDialog';
 
 const COLUMNS = [
   { key: 'inbox', label: 'Inbox', color: '#9AA0A6' },
@@ -203,6 +206,7 @@ export default function Board() {
   const deleteItem = useDeleteWorkItem();
   const [editItem, setEditItem] = useState(null);
   const [activeItem, setActiveItem] = useState(null);
+  const [newItemOpen, setNewItemOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -250,9 +254,12 @@ export default function Board() {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ mb: 3 }}>
-        Board
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5">Board</Typography>
+        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setNewItemOpen(true)}>
+          New Item
+        </Button>
+      </Box>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -296,6 +303,12 @@ export default function Board() {
         item={editItem}
         open={Boolean(editItem)}
         onClose={() => setEditItem(null)}
+      />
+
+      <NewWorkItemDialog
+        open={newItemOpen}
+        onClose={() => setNewItemOpen(false)}
+        defaultStatus="active"
       />
     </Box>
   );
