@@ -119,22 +119,23 @@ async function syncCalendar(startDate, endDate) {
       else updated++;
     }
 
-    // Clean up stale events in the synced range
-    if (processedIds.length > 0) {
-      await CachedEvent.destroy({
-        where: {
-          date: { [Op.between]: [startDate, endDate] },
-          externalId: { [Op.notIn]: processedIds },
-        },
-      });
-    }
+    // Clean up events in the synced range that aren't in the accepted list
+    // This removes previously synced tentative/declined events
+    const deleted = await CachedEvent.destroy({
+      where: {
+        date: { [Op.between]: [startDate, endDate] },
+        ...(processedIds.length > 0
+          ? { externalId: { [Op.notIn]: processedIds } }
+          : {}),
+      },
+    });
 
     await integrationConfig.update({
       lastSyncAt: new Date(),
       lastSyncStatus: 'success',
     });
 
-    return { success: true, created, updated, total: processedIds.length };
+    return { success: true, created, updated, deleted, total: processedIds.length };
   } catch (err) {
     console.error('Calendar sync error:', err.message);
     await integrationConfig.update({
