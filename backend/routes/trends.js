@@ -48,6 +48,28 @@ router.get('/', async (req, res) => {
       projectBreakdown[name] = (projectBreakdown[name] || 0) + 1;
     });
 
+    // Get work hours for after-hours detection
+    let workStartMins = 450; // 7:30
+    let workEndMins = 960; // 16:00
+    try {
+      const { UserSettings } = require('../database/models');
+      const settings = await UserSettings.findOne();
+      if (settings) {
+        const [sh, sm] = settings.workStartTime.split(':').map(Number);
+        const [eh, em] = settings.workEndTime.split(':').map(Number);
+        workStartMins = sh * 60 + sm;
+        workEndMins = eh * 60 + em;
+      }
+    } catch { /* use defaults */ }
+
+    const isAfterHours = (completedAt) => {
+      if (!completedAt) return false;
+      const d = new Date(completedAt);
+      if (d.getHours() === 12 && d.getMinutes() === 0 && d.getSeconds() === 0) return false;
+      const mins = d.getHours() * 60 + d.getMinutes();
+      return mins < workStartMins || mins > workEndMins;
+    };
+
     // Items grouped by type with details
     const typeDetails = {};
     completedItems.forEach((item) => {
@@ -59,6 +81,7 @@ router.get('/', async (req, res) => {
         externalUrl: item.externalUrl,
         project: item.project?.name || null,
         completedAt: item.completedAt,
+        afterHours: isAfterHours(item.completedAt),
       });
     });
 
@@ -90,33 +113,13 @@ router.get('/', async (req, res) => {
     const jiraTickets = completedItems.filter((i) => i.type === 'jira').length;
     const strategicItems = completedItems.filter((i) => i.type === 'strategic').length;
 
-    // After-hours work: items completed outside work hours
-    let workStart = 7.5 * 60; // 7:30 default
-    let workEnd = 16 * 60; // 4:00 default
-    try {
-      const { UserSettings } = require('../database/models');
-      const settings = await UserSettings.findOne();
-      if (settings) {
-        const [sh, sm] = settings.workStartTime.split(':').map(Number);
-        const [eh, em] = settings.workEndTime.split(':').map(Number);
-        workStart = sh * 60 + sm;
-        workEnd = eh * 60 + em;
-      }
-    } catch { /* use defaults */ }
-
-    const afterHoursItems = completedItems.filter((item) => {
-      if (!item.completedAt) return false;
-      const d = new Date(item.completedAt);
-      // Skip items with placeholder noon time (manually logged for past dates)
-      if (d.getHours() === 12 && d.getMinutes() === 0 && d.getSeconds() === 0) return false;
-      const mins = d.getHours() * 60 + d.getMinutes();
-      return mins < workStart || mins > workEnd;
-    });
+    // After-hours counts using the same function defined above
+    const afterHoursItems = completedItems.filter((item) => isAfterHours(item.completedAt));
 
     const afterHoursMeetings = meetings.filter((event) => {
       const d = new Date(event.startTime);
       const mins = d.getHours() * 60 + d.getMinutes();
-      return mins < workStart || mins > workEnd;
+      return mins < workStartMins || mins > workEndMins;
     });
 
     // Avg items per week

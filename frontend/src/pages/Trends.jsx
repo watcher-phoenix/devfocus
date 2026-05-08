@@ -131,6 +131,7 @@ function TypeBreakdown({ data, total, details }) {
                         {item.externalId}
                       </Typography>
                     )}
+                    {item.afterHours && <Chip label="After hours" size="small" color="error" sx={{ height: 16, fontSize: '0.55rem' }} />}
                     {item.project && <Chip label={item.project} size="small" sx={{ height: 16, fontSize: '0.55rem' }} />}
                   </Box>
                 ))}
