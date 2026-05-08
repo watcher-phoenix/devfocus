@@ -12,6 +12,7 @@ import InputLabel from '@mui/material/InputLabel';
 import Stack from '@mui/material/Stack';
 import { useProjects } from '../api/projects';
 import { useCreateWorkItem } from '../api/workItems';
+import EmojiButton from './EmojiButton';
 
 const STATUSES = [
   { value: 'inbox', label: 'Brain Dump' },
@@ -75,13 +76,16 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>New Work Item</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-        <TextField
-          label="Title"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-          fullWidth
-          autoFocus
-        />
+        <Stack direction="row" spacing={1} alignItems="center">
+          <TextField
+            label="Title"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            fullWidth
+            autoFocus
+          />
+          <EmojiButton onSelect={(emoji) => setForm({ ...form, title: form.title + emoji })} />
+        </Stack>
         <TextField
           label="Description"
           value={form.description}

@@ -3,13 +3,13 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import Chip from '@mui/material/Chip';
 import Skeleton from '@mui/material/Skeleton';
 import ContextualHint from '../components/ContextualHint';
+import RichTextEditor from '../components/RichTextEditor';
 import { useNotesList, useDailyNote, useSaveDailyNote } from '../api/notes';
 
 function formatDateLabel(dateStr) {
@@ -30,7 +30,6 @@ export default function Notes() {
   const save = useSaveDailyNote();
 
   const [content, setContent] = useState('');
-  const saveTimer = useRef(null);
   const lastSaved = useRef('');
 
   // Sync content when note loads
@@ -41,31 +40,19 @@ export default function Notes() {
     }
   }, [currentNote]);
 
-  const doSave = useCallback((text) => {
-    if (text !== lastSaved.current) {
-      save.mutate({ date: selectedDate, content: text });
-      lastSaved.current = text;
+  const doSave = useCallback((html) => {
+    if (html !== lastSaved.current) {
+      save.mutate({ date: selectedDate, content: html });
+      lastSaved.current = html;
     }
   }, [selectedDate, save]);
 
-  const handleChange = (e) => {
-    const text = e.target.value;
-    setContent(text);
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => doSave(text), 800);
+  const handleChange = (html) => {
+    setContent(html);
+    doSave(html);
   };
 
-  // Save on unmount or date change
-  useEffect(() => {
-    return () => {
-      clearTimeout(saveTimer.current);
-    };
-  }, []);
-
   const handleDateChange = (date) => {
-    // Save current before switching
-    clearTimeout(saveTimer.current);
-    doSave(content);
     setSelectedDate(date);
   };
 
@@ -122,21 +109,11 @@ export default function Notes() {
             {noteLoading ? (
               <Skeleton variant="rounded" height={300} />
             ) : (
-              <TextField
-                multiline
-                fullWidth
-                minRows={14}
-                maxRows={30}
-                placeholder="Write your notes here..."
-                value={content}
+              <RichTextEditor
+                content={content}
                 onChange={handleChange}
-                variant="outlined"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    fontSize: '0.9rem',
-                    lineHeight: 1.7,
-                  },
-                }}
+                placeholder="Write your notes here..."
+                minHeight={350}
               />
             )}
           </CardContent>

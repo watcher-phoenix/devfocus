@@ -16,6 +16,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import { useProjects } from '../api/projects';
 import { useUpdateWorkItem, useDeleteWorkItem } from '../api/workItems';
+import EmojiButton from './EmojiButton';
 
 const STATUSES = [
   { value: 'inbox', label: 'Brain Dump' },
@@ -122,12 +123,15 @@ export default function WorkItemDialog({ item, open, onClose }) {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Edit Work Item</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-        <TextField
-          label="Title"
-          value={form.title || ''}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-          fullWidth
-        />
+        <Stack direction="row" spacing={1} alignItems="center">
+          <TextField
+            label="Title"
+            value={form.title || ''}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            fullWidth
+          />
+          <EmojiButton onSelect={(emoji) => setForm({ ...form, title: (form.title || '') + emoji })} />
+        </Stack>
         <TextField
           label="Description"
           value={form.description || ''}

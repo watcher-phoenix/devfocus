@@ -36,6 +36,7 @@ import WorkItemDialog from '../components/WorkItemDialog';
 import SnapshotDialog from '../components/SnapshotDialog';
 import LogWorkDialog from '../components/LogWorkDialog';
 import ContextualHint from '../components/ContextualHint';
+import RichTextEditor from '../components/RichTextEditor';
 
 function CollapsibleSection({ title, icon, count, defaultOpen, children, action }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -87,7 +88,6 @@ export default function DailyFocus() {
   const { data: noteData } = useDailyNote('today');
   const saveNote = useSaveDailyNote();
   const [noteContent, setNoteContent] = useState('');
-  const noteSaveTimer = useRef(null);
   const noteLastSaved = useRef('');
 
   useEffect(() => {
@@ -97,23 +97,13 @@ export default function DailyFocus() {
     }
   }, [noteData]);
 
-  const doSaveNote = useCallback((text) => {
-    if (text !== noteLastSaved.current) {
-      saveNote.mutate({ date: 'today', content: text });
-      noteLastSaved.current = text;
+  const handleNoteChange = useCallback((html) => {
+    setNoteContent(html);
+    if (html !== noteLastSaved.current) {
+      saveNote.mutate({ date: 'today', content: html });
+      noteLastSaved.current = html;
     }
   }, [saveNote]);
-
-  const handleNoteChange = (e) => {
-    const text = e.target.value;
-    setNoteContent(text);
-    clearTimeout(noteSaveTimer.current);
-    noteSaveTimer.current = setTimeout(() => doSaveNote(text), 800);
-  };
-
-  useEffect(() => {
-    return () => clearTimeout(noteSaveTimer.current);
-  }, []);
 
   if (isLoading) {
     return (
@@ -375,21 +365,12 @@ export default function DailyFocus() {
             <NotesIcon sx={{ color: 'info.main', fontSize: 18 }} />
             <Typography variant="h6" sx={{ fontSize: '0.9rem' }}>Notes</Typography>
           </Stack>
-          <TextField
-            multiline
-            fullWidth
-            minRows={8}
-            placeholder="Jot something down..."
-            value={noteContent}
+          <RichTextEditor
+            content={noteContent}
             onChange={handleNoteChange}
-            variant="outlined"
-            size="small"
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                fontSize: '0.8rem',
-                lineHeight: 1.6,
-              },
-            }}
+            placeholder="Jot something down..."
+            minHeight={150}
+            compact
           />
         </CardContent>
       </Card>

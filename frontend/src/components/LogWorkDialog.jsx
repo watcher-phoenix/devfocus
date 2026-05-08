@@ -15,6 +15,7 @@ import Stack from '@mui/material/Stack';
 import dayjs from 'dayjs';
 import { useProjects } from '../api/projects';
 import { useLogWork } from '../api/activity';
+import EmojiButton from './EmojiButton';
 
 const TYPE_LABELS = {
   task: 'Task',
@@ -64,14 +65,17 @@ export default function LogWorkDialog({ open, onClose }) {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Log Completed Work</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-        <TextField
-          label="What did you work on?"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-          fullWidth
-          autoFocus
-          placeholder="e.g. Fixed pagination bug on contacts page"
-        />
+        <Stack direction="row" spacing={1} alignItems="center">
+          <TextField
+            label="What did you work on?"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            fullWidth
+            autoFocus
+            placeholder="e.g. Fixed pagination bug on contacts page"
+          />
+          <EmojiButton onSelect={(emoji) => setForm({ ...form, title: form.title + emoji })} />
+        </Stack>
         <TextField
           label="Description (optional)"
           value={form.description}
