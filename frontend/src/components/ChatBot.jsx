@@ -20,6 +20,7 @@ export default function ChatBot() {
   const [agentReady, setAgentReady] = useState(false);
   const messagesEndRef = useRef(null);
   const agentRef = useRef(null);
+  const openRef = useRef(false);
 
   // Initialize Clippy agent
   useEffect(() => {
@@ -37,13 +38,18 @@ export default function ChatBot() {
         setAgentReady(true);
 
         // Make Clippy's DOM element clickable
-        const clippyEl = document.querySelector('.clippy');
-        if (clippyEl) {
-          clippyEl.style.cursor = 'pointer';
-          clippyEl.addEventListener('click', () => {
-            setOpen((prev) => !prev);
-          });
-        }
+        setTimeout(() => {
+          const clippyEl = document.querySelector('.clippy, .clippy-agent');
+          if (clippyEl) {
+            clippyEl.style.cursor = 'pointer';
+            clippyEl.style.zIndex = '9999';
+            clippyEl.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openRef.current = !openRef.current;
+              setOpen(openRef.current);
+            });
+          }
+        }, 1000);
       } catch (err) {
         console.error('Failed to init Clippy:', err);
       }
