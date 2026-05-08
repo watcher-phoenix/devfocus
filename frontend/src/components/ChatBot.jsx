@@ -76,7 +76,6 @@ export default function ChatBot() {
     if (!agentRef.current || messages.length === 0) return;
     const last = messages[messages.length - 1];
     if (last.role === 'assistant') {
-      agentRef.current.speak(last.text);
       agentRef.current.animate();
     }
   }, [messages]);
