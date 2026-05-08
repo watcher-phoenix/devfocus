@@ -179,7 +179,7 @@ export default function Board() {
         Brain Dump → Active → Waiting/Later → Done.
       </ContextualHint>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h5">Work</Typography>
         <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setNewItemOpen(true)}>
           New Item
@@ -187,8 +187,8 @@ export default function Board() {
       </Box>
 
       {/* Filters */}
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <FormControl size="small" sx={{ minWidth: 140 }}>
+      <Stack direction="row" spacing={1.5} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
+        <FormControl size="small" sx={{ minWidth: { xs: 'calc(50% - 6px)', sm: 140 } }}>
           <InputLabel>Status</InputLabel>
           <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
             {STATUS_OPTIONS.map((s) => (
@@ -196,7 +196,7 @@ export default function Board() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl size="small" sx={{ minWidth: { xs: 'calc(50% - 6px)', sm: 120 } }}>
           <InputLabel>Type</InputLabel>
           <Select value={typeFilter} label="Type" onChange={(e) => setTypeFilter(e.target.value)}>
             <MenuItem value="all">All</MenuItem>
@@ -205,7 +205,7 @@ export default function Board() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 140 }}>
+        <FormControl size="small" sx={{ minWidth: { xs: 'calc(50% - 6px)', sm: 140 } }}>
           <InputLabel>Project</InputLabel>
           <Select value={projectFilter} label="Project" onChange={(e) => setProjectFilter(e.target.value)}>
             <MenuItem value="all">All</MenuItem>
@@ -315,8 +315,8 @@ export default function Board() {
       </Dialog>
 
       {/* Table */}
-      <TableContainer>
-        <Table size="small">
+      <TableContainer sx={{ overflowX: 'auto' }}>
+        <Table size="small" sx={{ minWidth: { xs: 600, md: 'auto' } }}>
           <TableHead>
             <TableRow>
               <TableCell padding="checkbox" sx={{ width: 40 }}>

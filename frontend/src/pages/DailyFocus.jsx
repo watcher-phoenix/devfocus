@@ -129,7 +129,7 @@ export default function DailyFocus() {
   const activityDates = Object.keys(activityGrouped).sort((a, b) => a.localeCompare(b));
 
   return (
-    <Box sx={{ maxWidth: 1100 }}>
+    <Box sx={{ maxWidth: { xs: '100%', md: 1100 } }}>
       <ContextualHint hintId="today">
         This is your home base. Capture thoughts, check off priorities, and see your day at a glance.
         Use the sections below — they collapse so you only see what you need. Go to Work to organize
@@ -147,7 +147,7 @@ export default function DailyFocus() {
         </Stack>
       )}
 
-    <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, md: 3 }, alignItems: 'flex-start' }}>
     <Box sx={{ flex: 1, minWidth: 0 }}>
       {/* Day header + quick actions */}
       <Card sx={{ mb: 2 }}>
@@ -358,7 +358,7 @@ export default function DailyFocus() {
     </Box>
 
     {/* Right column — Notes */}
-    <Box sx={{ flex: 1, minWidth: 0, display: { xs: 'none', md: 'block' } }}>
+    <Box sx={{ flex: 1, minWidth: 0, width: { xs: '100%', md: 'auto' } }}>
       <Card>
         <CardContent sx={{ pb: '12px !important' }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>

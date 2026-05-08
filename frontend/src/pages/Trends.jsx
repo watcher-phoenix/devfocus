@@ -38,7 +38,7 @@ const TYPE_COLORS = {
 
 function StatCard({ label, value, subtitle, color }) {
   return (
-    <Card sx={{ flex: 1, minWidth: 120 }}>
+    <Card sx={{ flex: 1, minWidth: { xs: 'calc(50% - 8px)', sm: 120 } }}>
       <CardContent sx={{ py: '12px !important', '&:last-child': { pb: '12px !important' } }}>
         <Typography variant="h4" sx={{ fontWeight: 700, color: color || 'text.primary', fontSize: '1.8rem' }}>
           {value}
@@ -282,8 +282,8 @@ export default function Trends() {
   const exportLabel = useCustom ? `${fromDate}_${toDate}` : `${preset}d`;
 
   return (
-    <Box sx={{ maxWidth: 800 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+    <Box sx={{ maxWidth: { xs: '100%', md: 800 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Box>
           <Typography variant="h5">Trends</Typography>
           <Typography variant="body2" color="text.secondary">
@@ -299,7 +299,7 @@ export default function Trends() {
           Export CSV
         </Button>
       </Box>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
         <ToggleButtonGroup value={preset} exclusive onChange={handlePreset} size="small">
           <ToggleButton value={14}>14d</ToggleButton>
           <ToggleButton value={30}>30d</ToggleButton>
@@ -313,7 +313,7 @@ export default function Trends() {
           onChange={(e) => handleDateChange('from', e.target.value)}
           slotProps={{ inputLabel: { shrink: true } }}
           label="From"
-          sx={{ width: 160 }}
+          sx={{ width: { xs: 'calc(50% - 24px)', sm: 160 } }}
         />
         <TextField
           type="date"
@@ -322,7 +322,7 @@ export default function Trends() {
           onChange={(e) => handleDateChange('to', e.target.value)}
           slotProps={{ inputLabel: { shrink: true } }}
           label="To"
-          sx={{ width: 160 }}
+          sx={{ width: { xs: 'calc(50% - 24px)', sm: 160 } }}
         />
       </Stack>
 

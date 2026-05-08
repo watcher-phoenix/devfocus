@@ -60,9 +60,9 @@ export default function Notes() {
   const dates = [today, ...notesList.map((n) => n.date).filter((d) => d !== today)];
 
   return (
-    <Box sx={{ display: 'flex', gap: 3, maxWidth: 900 }}>
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, md: 3 }, maxWidth: { xs: '100%', md: 900 } }}>
       {/* Date list */}
-      <Card sx={{ minWidth: 200, maxWidth: 220, flexShrink: 0, alignSelf: 'flex-start' }}>
+      <Card sx={{ minWidth: { xs: 'auto', md: 200 }, maxWidth: { xs: '100%', md: 220 }, flexShrink: 0, alignSelf: 'flex-start' }}>
         <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
           <Typography variant="overline" sx={{ px: 1, fontSize: '0.65rem' }}>Notes</Typography>
           {listLoading ? (

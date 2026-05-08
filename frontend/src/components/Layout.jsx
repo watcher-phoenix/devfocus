@@ -153,10 +153,10 @@ export default function Layout() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 1.5, sm: 2, md: 3 },
           mt: { xs: 8, md: 0 },
           ml: { md: `${DRAWER_WIDTH}px` },
-          maxWidth: 1200,
+          maxWidth: { xs: '100%', md: 1200 },
         }}
       >
         <Outlet />

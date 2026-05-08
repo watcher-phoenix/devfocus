@@ -338,7 +338,7 @@ export default function WeeklyPlanner() {
             sx={{
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' },
-              gap: 1.5,
+              gap: { xs: 1, md: 1.5 },
               alignItems: 'flex-start',
               mb: 3,
               overflow: 'hidden',
@@ -429,7 +429,7 @@ export default function WeeklyPlanner() {
                           size="small"
                           variant="outlined"
                           onClick={() => updateItem.mutate({ id: item.id, scheduledDate: weekDates[di] })}
-                          sx={{ minWidth: 36, px: 0.5, fontSize: '0.65rem', py: 0.25 }}
+                          sx={{ minWidth: { xs: 28, sm: 36 }, px: { xs: 0.25, sm: 0.5 }, fontSize: '0.65rem', py: 0.25 }}
                         >
                           {dayLabel.slice(0, 3)}
                         </Button>
@@ -442,7 +442,7 @@ export default function WeeklyPlanner() {
                         }}
                         slotProps={{ inputLabel: { shrink: true } }}
                         sx={{
-                          width: 140,
+                          width: { xs: '100%', sm: 140 },
                           '& .MuiInputBase-input': { fontSize: '0.75rem', py: 0.5, px: 1 },
                         }}
                         label="Other date"
