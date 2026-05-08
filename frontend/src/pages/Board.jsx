@@ -61,9 +61,11 @@ const TYPE_LABELS = {
   strategic: 'Strategic',
   followup: 'Follow-up',
   review: 'Review',
+  'pr-review': 'PR Review',
   jira: 'Jira',
   pr: 'PR',
   support: 'Weekend Support',
+  urgent: 'Urgent',
 };
 
 const PRIORITY_LABELS = { 0: '-', 1: 'Low', 2: 'Med', 3: 'High' };
