@@ -55,13 +55,6 @@ export default function WorkItemDialog({ item, open, onClose }) {
 
   useEffect(() => {
     if (item) {
-      // Detect if existing completedAt is after hours (after 4pm or before 7:30am)
-      let isAfterHours = false;
-      if (item.completedAt) {
-        const d = new Date(item.completedAt);
-        const mins = d.getHours() * 60 + d.getMinutes();
-        isAfterHours = mins < 450 || mins > 960; // before 7:30 or after 4:00
-      }
       setForm({
         title: item.title || '',
         description: item.description || '',
@@ -74,7 +67,7 @@ export default function WorkItemDialog({ item, open, onClose }) {
         dueDate: item.dueDate || '',
         externalId: item.externalId || '',
         externalUrl: item.externalUrl || '',
-        afterHours: isAfterHours,
+        afterHours: item.afterHours || false,
       });
     }
   }, [item]);

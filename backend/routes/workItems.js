@@ -1,8 +1,32 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
-const { WorkItem, Project } = require('../database/models');
+const { WorkItem, Project, UserSettings } = require('../database/models');
 
 const router = Router();
+
+async function getWorkHourBounds() {
+  let workStartMins = 450; // 7:30
+  let workEndMins = 960; // 16:00
+  try {
+    const settings = await UserSettings.findOne();
+    if (settings) {
+      const [sh, sm] = settings.workStartTime.split(':').map(Number);
+      const [eh, em] = settings.workEndTime.split(':').map(Number);
+      workStartMins = sh * 60 + sm;
+      workEndMins = eh * 60 + em;
+    }
+  } catch { /* use defaults */ }
+  return { workStartMins, workEndMins };
+}
+
+function isAfterHours(completedAt, workStartMins, workEndMins) {
+  if (!completedAt) return false;
+  const d = new Date(completedAt);
+  // Skip items logged at exactly noon (default for past-date logging)
+  if (d.getHours() === 12 && d.getMinutes() === 0 && d.getSeconds() === 0) return false;
+  const mins = d.getHours() * 60 + d.getMinutes();
+  return mins < workStartMins || mins > workEndMins;
+}
 
 router.get('/', async (req, res) => {
   const where = {};
@@ -21,7 +45,14 @@ router.get('/', async (req, res) => {
       ['createdAt', 'DESC'],
     ],
   });
-  res.json(items);
+
+  const { workStartMins, workEndMins } = await getWorkHourBounds();
+  const result = items.map((item) => {
+    const json = item.toJSON();
+    json.afterHours = isAfterHours(item.completedAt, workStartMins, workEndMins);
+    return json;
+  });
+  res.json(result);
 });
 
 router.post('/', async (req, res) => {
