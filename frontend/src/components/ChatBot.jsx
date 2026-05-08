@@ -67,7 +67,7 @@ export default function ChatBot() {
       {/* Clippy toggle button */}
       {!open && (
         <Fab
-          size="medium"
+          size="large"
           onClick={() => setOpen(true)}
           sx={{
             position: 'fixed',
@@ -76,10 +76,13 @@ export default function ChatBot() {
             bgcolor: '#FFD600',
             color: '#333',
             zIndex: 1200,
-            '&:hover': { bgcolor: '#FFC107' },
+            width: 64,
+            height: 64,
+            boxShadow: '0 4px 12px rgba(255,214,0,0.4)',
+            '&:hover': { bgcolor: '#FFC107', boxShadow: '0 6px 16px rgba(255,214,0,0.6)' },
           }}
         >
-          <ClippyIcon size={28} />
+          <ClippyIcon size={40} />
         </Fab>
       )}
 
