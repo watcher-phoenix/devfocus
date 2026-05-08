@@ -37,19 +37,17 @@ export default function ChatBot() {
         agent.play('Greeting');
         setAgentReady(true);
 
-        // Make Clippy's DOM element clickable
-        setTimeout(() => {
-          const clippyEl = document.querySelector('.clippy, .clippy-agent');
-          if (clippyEl) {
-            clippyEl.style.cursor = 'pointer';
-            clippyEl.style.zIndex = '9999';
-            clippyEl.addEventListener('click', (e) => {
-              e.stopPropagation();
-              openRef.current = !openRef.current;
-              setOpen(openRef.current);
-            });
-          }
-        }, 1000);
+        // Make Clippy's DOM element clickable using the agent's internal element
+        const clippyEl = agent._el;
+        if (clippyEl) {
+          clippyEl.style.cursor = 'pointer';
+          clippyEl.style.zIndex = '9999';
+          clippyEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openRef.current = !openRef.current;
+            setOpen(openRef.current);
+          });
+        }
       } catch (err) {
         console.error('Failed to init Clippy:', err);
       }
@@ -107,31 +105,6 @@ export default function ChatBot() {
 
   return (
     <>
-      {/* Small "Ask Clippy" button below where Clippy sits */}
-      {!open && agentReady && (
-        <Box
-          onClick={() => { openRef.current = true; setOpen(true); }}
-          sx={{
-            position: 'fixed',
-            top: 170,
-            right: 80,
-            zIndex: 9999,
-            cursor: 'pointer',
-            bgcolor: '#FFD600',
-            color: '#333',
-            px: 1.5,
-            py: 0.5,
-            borderRadius: 2,
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            '&:hover': { bgcolor: '#FFC107' },
-          }}
-        >
-          Ask Clippy
-        </Box>
-      )}
-
       {/* Chat panel */}
       <Slide direction="left" in={open} mountOnEnter unmountOnExit>
         <Paper
