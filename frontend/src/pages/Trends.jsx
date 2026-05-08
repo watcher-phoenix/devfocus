@@ -22,7 +22,8 @@ const TYPE_LABELS = {
   ticket: 'Tickets',
   strategic: 'Strategic',
   followup: 'Follow-ups',
-  review: 'PR Reviews',
+  review: 'Reviews',
+  'pr-review': 'PR Reviews',
   jira: 'Jira Tickets',
   pr: 'PRs Merged',
   support: 'Weekend Support',
@@ -30,7 +31,7 @@ const TYPE_LABELS = {
 
 const TYPE_COLORS = {
   task: '#9AA0A6', ticket: '#2684FF', strategic: '#7C4DFF', followup: '#00E5FF',
-  review: '#FFD600', jira: '#2684FF', pr: '#00C853', support: '#FF5722',
+  review: '#FFD600', 'pr-review': '#FF9100', jira: '#2684FF', pr: '#00C853', support: '#FF5722',
 };
 
 function StatCard({ label, value, subtitle, color }) {

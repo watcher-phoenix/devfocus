@@ -22,6 +22,7 @@ const TYPE_LABELS = {
   strategic: 'Strategic',
   followup: 'Follow-up',
   review: 'Review',
+  'pr-review': 'PR Review',
   jira: 'Jira',
   pr: 'PR',
   support: 'Weekend Support',

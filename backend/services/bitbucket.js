@@ -172,11 +172,11 @@ async function syncBitbucket() {
           const prCompletedAt = pr.updated_on ? new Date(pr.updated_on) : new Date();
 
           if (hasApproved && !isAuthor) {
-            prType = 'review';
+            prType = 'pr-review';
             prTitle = `Approved: ${pr.title}`;
             status = 'done';
           } else if (isLinkedToMyJira && !isAuthor) {
-            prType = 'review';
+            prType = 'pr-review';
             prTitle = `PR (Jira): ${pr.title}`;
             status = 'inbox';
           }

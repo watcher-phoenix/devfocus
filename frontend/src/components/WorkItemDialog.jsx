@@ -32,6 +32,7 @@ const TYPES = [
   { value: 'strategic', label: 'Strategic' },
   { value: 'followup', label: 'Follow-up' },
   { value: 'review', label: 'Review' },
+  { value: 'pr-review', label: 'PR Review' },
   { value: 'jira', label: 'Jira' },
   { value: 'pr', label: 'PR' },
   { value: 'support', label: 'Weekend Support' },

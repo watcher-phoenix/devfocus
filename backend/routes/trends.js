@@ -121,7 +121,7 @@ router.get('/', async (req, res) => {
     const totalMeetingHours = Math.round(meetings.reduce((sum, e) => {
       return sum + (new Date(e.endTime) - new Date(e.startTime)) / 3600000;
     }, 0) * 10) / 10;
-    const prsReviewed = completedItems.filter((i) => i.type === 'review').length;
+    const prsReviewed = completedItems.filter((i) => i.type === 'pr-review').length;
     const prsMerged = completedItems.filter((i) => i.type === 'pr').length;
     const jiraTickets = completedItems.filter((i) => i.type === 'jira').length;
     const strategicItems = completedItems.filter((i) => i.type === 'strategic').length;
