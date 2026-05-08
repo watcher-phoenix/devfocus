@@ -26,6 +26,7 @@ const TYPE_LABELS = {
   jira: 'Jira',
   pr: 'PR',
   support: 'Weekend Support',
+  urgent: 'Urgent',
 };
 
 export default function LogWorkDialog({ open, onClose }) {

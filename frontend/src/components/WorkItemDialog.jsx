@@ -36,6 +36,7 @@ const TYPES = [
   { value: 'jira', label: 'Jira' },
   { value: 'pr', label: 'PR' },
   { value: 'support', label: 'Weekend Support' },
+  { value: 'urgent', label: 'Urgent' },
 ];
 
 const PRIORITIES = [

@@ -27,11 +27,12 @@ const TYPE_LABELS = {
   jira: 'Jira Tickets',
   pr: 'PRs Merged',
   support: 'Weekend Support',
+  urgent: 'Urgent',
 };
 
 const TYPE_COLORS = {
   task: '#9AA0A6', ticket: '#2684FF', strategic: '#7C4DFF', followup: '#00E5FF',
-  review: '#FFD600', 'pr-review': '#FF9100', jira: '#2684FF', pr: '#00C853', support: '#FF5722',
+  review: '#FFD600', 'pr-review': '#FF9100', jira: '#2684FF', pr: '#00C853', support: '#FF5722', urgent: '#F44336',
 };
 
 function StatCard({ label, value, subtitle, color }) {

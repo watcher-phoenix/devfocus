@@ -29,6 +29,7 @@ const TYPES = [
   { value: 'review', label: 'Review' },
   { value: 'pr-review', label: 'PR Review' },
   { value: 'support', label: 'Weekend Support' },
+  { value: 'urgent', label: 'Urgent' },
 ];
 
 const PRIORITIES = [
