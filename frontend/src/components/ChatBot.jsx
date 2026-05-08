@@ -35,6 +35,15 @@ export default function ChatBot() {
         agent.moveTo(window.innerWidth - 140, 60);
         agent.play('Greeting');
         setAgentReady(true);
+
+        // Make Clippy's DOM element clickable
+        const clippyEl = document.querySelector('.clippy');
+        if (clippyEl) {
+          clippyEl.style.cursor = 'pointer';
+          clippyEl.addEventListener('click', () => {
+            setOpen((prev) => !prev);
+          });
+        }
       } catch (err) {
         console.error('Failed to init Clippy:', err);
       }
@@ -92,22 +101,6 @@ export default function ChatBot() {
 
   return (
     <>
-      {/* Click area over Clippy to open chat */}
-      {!open && agentReady && (
-        <Box
-          onClick={handleToggle}
-          sx={{
-            position: 'fixed',
-            top: 40,
-            right: 100,
-            width: 80,
-            height: 100,
-            zIndex: 1200,
-            cursor: 'pointer',
-          }}
-        />
-      )}
-
       {/* Chat panel */}
       <Slide direction="left" in={open} mountOnEnter unmountOnExit>
         <Paper
