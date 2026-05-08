@@ -16,6 +16,8 @@ const FAQ = [
   { patterns: ['how do integrations work', 'jira setup', 'bitbucket setup', 'calendar setup'], answer: "It looks like you're setting up integrations! Head to Settings > Integrations:\n\n- Jira: needs your base URL + API token\n- Bitbucket: workspace name + access token + your display name\n- Calendar: just paste your Outlook ICS URL\n\nThey sync every 30 minutes during work hours, or hit Sync whenever you want fresh data!" },
   { patterns: ['what are statuses', 'status meaning', 'active waiting later'], answer: "Here's your status cheat sheet:\n\n- Brain Dump = unsorted, just captured\n- Active = you're working on it now\n- Waiting = blocked on someone else\n- Later = not now, but don't forget\n- Scheduled = planned for a specific date\n- Done = completed!\n\nWould you like help organizing your items?" },
   { patterns: ['keyboard shortcuts', 'shortcuts'], answer: "I love a good shortcut! Here's what we've got:\n\nCtrl+K (or Cmd+K): Quick capture from anywhere. That's it for now, but it's a good one!" },
+  { patterns: ['what is today', 'today page', 'how does today work', 'what does today show'], answer: "It looks like you want to know about the Today page! That's your command center — everything you need in one place. You'll see your meetings and focus time, your priorities for the day (with checkboxes!), context snapshots for picking up where you left off, and your activity log. You can also capture thoughts right from here with the Brain Dump input at the top. It's where your day starts and ends!" },
+  { patterns: ['what is a priority', 'how do priorities work', 'priority'], answer: "Priorities are items scheduled for today! They show up on the Today page with badges — High (red), Medium (yellow), and Low (gray). Check them off as you complete them. To get items into your priorities, go to Plan and drag them onto today, or edit an item and set a scheduled date!" },
   { patterns: ['help', 'what can you do', 'how do i use'], answer: "Hi there! I'm Clippy, and I'm here to help you get the most out of DevFocus! You can ask me about:\n\n- Brain Dump and capturing thoughts\n- The Work page and managing tasks\n- Planning your week\n- Context Snapshots\n- Trends and career evidence\n- Integrations setup\n- Keyboard shortcuts\n\nOr check out the Guide page for the full walkthrough!" },
 ];
 
@@ -56,13 +58,17 @@ router.post('/', async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: 'Message required' });
 
+  try {
   const faqAnswer = findFaqAnswer(message);
   if (faqAnswer) {
     return res.json({ answer: faqAnswer, source: 'faq' });
   }
 
-  const settings = await UserSettings.findOne();
-  const apiKey = settings?.getDataValue('anthropicApiKey');
+  let apiKey = null;
+  try {
+    const settings = await UserSettings.findOne();
+    apiKey = settings?.getDataValue('anthropicApiKey');
+  } catch { /* settings table may not have column yet */ }
 
   if (!apiKey) {
     return res.json({
@@ -98,6 +104,10 @@ Here's the current app context:\n\n${context}`,
       answer: "Oops! I couldn't connect to my brain right now. Check your API key in Settings, or ask me something from the FAQ — I know those by heart!",
       source: 'error',
     });
+  }
+  } catch (err) {
+    console.error('Chat endpoint error:', err.message);
+    return res.status(500).json({ answer: 'Something went wrong. Try again!', source: 'error' });
   }
 });
 
