@@ -149,34 +149,59 @@ function TypeBreakdown({ data, total, details }) {
   );
 }
 
-function ProjectBreakdown({ data, total }) {
+function ProjectBreakdown({ data, total, details }) {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  const [expanded, setExpanded] = useState(null);
 
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>By Project</Typography>
       {entries.map(([project, count]) => {
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        const isOpen = expanded === project;
+        const items = details?.[project] || [];
         return (
-          <Box key={project} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-            <Typography variant="body2" sx={{ minWidth: 120, fontWeight: 500 }}>
-              {project}
-            </Typography>
-            <Box sx={{ flex: 1 }}>
-              <LinearProgress
-                variant="determinate"
-                value={pct}
-                sx={{
-                  height: 16,
-                  borderRadius: 1,
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  '& .MuiLinearProgress-bar': { bgcolor: '#7C4DFF', borderRadius: 1 },
-                }}
-              />
+          <Box key={project} sx={{ mb: 0.5 }}>
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', py: 0.5 }}
+              onClick={() => setExpanded(isOpen ? null : project)}
+            >
+              <Typography variant="body2" sx={{ minWidth: 120, fontWeight: 500 }}>
+                {project}
+              </Typography>
+              <Box sx={{ flex: 1 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={pct}
+                  sx={{
+                    height: 16,
+                    borderRadius: 1,
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                    '& .MuiLinearProgress-bar': { bgcolor: '#7C4DFF', borderRadius: 1 },
+                  }}
+                />
+              </Box>
+              <Typography variant="body2" sx={{ minWidth: 50, textAlign: 'right' }}>
+                {count} ({pct}%)
+              </Typography>
+              <IconButton size="small">{isOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}</IconButton>
             </Box>
-            <Typography variant="body2" sx={{ minWidth: 50, textAlign: 'right' }}>
-              {count} ({pct}%)
-            </Typography>
+            <Collapse in={isOpen}>
+              <Box sx={{ pl: 2, pb: 1 }}>
+                {items.map((item) => (
+                  <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25 }}>
+                    <Typography variant="caption" sx={{ flex: 1, fontSize: '0.75rem' }}>{item.title}</Typography>
+                    {item.externalUrl && item.externalId && (
+                      <Typography variant="caption" component="a" href={item.externalUrl} target="_blank" rel="noreferrer" sx={{ color: '#2684FF', fontFamily: 'monospace', fontSize: '0.65rem', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                        {item.externalId}
+                      </Typography>
+                    )}
+                    {item.afterHours && <Chip label="After hours" size="small" color="error" sx={{ height: 16, fontSize: '0.55rem' }} />}
+                    <Chip label={TYPE_LABELS[item.type] || item.type} size="small" sx={{ height: 16, fontSize: '0.55rem' }} />
+                  </Box>
+                ))}
+              </Box>
+            </Collapse>
           </Box>
         );
       })}
@@ -378,7 +403,7 @@ export default function Trends() {
       {/* Project breakdown */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <ProjectBreakdown data={data.projectBreakdown} total={summary.totalCompleted} />
+          <ProjectBreakdown data={data.projectBreakdown} total={summary.totalCompleted} details={data.projectDetails} />
         </CardContent>
       </Card>
     </Box>

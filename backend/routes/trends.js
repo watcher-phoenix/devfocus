@@ -56,9 +56,20 @@ router.get('/', async (req, res) => {
 
     // Project breakdown
     const projectBreakdown = {};
+    const projectDetails = {};
     completedItems.forEach((item) => {
       const name = item.project?.name || 'Unassigned';
       projectBreakdown[name] = (projectBreakdown[name] || 0) + 1;
+      if (!projectDetails[name]) projectDetails[name] = [];
+      projectDetails[name].push({
+        id: item.id,
+        title: item.title,
+        type: item.type,
+        externalId: item.externalId,
+        externalUrl: item.externalUrl,
+        completedAt: item.completedAt,
+        afterHours: false, // will be set below after isAfterHours is defined
+      });
     });
 
     // Get work hours for after-hours detection
@@ -96,6 +107,11 @@ router.get('/', async (req, res) => {
         completedAt: item.completedAt,
         afterHours: isAfterHours(item.completedAt),
       });
+    });
+
+    // Set afterHours on projectDetails now that isAfterHours is defined
+    Object.values(projectDetails).forEach((items) => {
+      items.forEach((item) => { item.afterHours = isAfterHours(item.completedAt); });
     });
 
     // Meeting hours per week
@@ -163,6 +179,7 @@ router.get('/', async (req, res) => {
       weeklyMeetingMinutes,
       typeBreakdown,
       projectBreakdown,
+      projectDetails,
       typeDetails,
       dailyBreakdown,
     });
