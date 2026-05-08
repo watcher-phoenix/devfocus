@@ -272,14 +272,17 @@ export default function WeeklyPlanner() {
 
           if (isPast || sorted.length === 0) return;
 
-          if (focusMins >= 240) {
-            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: sorted.slice(0, 5), reason: 'Focus day — schedule deep work' });
-          } else if (focusMins >= 120) {
-            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: sorted.slice(0, 3), reason: 'Some focus time — fit in a few tasks' });
-          } else if (focusMins > 0) {
-            const quickItems = sorted.filter((i) => ['review', 'followup', 'pr'].includes(i.type)).slice(0, 3);
+          const mtgCount = mtgs.meetingCount || 0;
+          const isMeetingDay = mtgCount >= 2 || mtgs.meetingMinutes >= MEETING_THRESHOLD_MINUTES;
+
+          if (!isMeetingDay && focusMins >= 240) {
+            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), mtgCount, items: sorted.slice(0, 5), reason: `Focus day (${mtgCount} meetings, ${Math.floor(focusMins / 60)}h ${Math.round(focusMins % 60)}m free)` });
+          } else if (!isMeetingDay && focusMins >= 120) {
+            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), mtgCount, items: sorted.slice(0, 3), reason: `Some focus time (${mtgCount} meetings, ${Math.floor(focusMins / 60)}h ${Math.round(focusMins % 60)}m free)` });
+          } else if (isMeetingDay && focusMins > 0) {
+            const quickItems = sorted.filter((i) => ['review', 'followup', 'pr', 'ticket'].includes(i.type)).slice(0, 3);
             const fallback = quickItems.length > 0 ? quickItems : sorted.slice(0, 2);
-            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), items: fallback, reason: 'Light gaps — quick tasks only' });
+            suggestions.push({ date, day: DAY_LABELS[di], focusMins: Math.round(focusMins), mtgCount, items: fallback, reason: `Meeting day (${mtgCount} meetings) — quick tasks between gaps` });
           }
         });
 
@@ -361,10 +364,10 @@ export default function WeeklyPlanner() {
                     </Box>
                     <Chip
                       icon={dayType === 'meetings' ? <EventIcon /> : <CodeIcon />}
-                      label={dayType === 'meetings' ? `${dayMeetings.meetingCount} mtgs` : 'Focus'}
+                      label={dayMeetings.overbooked ? 'Overbooked' : (dayType === 'meetings' ? `${dayMeetings.meetingCount} mtgs` : 'Focus')}
                       size="small"
-                      variant="outlined"
-                      color={dayType === 'focus' ? 'success' : 'default'}
+                      variant={dayMeetings.overbooked ? 'filled' : 'outlined'}
+                      color={dayMeetings.overbooked ? 'error' : (dayType === 'focus' ? 'success' : 'default')}
                       sx={{ height: 24, fontSize: '0.65rem' }}
                     />
                   </Box>

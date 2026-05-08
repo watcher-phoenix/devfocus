@@ -152,9 +152,20 @@ router.get('/week-meetings/:weekStart', async (req, res) => {
         return sum + (new Date(e.endTime) - new Date(e.startTime)) / 60000;
       }, 0);
 
+      // Detect overlapping meetings
+      let overlapCount = 0;
+      const sortedMeetings = [...realMeetings].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+      for (let mi = 1; mi < sortedMeetings.length; mi++) {
+        if (new Date(sortedMeetings[mi].startTime) < new Date(sortedMeetings[mi - 1].endTime)) {
+          overlapCount++;
+        }
+      }
+
       days[date] = {
         meetingCount: realMeetings.length,
         meetingMinutes: Math.round(meetingMinutes),
+        overbooked: overlapCount > 0,
+        overlapCount,
         events: events.map((e) => ({
           title: e.title,
           startTime: e.startTime,
