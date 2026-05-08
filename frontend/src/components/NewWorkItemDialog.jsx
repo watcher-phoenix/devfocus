@@ -13,6 +13,14 @@ import Stack from '@mui/material/Stack';
 import { useProjects } from '../api/projects';
 import { useCreateWorkItem } from '../api/workItems';
 
+const STATUSES = [
+  { value: 'inbox', label: 'Brain Dump' },
+  { value: 'active', label: 'Active' },
+  { value: 'waiting', label: 'Waiting' },
+  { value: 'later', label: 'Later' },
+  { value: 'scheduled', label: 'Scheduled' },
+];
+
 const TYPES = [
   { value: 'task', label: 'Task' },
   { value: 'ticket', label: 'Ticket' },
@@ -31,15 +39,20 @@ const PRIORITIES = [
 export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'active' }) {
   const { data: projects = [] } = useProjects();
   const createItem = useCreateWorkItem();
-  const [form, setForm] = useState({
+  const defaultForm = {
     title: '',
     description: '',
+    notes: '',
     type: 'task',
     priority: 0,
-    projectId: '',
     status: defaultStatus,
+    projectId: '',
     scheduledDate: '',
-  });
+    dueDate: '',
+    externalId: '',
+    externalUrl: '',
+  };
+  const [form, setForm] = useState(defaultForm);
 
   const handleSave = async () => {
     if (!form.title.trim()) return;
@@ -47,16 +60,11 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
       ...form,
       projectId: form.projectId || null,
       scheduledDate: form.scheduledDate || null,
+      dueDate: form.dueDate || null,
+      externalId: form.externalId || null,
+      externalUrl: form.externalUrl || null,
     });
-    setForm({
-      title: '',
-      description: '',
-      type: 'task',
-      priority: 0,
-      projectId: '',
-      status: defaultStatus,
-      scheduledDate: '',
-    });
+    setForm({ ...defaultForm });
     onClose();
   };
 
@@ -72,7 +80,7 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
           autoFocus
         />
         <TextField
-          label="Description (optional)"
+          label="Description"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
           fullWidth
@@ -80,6 +88,18 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
           rows={2}
         />
         <Stack direction="row" spacing={2}>
+          <FormControl fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={form.status}
+              label="Status"
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
+              {STATUSES.map((s) => (
+                <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <FormControl fullWidth>
             <InputLabel>Type</InputLabel>
             <Select
@@ -92,6 +112,8 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
               ))}
             </Select>
           </FormControl>
+        </Stack>
+        <Stack direction="row" spacing={2}>
           <FormControl fullWidth>
             <InputLabel>Priority</InputLabel>
             <Select
@@ -104,8 +126,6 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
               ))}
             </Select>
           </FormControl>
-        </Stack>
-        <Stack direction="row" spacing={2}>
           <FormControl fullWidth>
             <InputLabel>Project</InputLabel>
             <Select
@@ -119,15 +139,47 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
               ))}
             </Select>
           </FormControl>
+        </Stack>
+        <Stack direction="row" spacing={2}>
           <TextField
-            label="Schedule for"
+            label="Scheduled date"
             type="date"
             value={form.scheduledDate}
             onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })}
             fullWidth
             slotProps={{ inputLabel: { shrink: true } }}
           />
+          <TextField
+            label="Due date"
+            type="date"
+            value={form.dueDate}
+            onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+            fullWidth
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
         </Stack>
+        <TextField
+          label="Ticket ID (optional)"
+          value={form.externalId}
+          onChange={(e) => setForm({ ...form, externalId: e.target.value })}
+          fullWidth
+          placeholder="e.g. PROJ-1234"
+        />
+        <TextField
+          label="Ticket URL (optional)"
+          value={form.externalUrl}
+          onChange={(e) => setForm({ ...form, externalUrl: e.target.value })}
+          fullWidth
+          placeholder="https://yourcompany.atlassian.net/browse/PROJ-1234"
+        />
+        <TextField
+          label="Notes"
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          fullWidth
+          multiline
+          rows={3}
+        />
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
