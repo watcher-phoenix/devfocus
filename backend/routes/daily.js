@@ -10,12 +10,9 @@ router.get('/:date', async (req, res) => {
   const { date } = req.params;
   const targetDate = date === 'today' ? getTodayET() : date;
 
-  // All items scheduled for today, sorted by priority (highest first)
+  // All items scheduled for today, including done (shown with strikethrough)
   const priorities = await WorkItem.findAll({
-    where: {
-      scheduledDate: targetDate,
-      status: { [Op.ne]: 'done' },
-    },
+    where: { scheduledDate: targetDate },
     include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
     order: [['priority', 'DESC'], ['sortOrder', 'ASC']],
   });
