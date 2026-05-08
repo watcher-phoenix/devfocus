@@ -71,8 +71,9 @@ function ClippyIcon({ size = 24, animate = false }) {
         {/* Eyebrow right */}
         <path d="M34 20C36 18 39 18 41 21" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
 
-        {/* Smile */}
-        <path d="M28 33C30 35 34 35 36 33" stroke="#555" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+        {/* Smile - white background so it's visible over the paperclip */}
+        <path d="M26 35C29 39 35 39 38 35" stroke="white" strokeWidth="3" strokeLinecap="round" fill="none"/>
+        <path d="M26 35C29 39 35 39 38 35" stroke="#555" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
       </g>
     </svg>
   );
