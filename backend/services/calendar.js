@@ -147,18 +147,16 @@ async function syncCalendar(startDate, endDate) {
   }
 }
 
-// Sync current week + next week
+// Sync 4 weeks back + 4 weeks forward
 async function syncCurrentWeek() {
   const today = new Date();
-  const dayOfWeek = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  const start = new Date(today);
+  start.setDate(today.getDate() - 28);
+  const end = new Date(today);
+  end.setDate(today.getDate() + 28);
 
-  const nextFriday = new Date(monday);
-  nextFriday.setDate(monday.getDate() + 11);
-
-  const startDate = monday.toISOString().split('T')[0];
-  const endDate = nextFriday.toISOString().split('T')[0];
+  const startDate = start.toISOString().split('T')[0];
+  const endDate = end.toISOString().split('T')[0];
 
   return syncCalendar(startDate, endDate);
 }

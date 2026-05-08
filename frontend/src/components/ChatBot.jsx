@@ -67,6 +67,15 @@ export default function ChatBot() {
     return () => { disposed = true; if (agentRef.current) agentRef.current.dispose(); };
   }, []);
 
+  // Clippy idle animations on a loop
+  useEffect(() => {
+    if (!agentReady || !agentRef.current) return;
+    const interval = setInterval(() => {
+      if (agentRef.current) agentRef.current.animate();
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [agentReady]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
