@@ -15,7 +15,8 @@ function ClippyIcon({ size = 24 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Paperclip body */}
-      <path d="M32 8C24 8 18 14 18 22V46C18 52 22 56 28 56C34 56 38 52 38 46V22C38 18 36 16 32 16C28 16 26 18 26 22V42" stroke="#FFD600" strokeWidth="4" strokeLinecap="round" fill="none"/>
+      <path d="M32 8C24 8 18 14 18 22V46C18 52 22 56 28 56C34 56 38 52 38 46V22C38 18 36 16 32 16C28 16 26 18 26 22V42" stroke="#999" strokeWidth="5" strokeLinecap="round" fill="none"/>
+      <path d="M32 8C24 8 18 14 18 22V46C18 52 22 56 28 56C34 56 38 52 38 46V22C38 18 36 16 32 16C28 16 26 18 26 22V42" stroke="#C0C0C0" strokeWidth="3" strokeLinecap="round" fill="none"/>
       {/* Left eye */}
       <circle cx="28" cy="28" r="3.5" fill="white"/>
       <circle cx="29" cy="28" r="2" fill="#333"/>
