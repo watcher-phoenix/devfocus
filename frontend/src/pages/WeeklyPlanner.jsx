@@ -364,7 +364,7 @@ export default function WeeklyPlanner() {
                     </Box>
                     <Chip
                       icon={dayType === 'meetings' ? <EventIcon /> : <CodeIcon />}
-                      label={dayMeetings.overbooked ? 'Overbooked' : (dayType === 'meetings' ? `${dayMeetings.meetingCount} mtgs` : 'Focus')}
+                      label={dayMeetings.overbooked ? `${dayMeetings.meetingCount} mtgs (Overbooked)` : (dayType === 'meetings' ? `${dayMeetings.meetingCount} mtgs` : 'Focus')}
                       size="small"
                       variant={dayMeetings.overbooked ? 'filled' : 'outlined'}
                       color={dayMeetings.overbooked ? 'error' : (dayType === 'focus' ? 'success' : 'default')}
