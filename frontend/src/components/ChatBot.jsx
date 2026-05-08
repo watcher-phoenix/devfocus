@@ -11,22 +11,69 @@ import SendIcon from '@mui/icons-material/Send';
 import CircularProgress from '@mui/material/CircularProgress';
 import { api } from '../api/client';
 
-function ClippyIcon({ size = 24 }) {
+function ClippyIcon({ size = 24, animate = false }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Paperclip body */}
-      <path d="M32 8C24 8 18 14 18 22V46C18 52 22 56 28 56C34 56 38 52 38 46V22C38 18 36 16 32 16C28 16 26 18 26 22V42" stroke="#999" strokeWidth="5" strokeLinecap="round" fill="none"/>
-      <path d="M32 8C24 8 18 14 18 22V46C18 52 22 56 28 56C34 56 38 52 38 46V22C38 18 36 16 32 16C28 16 26 18 26 22V42" stroke="#C0C0C0" strokeWidth="3" strokeLinecap="round" fill="none"/>
-      {/* Left eye */}
-      <circle cx="28" cy="28" r="3.5" fill="white"/>
-      <circle cx="29" cy="28" r="2" fill="#333"/>
-      {/* Right eye */}
-      <circle cx="36" cy="28" r="3.5" fill="white"/>
-      <circle cx="37" cy="28" r="2" fill="#333"/>
-      {/* Eyebrow left */}
-      <path d="M25 24C26 22 28 22 30 23" stroke="#333" strokeWidth="1.5" strokeLinecap="round"/>
-      {/* Eyebrow right */}
-      <path d="M34 23C36 22 38 22 39 24" stroke="#333" strokeWidth="1.5" strokeLinecap="round"/>
+      <style>{`
+        @keyframes clippy-idle {
+          0%, 80%, 100% { transform: translateY(0) rotate(0deg); }
+          10% { transform: translateY(-2px) rotate(-2deg); }
+          20% { transform: translateY(0) rotate(0deg); }
+          30% { transform: translateY(-1px) rotate(1deg); }
+          40% { transform: translateY(0) rotate(0deg); }
+        }
+        @keyframes clippy-blink {
+          0%, 90%, 95%, 100% { transform: scaleY(1); }
+          92% { transform: scaleY(0.1); }
+        }
+        @keyframes clippy-look {
+          0%, 40%, 100% { transform: translateX(0); }
+          50% { transform: translateX(1.5px); }
+          70% { transform: translateX(-1px); }
+        }
+        @keyframes clippy-wave {
+          0%, 70%, 100% { transform: rotate(0deg); }
+          75% { transform: rotate(-8deg); }
+          80% { transform: rotate(8deg); }
+          85% { transform: rotate(-5deg); }
+          90% { transform: rotate(0deg); }
+        }
+        .clippy-body { animation: ${animate ? 'clippy-idle 4s ease-in-out infinite, clippy-wave 6s ease-in-out infinite' : 'none'}; transform-origin: center bottom; }
+        .clippy-eyes { animation: ${animate ? 'clippy-blink 4s ease-in-out infinite' : 'none'}; transform-origin: center center; }
+        .clippy-pupils { animation: ${animate ? 'clippy-look 5s ease-in-out infinite' : 'none'}; }
+      `}</style>
+      <g className="clippy-body">
+        {/* Paperclip body - outer */}
+        <path d="M32 4C22 4 15 12 15 22V48C15 55 20 60 28 60C36 60 41 55 41 48V22C41 16 38 12 32 12C26 12 23 16 23 22V44" stroke="#777" strokeWidth="6" strokeLinecap="round" fill="none"/>
+        {/* Paperclip body - inner highlight */}
+        <path d="M32 4C22 4 15 12 15 22V48C15 55 20 60 28 60C36 60 41 55 41 48V22C41 16 38 12 32 12C26 12 23 16 23 22V44" stroke="#B8B8B8" strokeWidth="4" strokeLinecap="round" fill="none"/>
+        {/* Shine */}
+        <path d="M32 4C22 4 15 12 15 22V48C15 55 20 60 28 60" stroke="#D4D4D4" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.6"/>
+
+        <g className="clippy-eyes">
+          {/* Left eye white */}
+          <ellipse cx="27" cy="27" rx="5" ry="5.5" fill="white"/>
+          {/* Right eye white */}
+          <ellipse cx="37" cy="27" rx="5" ry="5.5" fill="white"/>
+        </g>
+
+        <g className="clippy-pupils">
+          {/* Left pupil */}
+          <circle cx="28" cy="27.5" r="2.5" fill="#333"/>
+          <circle cx="29" cy="26.5" r="1" fill="white" opacity="0.8"/>
+          {/* Right pupil */}
+          <circle cx="38" cy="27.5" r="2.5" fill="#333"/>
+          <circle cx="39" cy="26.5" r="1" fill="white" opacity="0.8"/>
+        </g>
+
+        {/* Eyebrow left */}
+        <path d="M23 21C25 18 28 18 30 20" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
+        {/* Eyebrow right */}
+        <path d="M34 20C36 18 39 18 41 21" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
+
+        {/* Smile */}
+        <path d="M28 33C30 35 34 35 36 33" stroke="#555" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+      </g>
     </svg>
   );
 }
@@ -79,7 +126,7 @@ export default function ChatBot() {
             '&:hover': { transform: 'scale(1.1)', filter: 'drop-shadow(0 4px 12px rgba(255,214,0,0.7))' },
           }}
         >
-          <ClippyIcon size={72} />
+          <ClippyIcon size={100} animate />
         </Box>
       )}
 
