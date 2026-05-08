@@ -12,6 +12,8 @@ import InputLabel from '@mui/material/InputLabel';
 import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
 import Box from '@mui/material/Box';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
 import { useProjects } from '../api/projects';
 import { useUpdateWorkItem, useDeleteWorkItem } from '../api/workItems';
 
@@ -49,6 +51,13 @@ export default function WorkItemDialog({ item, open, onClose }) {
 
   useEffect(() => {
     if (item) {
+      // Detect if existing completedAt is after hours (after 4pm or before 7:30am)
+      let isAfterHours = false;
+      if (item.completedAt) {
+        const d = new Date(item.completedAt);
+        const mins = d.getHours() * 60 + d.getMinutes();
+        isAfterHours = mins < 450 || mins > 960; // before 7:30 or after 4:00
+      }
       setForm({
         title: item.title || '',
         description: item.description || '',
@@ -61,6 +70,7 @@ export default function WorkItemDialog({ item, open, onClose }) {
         dueDate: item.dueDate || '',
         externalId: item.externalId || '',
         externalUrl: item.externalUrl || '',
+        afterHours: isAfterHours,
       });
     }
   }, [item]);
@@ -68,7 +78,7 @@ export default function WorkItemDialog({ item, open, onClose }) {
   if (!item) return null;
 
   const handleSave = async () => {
-    await updateItem.mutateAsync({
+    const payload = {
       id: item.id,
       ...form,
       projectId: form.projectId || null,
@@ -76,7 +86,27 @@ export default function WorkItemDialog({ item, open, onClose }) {
       dueDate: form.dueDate || null,
       externalId: form.externalId || null,
       externalUrl: form.externalUrl || null,
-    });
+    };
+    delete payload.afterHours;
+
+    // If status is done, adjust completedAt based on afterHours toggle
+    if (form.status === 'done') {
+      if (form.afterHours) {
+        // Set to 6pm to count as after hours
+        const dateStr = form.scheduledDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        payload.completedAt = new Date(dateStr + 'T18:00:00');
+      } else if (item.completedAt) {
+        // Keep existing completedAt but move to noon if it was after hours
+        const d = new Date(item.completedAt);
+        const mins = d.getHours() * 60 + d.getMinutes();
+        if (mins < 450 || mins > 960) {
+          d.setHours(12, 0, 0, 0);
+          payload.completedAt = d;
+        }
+      }
+    }
+
+    await updateItem.mutateAsync(payload);
     onClose();
   };
 
@@ -189,6 +219,12 @@ export default function WorkItemDialog({ item, open, onClose }) {
           multiline
           rows={3}
         />
+        {form.status === 'done' && (
+          <FormControlLabel
+            control={<Checkbox checked={form.afterHours || false} onChange={(e) => setForm({ ...form, afterHours: e.target.checked })} />}
+            label="After hours work"
+          />
+        )}
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'space-between', px: 3 }}>
         <Button color="error" onClick={handleDelete}>
