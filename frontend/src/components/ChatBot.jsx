@@ -87,8 +87,11 @@ export default function ChatBot() {
       return animQueueRef.current.pop();
     };
     const interval = setInterval(() => {
-      if (agentRef.current) agentRef.current.play(nextAnim());
-    }, 8000);
+      if (agentRef.current) {
+        agentRef.current.stop();
+        agentRef.current.play(nextAnim());
+      }
+    }, 12000);
     return () => clearInterval(interval);
   }, [agentReady]);
 
