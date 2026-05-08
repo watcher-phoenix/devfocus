@@ -22,6 +22,7 @@ export default function ChatBot() {
   const messagesEndRef = useRef(null);
   const agentRef = useRef(null);
   const openRef = useRef(false);
+  const animQueueRef = useRef([]);
 
   // Initialize Clippy agent
   useEffect(() => {
@@ -67,11 +68,26 @@ export default function ChatBot() {
     return () => { disposed = true; if (agentRef.current) agentRef.current.dispose(); };
   }, []);
 
-  // Clippy idle animations on a loop
+  // Clippy idle animations — shuffle all, play through, reshuffle
   useEffect(() => {
     if (!agentReady || !agentRef.current) return;
+    const allAnims = agentRef.current.animations().filter((a) => !a.startsWith('Idle'));
+    const shuffle = (arr) => {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+    const nextAnim = () => {
+      if (animQueueRef.current.length === 0) {
+        animQueueRef.current = shuffle(allAnims);
+      }
+      return animQueueRef.current.pop();
+    };
     const interval = setInterval(() => {
-      if (agentRef.current) agentRef.current.animate();
+      if (agentRef.current) agentRef.current.play(nextAnim());
     }, 8000);
     return () => clearInterval(interval);
   }, [agentReady]);
@@ -85,7 +101,7 @@ export default function ChatBot() {
     if (!agentRef.current || messages.length === 0) return;
     const last = messages[messages.length - 1];
     if (last.role === 'assistant') {
-      agentRef.current.animate();
+      agentRef.current.play('Explain');
     }
   }, [messages]);
 
