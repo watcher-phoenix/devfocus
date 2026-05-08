@@ -43,50 +43,36 @@ function ClippyIcon({ size = 24, animate = false }) {
         .clippy-pupils { animation: ${animate ? 'clippy-look 5s ease-in-out infinite' : 'none'}; }
       `}</style>
       <g className="clippy-body">
-        {/* Clippy's real shape: zigzag/S-shaped wire standing upright */}
-        {/* Top curve going right */}
-        <path d="M20 4C20 4 20 10 28 10" stroke="#888" strokeWidth="5" strokeLinecap="round" fill="none"/>
-        {/* Down to right, curve left */}
-        <path d="M28 10V20C28 26 20 26 20 20" stroke="#888" strokeWidth="5" strokeLinecap="round" fill="none"/>
-        {/* Down left side - the long body where the face is */}
-        <path d="M20 20V44" stroke="#888" strokeWidth="5" strokeLinecap="round" fill="none"/>
-        {/* Bottom curve going right */}
-        <path d="M20 44C20 52 36 52 36 44" stroke="#888" strokeWidth="5" strokeLinecap="round" fill="none"/>
-        {/* Back up right side */}
-        <path d="M36 44V14" stroke="#888" strokeWidth="5" strokeLinecap="round" fill="none"/>
-        {/* Top right curve back left */}
-        <path d="M36 14C36 6 20 6 20 14" stroke="#888" strokeWidth="5" strokeLinecap="round" fill="none"/>
-
-        {/* Highlight/shine on wire */}
-        <path d="M20 4C20 4 20 10 28 10" stroke="#C8C8C8" strokeWidth="3" strokeLinecap="round" fill="none"/>
-        <path d="M28 10V20C28 26 20 26 20 20" stroke="#C8C8C8" strokeWidth="3" strokeLinecap="round" fill="none"/>
-        <path d="M20 20V44" stroke="#C8C8C8" strokeWidth="3" strokeLinecap="round" fill="none"/>
-        <path d="M20 44C20 52 36 52 36 44" stroke="#C8C8C8" strokeWidth="3" strokeLinecap="round" fill="none"/>
-        <path d="M36 44V14" stroke="#C8C8C8" strokeWidth="3" strokeLinecap="round" fill="none"/>
-        <path d="M36 14C36 6 20 6 20 14" stroke="#C8C8C8" strokeWidth="3" strokeLinecap="round" fill="none"/>
+        {/* Real Clippy: standard paperclip shape, eyes on the outer wires */}
+        {/* Outer wire shadow */}
+        <path d="M22 6C14 6 8 12 8 20V48C8 56 14 62 22 62C30 62 36 56 36 48V16" stroke="#777" strokeWidth="7" strokeLinecap="round" fill="none"/>
+        <path d="M36 16C36 10 42 4 48 4C54 4 58 10 58 16V44C58 50 54 56 48 56C42 56 36 50 36 44V24" stroke="#777" strokeWidth="7" strokeLinecap="round" fill="none"/>
+        {/* Outer wire main */}
+        <path d="M22 6C14 6 8 12 8 20V48C8 56 14 62 22 62C30 62 36 56 36 48V16" stroke="#A8A8A8" strokeWidth="5" strokeLinecap="round" fill="none"/>
+        <path d="M36 16C36 10 42 4 48 4C54 4 58 10 58 16V44C58 50 54 56 48 56C42 56 36 50 36 44V24" stroke="#A8A8A8" strokeWidth="5" strokeLinecap="round" fill="none"/>
+        {/* Wire highlight */}
+        <path d="M22 6C14 6 8 12 8 20V48C8 56 14 62 22 62" stroke="#D0D0D0" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.7"/>
+        <path d="M48 4C54 4 58 10 58 16V44" stroke="#D0D0D0" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.7"/>
 
         <g className="clippy-eyes">
-          {/* Left eye */}
-          <ellipse cx="24" cy="30" rx="4.5" ry="5" fill="white"/>
-          {/* Right eye */}
-          <ellipse cx="34" cy="30" rx="4.5" ry="5" fill="white"/>
+          {/* Left eye - on the left wire at the top */}
+          <ellipse cx="16" cy="18" rx="7" ry="7.5" fill="white" stroke="#999" strokeWidth="0.5"/>
+          {/* Right eye - on the right wire at the top */}
+          <ellipse cx="50" cy="14" rx="7" ry="7.5" fill="white" stroke="#999" strokeWidth="0.5"/>
         </g>
 
         <g className="clippy-pupils">
           {/* Left pupil */}
-          <circle cx="25" cy="30.5" r="2.5" fill="#333"/>
-          <circle cx="26" cy="29.5" r="0.8" fill="white" opacity="0.9"/>
+          <circle cx="18" cy="19" r="3.5" fill="#222"/>
+          <circle cx="19.5" cy="17.5" r="1.2" fill="white" opacity="0.9"/>
           {/* Right pupil */}
-          <circle cx="35" cy="30.5" r="2.5" fill="#333"/>
-          <circle cx="36" cy="29.5" r="0.8" fill="white" opacity="0.9"/>
+          <circle cx="52" cy="15" r="3.5" fill="#222"/>
+          <circle cx="53.5" cy="13.5" r="1.2" fill="white" opacity="0.9"/>
         </g>
 
-        {/* Eyebrows */}
-        <path d="M20 24C22 21 25 21 27 23" stroke="#666" strokeWidth="1.5" strokeLinecap="round"/>
-        <path d="M31 23C33 21 36 21 38 24" stroke="#666" strokeWidth="1.5" strokeLinecap="round"/>
-
-        {/* Smile */}
-        <path d="M25 37C27 40 33 40 35 37" stroke="#666" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+        {/* Eyebrows - dark, expressive, angled */}
+        <path d="M8 10C11 6 16 7 20 10" stroke="#333" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+        <path d="M46 6C50 3 55 4 58 8" stroke="#333" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
       </g>
     </svg>
   );
