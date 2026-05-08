@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
@@ -297,18 +298,23 @@ export default function Trends() {
           <ToggleButton value={60}>60d</ToggleButton>
           <ToggleButton value={90}>90d</ToggleButton>
         </ToggleButtonGroup>
-        <input
+        <TextField
           type="date"
+          size="small"
           value={fromDate}
           onChange={(e) => handleDateChange('from', e.target.value)}
-          style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 4, color: 'inherit', padding: '4px 8px', fontSize: '0.8rem' }}
+          slotProps={{ inputLabel: { shrink: true } }}
+          label="From"
+          sx={{ width: 160 }}
         />
-        <Typography variant="body2" color="text.secondary">to</Typography>
-        <input
+        <TextField
           type="date"
+          size="small"
           value={toDate}
           onChange={(e) => handleDateChange('to', e.target.value)}
-          style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 4, color: 'inherit', padding: '4px 8px', fontSize: '0.8rem' }}
+          slotProps={{ inputLabel: { shrink: true } }}
+          label="To"
+          sx={{ width: 160 }}
         />
       </Stack>
 
