@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -24,12 +24,14 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
+import NotesIcon from '@mui/icons-material/Notes';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { useDaily } from '../api/daily';
 import { useUpdateWorkItemStatus, useQuickCapture } from '../api/workItems';
 import { useActivity } from '../api/activity';
 import { useSnapshots } from '../api/snapshots';
+import { useDailyNote, useSaveDailyNote } from '../api/notes';
 import WorkItemDialog from '../components/WorkItemDialog';
 import SnapshotDialog from '../components/SnapshotDialog';
 import LogWorkDialog from '../components/LogWorkDialog';
@@ -76,6 +78,38 @@ export default function DailyFocus() {
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
   const [editSnapshot, setEditSnapshot] = useState(null);
 
+  // Notes state
+  const { data: noteData } = useDailyNote('today');
+  const saveNote = useSaveDailyNote();
+  const [noteContent, setNoteContent] = useState('');
+  const noteSaveTimer = useRef(null);
+  const noteLastSaved = useRef('');
+
+  useEffect(() => {
+    if (noteData) {
+      setNoteContent(noteData.content || '');
+      noteLastSaved.current = noteData.content || '';
+    }
+  }, [noteData]);
+
+  const doSaveNote = useCallback((text) => {
+    if (text !== noteLastSaved.current) {
+      saveNote.mutate({ date: 'today', content: text });
+      noteLastSaved.current = text;
+    }
+  }, [saveNote]);
+
+  const handleNoteChange = (e) => {
+    const text = e.target.value;
+    setNoteContent(text);
+    clearTimeout(noteSaveTimer.current);
+    noteSaveTimer.current = setTimeout(() => doSaveNote(text), 800);
+  };
+
+  useEffect(() => {
+    return () => clearTimeout(noteSaveTimer.current);
+  }, []);
+
   if (isLoading) {
     return (
       <Box sx={{ maxWidth: 700 }}>
@@ -100,7 +134,8 @@ export default function DailyFocus() {
   const activityDates = Object.keys(activityGrouped).sort((a, b) => a.localeCompare(b));
 
   return (
-    <Box sx={{ maxWidth: 700 }}>
+    <Box sx={{ display: 'flex', gap: 3, maxWidth: 1000 }}>
+    <Box sx={{ flex: 1, minWidth: 0, maxWidth: 700 }}>
       <ContextualHint hintId="today">
         This is your home base. Capture thoughts, check off priorities, and see your day at a glance.
         Use the sections below — they collapse so you only see what you need. Go to Work to organize
@@ -324,6 +359,36 @@ export default function DailyFocus() {
       <WorkItemDialog item={editItem} open={Boolean(editItem)} onClose={() => setEditItem(null)} />
       <LogWorkDialog open={logWorkOpen} onClose={() => setLogWorkOpen(false)} />
       <SnapshotDialog open={snapshotDialogOpen} onClose={() => setSnapshotDialogOpen(false)} editSnapshot={editSnapshot} />
+    </Box>
+
+    {/* Right column — Notes */}
+    <Box sx={{ width: 260, flexShrink: 0, display: { xs: 'none', md: 'block' }, alignSelf: 'flex-start', position: 'sticky', top: 24 }}>
+      <Card>
+        <CardContent sx={{ pb: '12px !important' }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+            <NotesIcon sx={{ color: 'info.main', fontSize: 18 }} />
+            <Typography variant="h6" sx={{ fontSize: '0.9rem' }}>Notes</Typography>
+          </Stack>
+          <TextField
+            multiline
+            fullWidth
+            minRows={8}
+            maxRows={20}
+            placeholder="Jot something down..."
+            value={noteContent}
+            onChange={handleNoteChange}
+            variant="outlined"
+            size="small"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                fontSize: '0.8rem',
+                lineHeight: 1.6,
+              },
+            }}
+          />
+        </CardContent>
+      </Card>
+    </Box>
     </Box>
   );
 }
