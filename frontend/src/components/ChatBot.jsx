@@ -6,11 +6,29 @@ import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Fab from '@mui/material/Fab';
 import Slide from '@mui/material/Slide';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import CircularProgress from '@mui/material/CircularProgress';
 import { api } from '../api/client';
+
+function ClippyIcon({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Paperclip body */}
+      <path d="M32 8C24 8 18 14 18 22V46C18 52 22 56 28 56C34 56 38 52 38 46V22C38 18 36 16 32 16C28 16 26 18 26 22V42" stroke="#FFD600" strokeWidth="4" strokeLinecap="round" fill="none"/>
+      {/* Left eye */}
+      <circle cx="28" cy="28" r="3.5" fill="white"/>
+      <circle cx="29" cy="28" r="2" fill="#333"/>
+      {/* Right eye */}
+      <circle cx="36" cy="28" r="3.5" fill="white"/>
+      <circle cx="37" cy="28" r="2" fill="#333"/>
+      {/* Eyebrow left */}
+      <path d="M25 24C26 22 28 22 30 23" stroke="#333" strokeWidth="1.5" strokeLinecap="round"/>
+      {/* Eyebrow right */}
+      <path d="M34 23C36 22 38 22 39 24" stroke="#333" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
 
 export default function ChatBot() {
   const [open, setOpen] = useState(false);
@@ -60,7 +78,7 @@ export default function ChatBot() {
             '&:hover': { bgcolor: '#FFC107' },
           }}
         >
-          <AttachFileIcon sx={{ transform: 'rotate(45deg)' }} />
+          <ClippyIcon size={28} />
         </Fab>
       )}
 
@@ -86,7 +104,7 @@ export default function ChatBot() {
           {/* Header */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, borderBottom: '1px solid rgba(255,215,0,0.2)', bgcolor: 'rgba(255,215,0,0.05)' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AttachFileIcon sx={{ color: '#FFD600', fontSize: 20, transform: 'rotate(45deg)' }} />
+              <ClippyIcon size={20} />
               <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#FFD600' }}>Clippy</Typography>
             </Box>
             <IconButton size="small" onClick={() => setOpen(false)}>
