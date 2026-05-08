@@ -185,6 +185,14 @@ export default function DailyFocus() {
               <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, opacity: isDone ? 0.5 : 1 }}>
                 <Checkbox size="small" checked={isDone} onChange={() => handleToggle(item.id, isDone ? 'active' : 'done')} sx={{ p: 0.5 }} />
                 <Typography variant="body2" sx={{ textDecoration: isDone ? 'line-through' : 'none', flex: 1 }}>{item.title}</Typography>
+                {item.priority > 0 && (
+                  <Chip
+                    label={item.priority === 3 ? 'High' : item.priority === 2 ? 'Med' : 'Low'}
+                    size="small"
+                    color={item.priority === 3 ? 'error' : item.priority === 2 ? 'warning' : 'default'}
+                    sx={{ height: 18, fontSize: '0.6rem' }}
+                  />
+                )}
                 {item.project && <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />}
               </Box>
             );
