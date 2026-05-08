@@ -66,24 +66,21 @@ export default function ChatBot() {
     <>
       {/* Clippy toggle button */}
       {!open && (
-        <Fab
-          size="large"
+        <Box
           onClick={() => setOpen(true)}
           sx={{
             position: 'fixed',
-            top: 16,
-            right: 24,
-            bgcolor: '#FFD600',
-            color: '#333',
+            top: 8,
+            right: 16,
             zIndex: 1200,
-            width: 64,
-            height: 64,
-            boxShadow: '0 4px 12px rgba(255,214,0,0.4)',
-            '&:hover': { bgcolor: '#FFC107', boxShadow: '0 6px 16px rgba(255,214,0,0.6)' },
+            cursor: 'pointer',
+            filter: 'drop-shadow(0 2px 8px rgba(255,214,0,0.5))',
+            transition: 'transform 0.2s, filter 0.2s',
+            '&:hover': { transform: 'scale(1.1)', filter: 'drop-shadow(0 4px 12px rgba(255,214,0,0.7))' },
           }}
         >
-          <ClippyIcon size={40} />
-        </Fab>
+          <ClippyIcon size={72} />
+        </Box>
       )}
 
       {/* Chat panel */}
