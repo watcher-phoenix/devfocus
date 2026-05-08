@@ -24,6 +24,7 @@ const TYPE_LABELS = {
   review: 'Review',
   jira: 'Jira',
   pr: 'PR',
+  support: 'Weekend Support',
 };
 
 export default function LogWorkDialog({ open, onClose }) {

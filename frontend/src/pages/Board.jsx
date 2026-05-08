@@ -63,6 +63,7 @@ const TYPE_LABELS = {
   review: 'Review',
   jira: 'Jira',
   pr: 'PR',
+  support: 'Weekend Support',
 };
 
 const PRIORITY_LABELS = { 0: '-', 1: 'Low', 2: 'Med', 3: 'High' };

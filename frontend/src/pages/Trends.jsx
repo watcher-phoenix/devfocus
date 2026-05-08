@@ -23,11 +23,12 @@ const TYPE_LABELS = {
   review: 'PR Reviews',
   jira: 'Jira Tickets',
   pr: 'PRs Merged',
+  support: 'Weekend Support',
 };
 
 const TYPE_COLORS = {
   task: '#9AA0A6', ticket: '#2684FF', strategic: '#7C4DFF', followup: '#00E5FF',
-  review: '#FFD600', jira: '#2684FF', pr: '#00C853',
+  review: '#FFD600', jira: '#2684FF', pr: '#00C853', support: '#FF5722',
 };
 
 function StatCard({ label, value, subtitle, color }) {
@@ -210,10 +211,18 @@ export default function Trends() {
         <StatCard label="PRs Reviewed" value={summary.prsReviewed} color="secondary.main" />
       </Stack>
 
+      {/* Dynamic KPI cards for each work type */}
       <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
-        <StatCard label="PRs Merged" value={summary.prsMerged} color="success.main" />
-        <StatCard label="Jira Tickets" value={summary.jiraTickets} color="info.main" />
-        <StatCard label="Strategic Work" value={summary.strategicItems} color="primary.main" />
+        {Object.entries(data.typeBreakdown || {})
+          .sort((a, b) => b[1] - a[1])
+          .map(([type, count]) => (
+            <StatCard
+              key={type}
+              label={TYPE_LABELS[type] || type}
+              value={count}
+              color={TYPE_COLORS[type] || '#9AA0A6'}
+            />
+          ))}
         <StatCard label="After Hours Work" value={summary.afterHoursItems || 0} subtitle="outside work hours" color="error.main" />
         <StatCard label="After Hours Mtgs" value={summary.afterHoursMeetings || 0} subtitle="outside work hours" color="warning.main" />
       </Stack>
