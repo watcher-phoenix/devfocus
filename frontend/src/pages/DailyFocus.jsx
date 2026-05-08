@@ -134,7 +134,7 @@ export default function DailyFocus() {
 
           {/* Quick actions */}
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Button size="small" variant="outlined" startIcon={<ViewKanbanIcon />} onClick={() => navigate('/work')}>
+            <Button size="small" variant="outlined" startIcon={<ViewKanbanIcon />} onClick={() => navigate(data.inbox.count > 0 ? '/work?status=inbox' : '/work')}>
               {data.inbox.count > 0 ? `Triage (${data.inbox.count})` : 'Work'}
             </Button>
             <Button size="small" variant="outlined" startIcon={<CalendarMonthIcon />} onClick={() => navigate('/plan')}>
@@ -321,8 +321,9 @@ export default function DailyFocus() {
 }
 
 function formatDate(dateStr) {
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const yd = new Date(); yd.setDate(yd.getDate() - 1);
+  const yesterday = yd.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   if (dateStr === today) return 'Today';
   if (dateStr === yesterday) return 'Yesterday';
   const d = new Date(dateStr + 'T12:00:00');

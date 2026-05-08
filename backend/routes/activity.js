@@ -1,15 +1,15 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
 const { WorkItem, Project, CachedEvent } = require('../database/models');
+const { getDaysAgoET, getTodayET } = require('../utilities/timezone');
 
 const router = Router();
 
 // Get completed items + meetings grouped by date
 router.get('/', async (req, res) => {
   const { days = 14 } = req.query;
-  const since = new Date();
-  since.setDate(since.getDate() - parseInt(days));
-  const sinceDate = since.toISOString().split('T')[0];
+  const sinceDate = getDaysAgoET(parseInt(days));
+  const since = new Date(sinceDate + 'T00:00:00');
 
   const items = await WorkItem.findAll({
     where: {
@@ -81,10 +81,17 @@ router.post('/log', async (req, res) => {
   } = req.body;
   if (!title || !title.trim()) return res.status(400).json({ error: 'Title required' });
 
-  // If logging for today, use the current time. For past dates, use mid-day
-  // so it doesn't incorrectly count as after-hours work.
-  const today = new Date().toISOString().split('T')[0];
-  const completedAt = !date || date === today ? new Date() : new Date(date + 'T12:00:00');
+  // If logging for today, use current time. For past dates, set based on afterHours flag.
+  const today = getTodayET();
+  const { afterHours } = req.body;
+  let completedAt;
+  if (!date || date === today) {
+    completedAt = new Date();
+  } else if (afterHours) {
+    completedAt = new Date(date + 'T18:00:00'); // 6pm — after work hours
+  } else {
+    completedAt = new Date(date + 'T12:00:00'); // noon — during work hours
+  }
 
   const item = await WorkItem.create({
     title: title.trim(),

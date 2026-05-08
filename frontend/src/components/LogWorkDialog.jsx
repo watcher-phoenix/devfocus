@@ -8,6 +8,8 @@ import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
 import InputLabel from '@mui/material/InputLabel';
 import Stack from '@mui/material/Stack';
 import dayjs from 'dayjs';
@@ -40,6 +42,7 @@ export default function LogWorkDialog({ open, onClose }) {
     scheduledDate: '',
     dueDate: '',
     date: dayjs().format('YYYY-MM-DD'),
+    afterHours: false,
   };
   const [form, setForm] = useState(defaultForm);
 
@@ -147,6 +150,10 @@ export default function LogWorkDialog({ open, onClose }) {
           fullWidth
           multiline
           rows={2}
+        />
+        <FormControlLabel
+          control={<Checkbox checked={form.afterHours} onChange={(e) => setForm({ ...form, afterHours: e.target.checked })} />}
+          label="After hours work"
         />
       </DialogContent>
       <DialogActions>

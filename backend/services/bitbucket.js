@@ -136,16 +136,22 @@ async function syncBitbucket() {
           // Check if user approved this PR by fetching individual PR for participants
           let hasApproved = false;
           if (!isAuthor && !isLinkedToMyJira) {
-            // Only fetch individual PR if we need to check approval
+            // Fetch individual PR to check if user approved it
             try {
               const prDetail = await axios.get(
                 `${BB_API}/repositories/${workspace}/${repoSlug}/pullrequests/${pr.id}`,
                 { headers }
               );
-              hasApproved = (prDetail.data.participants || []).some(
-                (p) => matchesUser(p.user) && p.approved
-              );
-            } catch { /* skip */ }
+              const participants = prDetail.data.participants || [];
+              hasApproved = participants.some((p) => {
+                const userMatch = matchesUser(p.user);
+                // Bitbucket uses approved: true or state: "approved"
+                const isApproved = p.approved === true || (p.state || '').toUpperCase() === 'APPROVED';
+                return userMatch && isApproved;
+              });
+            } catch (err) {
+              console.error(`[bitbucket] Error checking approval for ${repoSlug}#${pr.id}:`, err.message);
+            }
           }
 
           const shouldImport = isAuthor || isLinkedToMyJira || hasApproved;

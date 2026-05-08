@@ -1,26 +1,14 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
 const { WorkItem, Project, ContextSnapshot, CachedEvent, IntegrationConfig, UserSettings } = require('../database/models');
+const { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart } = require('../utilities/timezone');
 
 const router = Router();
-
-function getDayOfWeek(dateStr) {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  return days[new Date(dateStr + 'T12:00:00').getDay()];
-}
-
-function getWeekStart(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00');
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(d.setDate(diff));
-  return monday.toISOString().split('T')[0];
-}
 
 router.get('/:date', async (req, res) => {
   try {
   const { date } = req.params;
-  const targetDate = date === 'today' ? new Date().toISOString().split('T')[0] : date;
+  const targetDate = date === 'today' ? getTodayET() : date;
 
   // Priorities: items scheduled for today with priority >= 2, or status 'active'
   const priorities = await WorkItem.findAll({
@@ -51,9 +39,11 @@ router.get('/:date', async (req, res) => {
   });
 
   // Recently completed items (today + yesterday for context)
-  const yesterday = new Date(targetDate + 'T12:00:00');
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const yesterdayStr = (() => {
+    const d = new Date(targetDate + 'T12:00:00');
+    d.setDate(d.getDate() - 1);
+    return d.toLocaleDateString('en-CA');
+  })();
 
   const recentlyDone = await WorkItem.findAll({
     where: {

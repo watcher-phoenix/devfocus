@@ -37,7 +37,8 @@ async function getAppContext() {
   });
 
   const projectCount = await Project.count({ where: { archived: false } });
-  const todayDate = new Date().toISOString().split('T')[0];
+  const { getTodayET } = require('../utilities/timezone');
+  const todayDate = getTodayET();
   const todayEvents = await CachedEvent.count({ where: { date: todayDate, allDay: false } });
 
   return `DevFocus is a personal productivity app. Current state:

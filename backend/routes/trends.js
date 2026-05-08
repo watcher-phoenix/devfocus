@@ -1,15 +1,15 @@
 const { Router } = require('express');
 const { Op, fn, col, literal } = require('sequelize');
 const { WorkItem, CachedEvent, Project } = require('../database/models');
+const { getDaysAgoET } = require('../utilities/timezone');
 
 const router = Router();
 
 router.get('/', async (req, res) => {
   try {
     const { days = 30 } = req.query;
-    const since = new Date();
-    since.setDate(since.getDate() - parseInt(days));
-    const sinceDate = since.toISOString().split('T')[0];
+    const sinceDate = getDaysAgoET(parseInt(days));
+    const since = new Date(sinceDate + 'T00:00:00');
 
     // Completed work items
     const completedItems = await WorkItem.findAll({
@@ -158,11 +158,11 @@ router.get('/', async (req, res) => {
 });
 
 function getWeekStart(date) {
-  const d = new Date(date);
+  const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : new Date(date);
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(d.setDate(diff));
-  return monday.toISOString().split('T')[0];
+  return monday.toLocaleDateString('en-CA');
 }
 
 module.exports = router;
