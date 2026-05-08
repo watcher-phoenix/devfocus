@@ -69,7 +69,12 @@ export default function DailyFocus() {
   const { data, isLoading } = useDaily();
   const updateStatus = useUpdateWorkItemStatus();
   const capture = useQuickCapture();
-  const { data: activityData } = useActivity(7);
+  // Days since Monday (so activity = this week)
+  const daysSinceMonday = (() => {
+    const dow = new Date().getDay(); // 0=Sun
+    return dow === 0 ? 6 : dow - 1;
+  })();
+  const { data: activityData } = useActivity(daysSinceMonday + 1);
   const { data: snapshots = [] } = useSnapshots({ active: true });
 
   const [captureText, setCaptureText] = useState('');
@@ -311,7 +316,7 @@ export default function DailyFocus() {
 
       {/* Activity — collapsed by default */}
       <CollapsibleSection
-        title="Activity"
+        title="This Week"
         icon={<CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />}
         count={activityData?.totalCount || 0}
         defaultOpen={false}
