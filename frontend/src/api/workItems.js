@@ -22,7 +22,10 @@ export function useCreateWorkItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) => api.post('/work-items', data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: ['daily'] });
+    },
   });
 }
 
@@ -30,7 +33,10 @@ export function useUpdateWorkItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }) => api.put(`/work-items/${id}`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: ['daily'] });
+    },
   });
 }
 
@@ -38,7 +44,10 @@ export function useUpdateWorkItemStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }) => api.patch(`/work-items/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: ['daily'] });
+    },
   });
 }
 
@@ -46,7 +55,10 @@ export function useDeleteWorkItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id) => api.delete(`/work-items/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: ['daily'] });
+    },
   });
 }
 
@@ -54,6 +66,9 @@ export function useQuickCapture() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) => api.post('/inbox/capture', data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: ['daily'] });
+    },
   });
 }
