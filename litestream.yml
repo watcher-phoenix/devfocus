@@ -2,9 +2,7 @@ dbs:
   - path: /data/devfocus.sqlite3
     replicas:
       - type: s3
-        bucket: $BUCKET_NAME
+        bucket: devfocus-backups
         path: backup
-        endpoint: $AWS_ENDPOINT_URL_S3
-        access-key-id: $AWS_ACCESS_KEY_ID
-        secret-access-key: $AWS_SECRET_ACCESS_KEY
-        region: $AWS_REGION
+        endpoint: https://fly.storage.tigris.dev
+        force-path-style: true
