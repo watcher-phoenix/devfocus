@@ -242,11 +242,19 @@ function todayStr() {
   return new Date().toLocaleDateString('en-CA');
 }
 
+function mondayOfThisWeek() {
+  const d = new Date();
+  const dow = d.getDay(); // 0=Sun
+  const diff = dow === 0 ? 6 : dow - 1;
+  d.setDate(d.getDate() - diff);
+  return d.toLocaleDateString('en-CA');
+}
+
 export default function Trends() {
-  const [preset, setPreset] = useState(30);
-  const [fromDate, setFromDate] = useState(daysAgo(30));
+  const [preset, setPreset] = useState(null);
+  const [fromDate, setFromDate] = useState(mondayOfThisWeek());
   const [toDate, setToDate] = useState(todayStr());
-  const [useCustom, setUseCustom] = useState(false);
+  const [useCustom, setUseCustom] = useState(true);
 
   const queryParams = useCustom
     ? { from: fromDate, to: toDate }

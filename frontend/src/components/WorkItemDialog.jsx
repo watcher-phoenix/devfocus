@@ -86,19 +86,15 @@ export default function WorkItemDialog({ item, open, onClose }) {
     };
     delete payload.afterHours;
 
-    // If status is done, adjust completedAt based on afterHours toggle
+    // If status is done, always set completedAt based on afterHours toggle
     if (form.status === 'done') {
+      const dateStr = form.scheduledDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
       if (form.afterHours) {
-        // Set to 6pm to count as after hours
-        const dateStr = form.scheduledDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
         payload.completedAt = new Date(dateStr + 'T18:00:00');
-      } else if (item.completedAt) {
-        // Keep existing completedAt but move to noon if it was after hours
-        const d = new Date(item.completedAt);
-        const mins = d.getHours() * 60 + d.getMinutes();
-        if (mins < 450 || mins > 960) {
-          d.setHours(12, 0, 0, 0);
-          payload.completedAt = d;
+      } else {
+        // Use existing time if it was already during hours, otherwise reset to noon
+        if (item.afterHours || !item.completedAt) {
+          payload.completedAt = new Date(dateStr + 'T12:00:00');
         }
       }
     }
