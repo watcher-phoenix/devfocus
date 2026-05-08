@@ -13,6 +13,8 @@ import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import Button from '@mui/material/Button';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useTrends } from '../api/trends';
 
 const TYPE_LABELS = {
@@ -179,30 +181,134 @@ function ProjectBreakdown({ data, total }) {
   );
 }
 
+function exportTrendsCSV(data, days) {
+  const rows = [['Type', 'Title', 'Project', 'Completed', 'External ID', 'After Hours']];
+
+  // Add completed items grouped by type
+  Object.entries(data.typeDetails || {}).forEach(([type, items]) => {
+    items.forEach((item) => {
+      rows.push([
+        TYPE_LABELS[type] || type,
+        item.title,
+        item.project || '',
+        item.completedAt ? new Date(item.completedAt).toLocaleDateString() : '',
+        item.externalId || '',
+        item.afterHours ? 'Yes' : '',
+      ]);
+    });
+  });
+
+  // Add meetings section
+  rows.push([]);
+  rows.push(['--- Meetings ---']);
+  rows.push(['Week Of', 'Meeting Hours']);
+  Object.entries(data.weeklyMeetingMinutes || {})
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([week, mins]) => {
+      rows.push([week, `${Math.round(mins / 60 * 10) / 10}h`]);
+    });
+
+  // Add summary
+  rows.push([]);
+  rows.push(['--- Summary ---']);
+  rows.push(['Total Completed', data.summary.totalCompleted]);
+  rows.push(['Total Meetings', data.summary.totalMeetings]);
+  rows.push(['Total Meeting Hours', data.summary.totalMeetingHours]);
+  rows.push(['Avg Items/Week', data.summary.avgItemsPerWeek]);
+  rows.push(['Avg Meeting Hours/Week', data.summary.avgMeetingHoursPerWeek]);
+  rows.push(['After Hours Items', data.summary.afterHoursItems]);
+  rows.push(['After Hours Meetings', data.summary.afterHoursMeetings]);
+
+  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `devfocus-trends-${days}d-${new Date().toLocaleDateString('en-CA')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toLocaleDateString('en-CA');
+}
+
+function todayStr() {
+  return new Date().toLocaleDateString('en-CA');
+}
+
 export default function Trends() {
-  const [days, setDays] = useState(30);
-  const { data, isLoading } = useTrends(days);
+  const [preset, setPreset] = useState(30);
+  const [fromDate, setFromDate] = useState(daysAgo(30));
+  const [toDate, setToDate] = useState(todayStr());
+  const [useCustom, setUseCustom] = useState(false);
+
+  const queryParams = useCustom
+    ? { from: fromDate, to: toDate }
+    : { days: preset };
+  const { data, isLoading } = useTrends(queryParams);
+
+  const handlePreset = (e, v) => {
+    if (!v) return;
+    setPreset(v);
+    setFromDate(daysAgo(v));
+    setToDate(todayStr());
+    setUseCustom(false);
+  };
+
+  const handleDateChange = (field, value) => {
+    if (field === 'from') setFromDate(value);
+    else setToDate(value);
+    setPreset(null);
+    setUseCustom(true);
+  };
 
   if (isLoading || !data) return null;
 
   const { summary } = data;
+  const exportLabel = useCustom ? `${fromDate}_${toDate}` : `${preset}d`;
 
   return (
     <Box sx={{ maxWidth: 800 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
           <Typography variant="h5">Trends</Typography>
           <Typography variant="body2" color="text.secondary">
             Evidence of what you've accomplished and where your time goes.
           </Typography>
         </Box>
-        <ToggleButtonGroup value={days} exclusive onChange={(e, v) => v && setDays(v)} size="small">
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={() => exportTrendsCSV(data, exportLabel)}
+        >
+          Export CSV
+        </Button>
+      </Box>
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
+        <ToggleButtonGroup value={preset} exclusive onChange={handlePreset} size="small">
           <ToggleButton value={14}>14d</ToggleButton>
           <ToggleButton value={30}>30d</ToggleButton>
           <ToggleButton value={60}>60d</ToggleButton>
           <ToggleButton value={90}>90d</ToggleButton>
         </ToggleButtonGroup>
-      </Box>
+        <input
+          type="date"
+          value={fromDate}
+          onChange={(e) => handleDateChange('from', e.target.value)}
+          style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 4, color: 'inherit', padding: '4px 8px', fontSize: '0.8rem' }}
+        />
+        <Typography variant="body2" color="text.secondary">to</Typography>
+        <input
+          type="date"
+          value={toDate}
+          onChange={(e) => handleDateChange('to', e.target.value)}
+          style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 4, color: 'inherit', padding: '4px 8px', fontSize: '0.8rem' }}
+        />
+      </Stack>
 
       {/* Summary stats */}
       <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>

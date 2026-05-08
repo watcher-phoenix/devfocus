@@ -7,20 +7,33 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   try {
-    const { days = 30 } = req.query;
-    const sinceDate = getDaysAgoET(parseInt(days));
+    const { days = 30, from, to } = req.query;
+    let sinceDate;
+    let untilDate;
+    if (from && to) {
+      sinceDate = from;
+      untilDate = to;
+    } else {
+      sinceDate = getDaysAgoET(parseInt(days));
+      untilDate = null; // no upper bound — through today
+    }
     const since = new Date(sinceDate + 'T00:00:00');
+    const until = untilDate ? new Date(untilDate + 'T23:59:59') : null;
 
     // Completed work items
+    const completedWhere = { status: 'done', completedAt: { [Op.gte]: since } };
+    if (until) completedWhere.completedAt = { [Op.gte]: since, [Op.lte]: until };
     const completedItems = await WorkItem.findAll({
-      where: { status: 'done', completedAt: { [Op.gte]: since } },
+      where: completedWhere,
       include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
       order: [['completedAt', 'DESC']],
     });
 
     // Meetings
+    const meetingWhere = { date: { [Op.gte]: sinceDate }, allDay: false };
+    if (untilDate) meetingWhere.date = { [Op.gte]: sinceDate, [Op.lte]: untilDate };
     const meetings = await CachedEvent.findAll({
-      where: { date: { [Op.gte]: sinceDate }, allDay: false },
+      where: meetingWhere,
       order: [['startTime', 'ASC']],
     });
 
