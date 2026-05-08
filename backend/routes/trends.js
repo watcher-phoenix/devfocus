@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { Op, fn, col, literal } = require('sequelize');
 const { WorkItem, CachedEvent, Project } = require('../database/models');
-const { getDaysAgoET } = require('../utilities/timezone');
+const { getDaysAgoET, getTimeInET } = require('../utilities/timezone');
 
 const router = Router();
 
@@ -78,9 +78,9 @@ router.get('/', async (req, res) => {
     const isAfterHours = (completedAt) => {
       if (!completedAt) return false;
       const d = new Date(completedAt);
-      if (d.getHours() === 12 && d.getMinutes() === 0 && d.getSeconds() === 0) return false;
-      const mins = d.getHours() * 60 + d.getMinutes();
-      return mins < workStartMins || mins > workEndMins;
+      const { hour, minute, totalMinutes } = getTimeInET(d);
+      if (hour === 12 && minute === 0) return false;
+      return totalMinutes < workStartMins || totalMinutes > workEndMins;
     };
 
     // Items grouped by type with details
@@ -130,9 +130,8 @@ router.get('/', async (req, res) => {
     const afterHoursItems = completedItems.filter((item) => isAfterHours(item.completedAt));
 
     const afterHoursMeetings = meetings.filter((event) => {
-      const d = new Date(event.startTime);
-      const mins = d.getHours() * 60 + d.getMinutes();
-      return mins < workStartMins || mins > workEndMins;
+      const { totalMinutes } = getTimeInET(new Date(event.startTime));
+      return totalMinutes < workStartMins || totalMinutes > workEndMins;
     });
 
     // Avg items per week

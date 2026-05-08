@@ -34,4 +34,17 @@ function getDaysAgoET(n) {
   return d.toLocaleDateString('en-CA', { timeZone: TZ });
 }
 
-module.exports = { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart, getDaysAgoET, TZ };
+// Get hours and minutes in Eastern time for a Date object
+function getTimeInET(date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(date);
+  const hour = parseInt(parts.find((p) => p.type === 'hour').value);
+  const minute = parseInt(parts.find((p) => p.type === 'minute').value);
+  return { hour, minute, totalMinutes: hour * 60 + minute };
+}
+
+module.exports = { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart, getDaysAgoET, getTimeInET, TZ };

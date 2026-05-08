@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
 const { WorkItem, Project, UserSettings } = require('../database/models');
+const { getTimeInET } = require('../utilities/timezone');
 
 const router = Router();
 
@@ -22,10 +23,10 @@ async function getWorkHourBounds() {
 function isAfterHours(completedAt, workStartMins, workEndMins) {
   if (!completedAt) return false;
   const d = new Date(completedAt);
-  // Skip items logged at exactly noon (default for past-date logging)
-  if (d.getHours() === 12 && d.getMinutes() === 0 && d.getSeconds() === 0) return false;
-  const mins = d.getHours() * 60 + d.getMinutes();
-  return mins < workStartMins || mins > workEndMins;
+  const { hour, minute, totalMinutes } = getTimeInET(d);
+  // Skip items logged at exactly noon ET (default for past-date logging)
+  if (hour === 12 && minute === 0) return false;
+  return totalMinutes < workStartMins || totalMinutes > workEndMins;
 }
 
 router.get('/', async (req, res) => {
