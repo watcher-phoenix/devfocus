@@ -18,6 +18,7 @@ export default function ChatBot() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [agentReady, setAgentReady] = useState(false);
+  const [panelPos, setPanelPos] = useState({ top: 60, right: 24 });
   const messagesEndRef = useRef(null);
   const agentRef = useRef(null);
   const openRef = useRef(false);
@@ -44,6 +45,17 @@ export default function ChatBot() {
           clippyEl.style.zIndex = '9999';
           clippyEl.addEventListener('click', (e) => {
             e.stopPropagation();
+            // Position panel near Clippy
+            const rect = clippyEl.getBoundingClientRect();
+            const panelWidth = 360;
+            const panelHeight = 480;
+            let left = rect.left - panelWidth - 10;
+            let top = rect.top;
+            // Keep on screen
+            if (left < 10) left = rect.right + 10;
+            if (top + panelHeight > window.innerHeight - 10) top = window.innerHeight - panelHeight - 10;
+            if (top < 10) top = 10;
+            setPanelPos({ top, left });
             openRef.current = !openRef.current;
             setOpen(openRef.current);
           });
@@ -111,8 +123,8 @@ export default function ChatBot() {
           elevation={8}
           sx={{
             position: 'fixed',
-            top: 60,
-            right: 24,
+            top: panelPos.top,
+            left: panelPos.left,
             width: 360,
             height: 480,
             display: 'flex',
