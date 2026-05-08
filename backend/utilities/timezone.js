@@ -18,13 +18,11 @@ function getDayOfWeek(dateStr) {
   return days[new Date(dateStr + 'T12:00:00').getDay()];
 }
 
-// Get Monday of the week for a date string
+// Get Sunday of the week for a date string
 function getWeekStart(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(d.setDate(diff));
-  return monday.toLocaleDateString('en-CA', { timeZone: 'UTC' });
+  d.setDate(d.getDate() - d.getDay());
+  return d.toLocaleDateString('en-CA', { timeZone: 'UTC' });
 }
 
 // Get a date N days ago in Eastern time

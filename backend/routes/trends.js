@@ -191,10 +191,9 @@ router.get('/', async (req, res) => {
 
 function getWeekStart(date) {
   const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(d.setDate(diff));
-  return monday.toLocaleDateString('en-CA');
+  const day = d.getDay(); // 0=Sun
+  d.setDate(d.getDate() - day);
+  return d.toLocaleDateString('en-CA');
 }
 
 module.exports = router;

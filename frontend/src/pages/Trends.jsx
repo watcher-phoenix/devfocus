@@ -267,17 +267,15 @@ function todayStr() {
   return new Date().toLocaleDateString('en-CA');
 }
 
-function mondayOfThisWeek() {
+function sundayOfThisWeek() {
   const d = new Date();
-  const dow = d.getDay(); // 0=Sun
-  const diff = dow === 0 ? 6 : dow - 1;
-  d.setDate(d.getDate() - diff);
+  d.setDate(d.getDate() - d.getDay());
   return d.toLocaleDateString('en-CA');
 }
 
 export default function Trends() {
   const [preset, setPreset] = useState(null);
-  const [fromDate, setFromDate] = useState(mondayOfThisWeek());
+  const [fromDate, setFromDate] = useState(sundayOfThisWeek());
   const [toDate, setToDate] = useState(todayStr());
   const [useCustom, setUseCustom] = useState(true);
 
