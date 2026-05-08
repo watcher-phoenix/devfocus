@@ -107,6 +107,31 @@ export default function ChatBot() {
 
   return (
     <>
+      {/* Small "Ask Clippy" button below where Clippy sits */}
+      {!open && agentReady && (
+        <Box
+          onClick={() => { openRef.current = true; setOpen(true); }}
+          sx={{
+            position: 'fixed',
+            top: 170,
+            right: 80,
+            zIndex: 9999,
+            cursor: 'pointer',
+            bgcolor: '#FFD600',
+            color: '#333',
+            px: 1.5,
+            py: 0.5,
+            borderRadius: 2,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            '&:hover': { bgcolor: '#FFC107' },
+          }}
+        >
+          Ask Clippy
+        </Box>
+      )}
+
       {/* Chat panel */}
       <Slide direction="left" in={open} mountOnEnter unmountOnExit>
         <Paper
