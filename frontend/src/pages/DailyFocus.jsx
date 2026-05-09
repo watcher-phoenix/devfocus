@@ -35,7 +35,6 @@ import { useDailyNote, useSaveDailyNote } from '../api/notes';
 import WorkItemDialog from '../components/WorkItemDialog';
 import SnapshotDialog from '../components/SnapshotDialog';
 import LogWorkDialog from '../components/LogWorkDialog';
-import ContextualHint from '../components/ContextualHint';
 import RichTextEditor from '../components/RichTextEditor';
 
 function CollapsibleSection({ title, icon, count, defaultOpen, children, action }) {
@@ -183,18 +182,56 @@ export default function DailyFocus() {
     return 'These have been sitting here judging you silently.';
   };
 
+  // Achievement badges
+  const getBadges = () => {
+    const badges = [];
+    const totalActivity = activityData?.totalCount || 0;
+    const doneToday = data?.priorities?.filter((i) => i.status === 'done').length || 0;
+    const totalPriorities = data?.priorities?.length || 0;
+    const meetings = data?.meetings?.count || 0;
+
+    if (totalPriorities > 0 && doneToday === totalPriorities) badges.push({ icon: '\uD83C\uDFC6', label: 'Clean Sweep' });
+    if (totalActivity >= 10) badges.push({ icon: '\uD83D\uDD25', label: 'On Fire' });
+    if (totalActivity >= 20) badges.push({ icon: '\uD83D\uDE80', label: 'Shipping Machine' });
+    if (meetings === 0) badges.push({ icon: '\uD83C\uDFDD\uFE0F', label: 'Meeting-Free' });
+    if (meetings >= 6) badges.push({ icon: '\uD83C\uDFA7', label: 'Meeting Survivor' });
+    if (data?.focusMinutes >= 360) badges.push({ icon: '\uD83E\uDDE0', label: 'Deep Focus' });
+    if (new Date().getDay() === 5) badges.push({ icon: '\uD83C\uDF89', label: 'TGIF' });
+    if (doneToday >= 3) badges.push({ icon: '\uD83D\uDCAA', label: `${doneToday} Down` });
+    if (data?.staleItems?.length === 0 && totalPriorities > 0) badges.push({ icon: '\u2728', label: 'No Dust' });
+    return badges;
+  };
+
   const meetingSnark = getMeetingSnark();
   const fridaySnark = getFridaySnark();
   const activitySnark = getActivitySnark();
   const staleSnark = getStaleSnark();
+  const badges = getBadges();
 
   return (
     <Box sx={{ maxWidth: { xs: '100%', md: 1100 } }}>
-      <ContextualHint hintId="today">
-        This is your home base. Capture thoughts, check off priorities, and see your day at a glance.
-        Use the sections below — they collapse so you only see what you need. Go to Work to organize
-        your tasks, or Plan to schedule your week.
-      </ContextualHint>
+      {/* Motivational banner */}
+      <Card sx={{ mb: 2, background: 'linear-gradient(135deg, rgba(124,77,255,0.08), rgba(0,229,255,0.08))', border: '1px solid rgba(124,77,255,0.15)' }}>
+        <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography sx={{ fontSize: '1.1rem' }}>{['\u26A1', '\uD83D\uDD25', '\uD83D\uDE80', '\uD83E\uDDE0', '\u2615', '\uD83D\uDCAA', '\uD83C\uDFAF'][Math.floor(Math.random() * 7)]}</Typography>
+          <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+            {[
+              "Your code won't write itself. Well, unless you use AI.",
+              'Ship it and let the tests catch the rest.',
+              'Remember: it worked on your machine. That counts for something.',
+              "Today's mass of tangled code is tomorrow's legacy system.",
+              'Debugging is like being a detective in a crime movie where you are also the murderer.',
+              'First, solve the problem. Then, write the code. Then, rewrite it. Then, rewrite it again.',
+              "It's not a bug, it's an undocumented feature.",
+              'The best error message is the one that never shows up.',
+              'Code never lies. Comments sometimes do.',
+              'Weeks of coding can save you hours of planning.',
+              "git push --force and pray.",
+              'There are only two hard things: cache invalidation, naming things, and off-by-one errors.',
+            ][Math.floor(Math.random() * 12)]}
+          </Typography>
+        </Box>
+      </Card>
 
       {/* Alerts */}
       {data.alerts?.length > 0 && (
@@ -215,7 +252,7 @@ export default function DailyFocus() {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box>
               <Typography variant="h5">{data.dayOfWeek}</Typography>
-              <Typography variant="body2" color="text.secondary">{data.date}</Typography>
+              <Typography variant="body2" color="text.secondary">{new Date(data.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Typography>
             </Box>
             <Stack direction="row" spacing={1}>
               <Chip icon={<EventIcon />} label={`${data.meetings.count} mtg${data.meetings.count !== 1 ? 's' : ''}`} variant="outlined" size="small" color={data.meetings.count > 3 ? 'warning' : 'default'} />
@@ -226,6 +263,14 @@ export default function DailyFocus() {
             <Typography variant="caption" sx={{ fontStyle: 'italic', color: 'text.secondary', display: 'block', mb: 1 }}>
               {fridaySnark || meetingSnark}
             </Typography>
+          )}
+
+          {badges.length > 0 && (
+            <Stack direction="row" spacing={0.5} sx={{ mb: 1 }} flexWrap="wrap" useFlexGap>
+              {badges.map((b) => (
+                <Chip key={b.label} label={`${b.icon} ${b.label}`} size="small" variant="outlined" sx={{ height: 22, fontSize: '0.7rem', borderColor: 'rgba(124,77,255,0.3)', color: 'text.secondary' }} />
+              ))}
+            </Stack>
           )}
 
           {/* Quick actions */}

@@ -28,7 +28,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import { useProjects, useCreateProject, useUpdateProject } from '../api/projects';
 import { useSettings, useUpdateSettings } from '../api/settings';
-import ContextualHint from '../components/ContextualHint';
 import {
   useIntegrations,
   useUpdateIntegration,
@@ -494,10 +493,6 @@ export default function Settings() {
 
   return (
     <Box sx={{ maxWidth: 700 }}>
-      <ContextualHint hintId="settings">
-        Configure your work hours so focus time calculations are accurate. Set up integrations
-        to pull in Jira tickets, Bitbucket PRs, and Outlook meetings automatically.
-      </ContextualHint>
       <Typography variant="h5" sx={{ mb: 2 }}>Settings</Typography>
       <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3 }}>
         <Tab label="General" />

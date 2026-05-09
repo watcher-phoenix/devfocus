@@ -15,7 +15,6 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Stack from '@mui/material/Stack';
 import AddIcon from '@mui/icons-material/Add';
-import ContextualHint from '../components/ContextualHint';
 import SnapshotDialog from '../components/SnapshotDialog';
 import { useSnapshots } from '../api/snapshots';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -184,11 +183,6 @@ export default function WeeklyPlanner() {
 
   return (
     <Box>
-      <ContextualHint hintId="plan">
-        Drag unscheduled items onto days to plan your week. Use the Snapshots tab to save where
-        you left off on a project — branch name, what you were doing, and next steps — so you
-        can pick up without losing context.
-      </ContextualHint>
       <Typography variant="h5" sx={{ mb: 2 }}>Plan</Typography>
       <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }}>
         <Tab label="Week" />

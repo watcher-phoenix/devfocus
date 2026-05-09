@@ -24,6 +24,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import QuickCapture from './QuickCapture';
 import ChatBot from './ChatBot';
+import DevEasterEggs from './DevEasterEggs';
 
 const DRAWER_WIDTH = 240;
 
@@ -175,6 +176,7 @@ export default function Layout() {
 
       <QuickCapture open={captureOpen} onClose={() => setCaptureOpen(false)} />
       <ChatBot />
+      <DevEasterEggs />
     </Box>
   );
 }

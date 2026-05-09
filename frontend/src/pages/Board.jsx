@@ -34,7 +34,6 @@ import { useWorkItems, useUpdateWorkItem, useUpdateWorkItemStatus, useDeleteWork
 import { useProjects } from '../api/projects';
 import WorkItemDialog from '../components/WorkItemDialog';
 import NewWorkItemDialog from '../components/NewWorkItemDialog';
-import ContextualHint from '../components/ContextualHint';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -173,12 +172,6 @@ export default function Board() {
 
   return (
     <Box>
-      <ContextualHint hintId="work">
-        This is your work list. Filter by status or project, click any row to edit,
-        and use the status dropdown to move items through your workflow:
-        Brain Dump → Active → Waiting/Later → Done.
-      </ContextualHint>
-
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h5">Work</Typography>
         <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setNewItemOpen(true)}>

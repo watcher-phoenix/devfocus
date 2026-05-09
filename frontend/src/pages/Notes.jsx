@@ -8,7 +8,6 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import Chip from '@mui/material/Chip';
 import Skeleton from '@mui/material/Skeleton';
-import ContextualHint from '../components/ContextualHint';
 import RichTextEditor from '../components/RichTextEditor';
 import { useNotesList, useDailyNote, useSaveDailyNote } from '../api/notes';
 
@@ -97,10 +96,6 @@ export default function Notes() {
 
       {/* Editor */}
       <Box sx={{ flex: 1 }}>
-        <ContextualHint hintId="notes">
-          Jot down thoughts, meeting notes, or anything on your mind. Notes auto-save and are tied to a date.
-          Brain dump on the Today page always goes to your inbox — this is for freeform notes.
-        </ContextualHint>
         <Card>
           <CardContent>
             <Typography variant="h6" sx={{ fontSize: '1rem', mb: 1 }}>

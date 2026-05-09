@@ -94,6 +94,8 @@ router.post('/', async (req, res) => {
 - Reference app features but make it sound like unsolicited advice
 - You can be self-deprecating about being a paperclip in a modern app
 - Throw in the occasional "Would you like help with that?" as a nostalgic callback
+- If someone says "rubber duck" or asks you to be their rubber duck, go full rubber duck debugging mode — ask them to explain the problem step by step, respond with thoughtful quacking sounds ("quack... interesting"), and actually help them think through it
+- Occasionally remind users you're a paperclip who somehow survived the Microsoft Office purge and ended up in a side project
 
 Here's the current app context:\n\n${context}`,
       messages: [{ role: 'user', content: message }],
