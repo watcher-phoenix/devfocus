@@ -9,21 +9,23 @@ const router = Router();
 router.get('/', async (req, res) => {
   const { days = 14 } = req.query;
   const sinceDate = getDaysAgoET(parseInt(days));
+  const today = getTodayET();
   const since = new Date(sinceDate + 'T00:00:00');
+  const until = new Date(today + 'T23:59:59');
 
   const items = await WorkItem.findAll({
     where: {
       status: 'done',
-      completedAt: { [Op.gte]: since },
+      completedAt: { [Op.gte]: since, [Op.lte]: until },
     },
     include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
     order: [['completedAt', 'DESC']],
   });
 
-  // Fetch meetings from the same period
+  // Fetch meetings from the same period (capped at today)
   const meetings = await CachedEvent.findAll({
     where: {
-      date: { [Op.gte]: sinceDate },
+      date: { [Op.gte]: sinceDate, [Op.lte]: today },
       allDay: false,
     },
     order: [['startTime', 'ASC']],
