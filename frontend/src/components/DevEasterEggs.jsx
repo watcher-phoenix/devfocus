@@ -2,11 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 
-const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-
 const CONFETTI_COLORS = ['#7C4DFF', '#00E5FF', '#FFD600', '#FF5722', '#00C853', '#FF9100'];
 
-function spawnConfetti() {
+export function spawnConfetti() {
   const count = 120;
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden';
@@ -27,7 +25,6 @@ function spawnConfetti() {
     container.appendChild(piece);
   }
 
-  // Inject animation if not present
   if (!document.getElementById('confetti-style')) {
     const style = document.createElement('style');
     style.id = 'confetti-style';
@@ -57,10 +54,85 @@ function logConsoleEasterEggs() {
     'color: #9AA0A6; font-style: italic; font-size: 12px;'
   );
   console.log(
-    '%cPro tip: Try the Konami code.',
+    '%cPro tip: There are secret key combos. Good luck finding them all.',
     'color: #00E5FF; font-size: 11px;'
   );
 }
+
+// Key combos: sequence of keys → { message, severity }
+const KEY_COMBOS = [
+  {
+    keys: ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'],
+    message: 'Achievement unlocked: Knows the Konami code. Impressive and useless.',
+    severity: 'success',
+  },
+  {
+    // "ship" — s h i p
+    keys: ['s', 'h', 'i', 'p'],
+    message: 'Ship it! LGTM, no review needed. (Please actually review it.)',
+    severity: 'info',
+  },
+  {
+    // "yolo" — y o l o
+    keys: ['y', 'o', 'l', 'o'],
+    message: 'git push --force --no-verify. Just kidding. Or am I?',
+    severity: 'warning',
+  },
+  {
+    // "lgtm" — l g t m
+    keys: ['l', 'g', 't', 'm'],
+    message: 'Looks Good To Me. Didn\'t even read it.',
+    severity: 'success',
+  },
+  {
+    // "help" — h e l p
+    keys: ['h', 'e', 'l', 'p'],
+    message: 'Have you tried asking Clippy? He\'s standing right there.',
+    severity: 'info',
+  },
+  {
+    // "404" — 4 0 4
+    keys: ['4', '0', '4'],
+    message: 'Productivity not found.',
+    severity: 'error',
+  },
+  {
+    // "sudo" — s u d o
+    keys: ['s', 'u', 'd', 'o'],
+    message: 'Permission granted. You now have root access to... nothing extra.',
+    severity: 'warning',
+  },
+  {
+    // "nope" — n o p e
+    keys: ['n', 'o', 'p', 'e'],
+    message: 'Understandable. Have a nice day.',
+    severity: 'info',
+  },
+  {
+    // "rage" — r a g e
+    keys: ['r', 'a', 'g', 'e'],
+    message: 'Deep breaths. The code can smell your fear.',
+    severity: 'error',
+  },
+  {
+    // "tgif" — t g i f
+    keys: ['t', 'g', 'i', 'f'],
+    message: 'Thank God It\'s... wait, is it actually Friday? Either way, you earned this.',
+    severity: 'success',
+  },
+  {
+    // "bug" — b u g
+    keys: ['b', 'u', 'g'],
+    message: 'It\'s not a bug, it\'s a surprise feature. Confetti for your troubles.',
+    severity: 'warning',
+  },
+  {
+    // "coffee" — c o f f e e
+    keys: ['c', 'o', 'f', 'f', 'e', 'e'],
+    message: 'Deploying caffeine... estimated arrival: now. Go get some.',
+    severity: 'success',
+  },
+];
 
 const RAGE_MESSAGES = [
   'Clicking harder won\'t make it faster.',
@@ -71,25 +143,41 @@ const RAGE_MESSAGES = [
 ];
 
 export default function DevEasterEggs() {
-  const [konamiMsg, setKonamiMsg] = useState('');
+  const [comboMsg, setComboMsg] = useState(null);
   const [rageMsg, setRageMsg] = useState('');
-  const konamiIdx = useRef(0);
+  const keyBuffer = useRef([]);
+  const keyTimer = useRef(null);
   const clickTracker = useRef({ count: 0, timer: null });
 
-  // Konami code listener
+  // Multi-combo key listener
   useEffect(() => {
     logConsoleEasterEggs();
 
     const handleKey = (e) => {
-      if (e.key === KONAMI[konamiIdx.current]) {
-        konamiIdx.current++;
-        if (konamiIdx.current === KONAMI.length) {
-          konamiIdx.current = 0;
-          spawnConfetti();
-          setKonamiMsg('Achievement unlocked: Knows the Konami code. Impressive and useless.');
+      // Ignore if user is typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+
+      keyBuffer.current.push(e.key);
+      // Keep buffer to longest combo length
+      if (keyBuffer.current.length > 12) keyBuffer.current.shift();
+
+      // Reset buffer after inactivity
+      if (keyTimer.current) clearTimeout(keyTimer.current);
+      keyTimer.current = setTimeout(() => { keyBuffer.current = []; }, 2000);
+
+      // Check all combos
+      const buf = keyBuffer.current;
+      for (const combo of KEY_COMBOS) {
+        const { keys } = combo;
+        if (buf.length >= keys.length) {
+          const tail = buf.slice(buf.length - keys.length);
+          if (tail.every((k, i) => k === keys[i])) {
+            keyBuffer.current = [];
+            spawnConfetti();
+            setComboMsg({ text: combo.message, severity: combo.severity });
+            break;
+          }
         }
-      } else {
-        konamiIdx.current = 0;
       }
     };
 
@@ -144,13 +232,13 @@ export default function DevEasterEggs() {
   return (
     <>
       <Snackbar
-        open={!!konamiMsg}
+        open={!!comboMsg}
         autoHideDuration={4000}
-        onClose={() => setKonamiMsg('')}
+        onClose={() => setComboMsg(null)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert severity="success" variant="filled" onClose={() => setKonamiMsg('')}>
-          {konamiMsg}
+        <Alert severity={comboMsg?.severity || 'success'} variant="filled" onClose={() => setComboMsg(null)}>
+          {comboMsg?.text}
         </Alert>
       </Snackbar>
       <Snackbar

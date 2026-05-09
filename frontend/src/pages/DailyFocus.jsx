@@ -36,6 +36,7 @@ import WorkItemDialog from '../components/WorkItemDialog';
 import SnapshotDialog from '../components/SnapshotDialog';
 import LogWorkDialog from '../components/LogWorkDialog';
 import RichTextEditor from '../components/RichTextEditor';
+import { spawnConfetti } from '../components/DevEasterEggs';
 
 function CollapsibleSection({ title, icon, count, defaultOpen, children, action }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -122,7 +123,16 @@ export default function DailyFocus() {
 
   if (!data) return null;
 
-  const handleToggle = (id, status) => updateStatus.mutate({ id, status });
+  const handleToggle = (id, status) => {
+    updateStatus.mutate({ id, status });
+    // Confetti on Clean Sweep — check if this was the last undone item
+    if (status === 'done' && data?.priorities) {
+      const remaining = data.priorities.filter((i) => i.id !== id && i.status !== 'done');
+      if (remaining.length === 0 && data.priorities.length > 1) {
+        setTimeout(spawnConfetti, 300);
+      }
+    }
+  };
 
   const handleCapture = async (e) => {
     e.preventDefault();

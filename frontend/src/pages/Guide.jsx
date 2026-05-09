@@ -149,7 +149,17 @@ export default function Guide() {
 
       <Section title="Keyboard Shortcuts">
         <P><strong>Ctrl+K</strong> (or Cmd+K) — Quick capture from anywhere. Type and hit Enter.</P>
-        <P><strong>Konami Code</strong> (Up Up Down Down Left Right Left Right B A) — Try it. You'll see.</P>
+      </Section>
+
+      <Section title="Secret Combos">
+        <P>Type these anywhere (not in an input field) for confetti and a snarky message. There are 12 combos total — here are a few hints to get you started:</P>
+        <P><strong>Konami Code</strong> — The classic. If you know, you know.</P>
+        <P><strong>ship</strong> — For when you're ready to deploy.</P>
+        <P><strong>yolo</strong> — For when you're feeling dangerous.</P>
+        <P><strong>lgtm</strong> — Approve without reading. A tradition.</P>
+        <P><strong>coffee</strong> — Deploy caffeine.</P>
+        <P>There are more. Find them all. Or don't. No judgment.</P>
+        <P>Completing all your priorities for the day also triggers confetti.</P>
       </Section>
 
       <Section title="Badges">
