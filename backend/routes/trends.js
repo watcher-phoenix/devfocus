@@ -115,29 +115,37 @@ router.get('/', async (req, res) => {
       items.forEach((item) => { item.afterHours = isAfterHours(item.completedAt); });
     });
 
-    // Meeting hours per week
-    const weeklyMeetingMinutes = {};
+    // Group meetings by date for overlap-aware calculations
+    const meetingsByDate = {};
     meetings.forEach((event) => {
-      const weekStart = getWeekStart(new Date(event.date + 'T12:00:00'));
-      const duration = (new Date(event.endTime) - new Date(event.startTime)) / 60000;
-      if (!weeklyMeetingMinutes[weekStart]) weeklyMeetingMinutes[weekStart] = 0;
-      weeklyMeetingMinutes[weekStart] += duration;
+      if (!meetingsByDate[event.date]) meetingsByDate[event.date] = [];
+      meetingsByDate[event.date].push(event);
     });
 
-    // Daily meeting vs focus breakdown
+    // Meeting hours per week (merged overlaps)
+    const weeklyMeetingMinutes = {};
+    Object.entries(meetingsByDate).forEach(([date, dayMeetings]) => {
+      const weekStart = getWeekStart(new Date(date + 'T12:00:00'));
+      if (!weeklyMeetingMinutes[weekStart]) weeklyMeetingMinutes[weekStart] = 0;
+      weeklyMeetingMinutes[weekStart] += getMergedMinutes(dayMeetings);
+    });
+
+    // Daily meeting vs focus breakdown (merged overlaps)
     const dailyBreakdown = {};
-    meetings.forEach((event) => {
-      if (!dailyBreakdown[event.date]) dailyBreakdown[event.date] = { meetingMinutes: 0, meetingCount: 0 };
-      dailyBreakdown[event.date].meetingMinutes += (new Date(event.endTime) - new Date(event.startTime)) / 60000;
-      dailyBreakdown[event.date].meetingCount++;
+    Object.entries(meetingsByDate).forEach(([date, dayMeetings]) => {
+      dailyBreakdown[date] = {
+        meetingMinutes: getMergedMinutes(dayMeetings),
+        meetingCount: dayMeetings.length,
+      };
     });
 
     // Summary stats
     const totalCompleted = completedItems.length;
     const totalMeetings = meetings.length;
-    const totalMeetingHours = Math.round(meetings.reduce((sum, e) => {
-      return sum + (new Date(e.endTime) - new Date(e.startTime)) / 3600000;
-    }, 0) * 10) / 10;
+    const totalMergedMinutes = Object.values(meetingsByDate).reduce(
+      (sum, dayMeetings) => sum + getMergedMinutes(dayMeetings), 0
+    );
+    const totalMeetingHours = Math.round(totalMergedMinutes / 6) / 10;
     const prsReviewed = completedItems.filter((i) => i.type === 'pr-review').length;
     const prsMerged = completedItems.filter((i) => i.type === 'pr').length;
     const jiraTickets = completedItems.filter((i) => i.type === 'jira').length;
@@ -189,6 +197,24 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Merge overlapping meeting intervals and return total minutes
+function getMergedMinutes(events) {
+  if (events.length === 0) return 0;
+  const intervals = events
+    .map((e) => ({ start: new Date(e.startTime).getTime(), end: new Date(e.endTime).getTime() }))
+    .sort((a, b) => a.start - b.start);
+  const merged = [intervals[0]];
+  for (let i = 1; i < intervals.length; i++) {
+    const prev = merged[merged.length - 1];
+    if (intervals[i].start < prev.end) {
+      prev.end = Math.max(prev.end, intervals[i].end);
+    } else {
+      merged.push(intervals[i]);
+    }
+  }
+  return merged.reduce((sum, iv) => sum + (iv.end - iv.start) / 60000, 0);
+}
 
 function getWeekStart(date) {
   const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : new Date(date);

@@ -70,8 +70,9 @@ export default function DailyFocus() {
   const { data, isLoading } = useDaily();
   const updateStatus = useUpdateWorkItemStatus();
   const capture = useQuickCapture();
-  // Full week of activity (Sun-Sat)
-  const { data: activityData } = useActivity(7);
+  // This week's activity (Sunday through today)
+  const daysSinceSunday = new Date().getDay();
+  const { data: activityData } = useActivity(daysSinceSunday + 1);
   const { data: snapshots = [] } = useSnapshots({ active: true });
 
   const [captureText, setCaptureText] = useState('');
