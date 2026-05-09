@@ -29,12 +29,12 @@ import DevEasterEggs from './DevEasterEggs';
 const DRAWER_WIDTH = 240;
 
 const NAV_ITEMS = [
-  { label: 'Today', path: '/', icon: <TodayIcon /> },
-  { label: 'Work', path: '/work', icon: <ViewKanbanIcon /> },
-  { label: 'Plan', path: '/plan', icon: <CalendarMonthIcon /> },
-  { label: 'Notes', path: '/notes', icon: <NotesIcon /> },
-  { label: 'Trends', path: '/trends', icon: <TrendingUpIcon /> },
-  { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
+  { label: 'Today', path: '/', icon: <TodayIcon />, snark: 'your daily reality check' },
+  { label: 'Work', path: '/work', icon: <ViewKanbanIcon />, snark: 'where dreams become tickets' },
+  { label: 'Plan', path: '/plan', icon: <CalendarMonthIcon />, snark: 'pretend you have control' },
+  { label: 'Notes', path: '/notes', icon: <NotesIcon />, snark: 'for things you\'ll forget anyway' },
+  { label: 'Trends', path: '/trends', icon: <TrendingUpIcon />, snark: 'proof you did stuff' },
+  { label: 'Settings', path: '/settings', icon: <SettingsIcon />, snark: 'tweak things instead of working' },
 ];
 
 const SECONDARY_NAV = [
@@ -68,18 +68,19 @@ export default function Layout() {
       </Box>
       <List>
         {NAV_ITEMS.map((item) => (
-          <ListItemButton
-            key={item.path}
-            selected={location.pathname === item.path}
-            onClick={() => {
-              navigate(item.path);
-              setMobileOpen(false);
-            }}
-            sx={{ mx: 1, borderRadius: 2, mb: 0.5 }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
+          <Tooltip key={item.path} title={item.snark} placement="right" arrow enterDelay={600}>
+            <ListItemButton
+              selected={location.pathname === item.path}
+              onClick={() => {
+                navigate(item.path);
+                setMobileOpen(false);
+              }}
+              sx={{ mx: 1, borderRadius: 2, mb: 0.5 }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          </Tooltip>
         ))}
       </List>
       <Divider sx={{ mx: 2, my: 1 }} />

@@ -199,6 +199,26 @@ export default function DailyFocus() {
     if (new Date().getDay() === 5) badges.push({ icon: '\uD83C\uDF89', label: 'TGIF' });
     if (doneToday >= 3) badges.push({ icon: '\uD83D\uDCAA', label: `${doneToday} Down` });
     if (data?.staleItems?.length === 0 && totalPriorities > 0) badges.push({ icon: '\u2728', label: 'No Dust' });
+
+    // Streak: consecutive days with completed items (working backward from today)
+    if (activityDates.length > 0) {
+      const today = new Date();
+      let streak = 0;
+      for (let i = 0; i <= 7; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toLocaleDateString('en-CA');
+        const dayItems = activityGrouped[dateStr];
+        if (dayItems && dayItems.some((item) => !item.isMeeting)) {
+          streak++;
+        } else if (i > 0) {
+          break;
+        }
+      }
+      if (streak >= 5) badges.push({ icon: '\uD83D\uDD25', label: `${streak}-Day Streak! Don't break it.` });
+      else if (streak >= 3) badges.push({ icon: '\u26A1', label: `${streak}-Day Streak. No pressure.` });
+    }
+
     return badges;
   };
 
@@ -276,7 +296,7 @@ export default function DailyFocus() {
           {/* Quick actions */}
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button size="small" variant="outlined" startIcon={<ViewKanbanIcon />} onClick={() => navigate(data.inbox.count > 0 ? '/work?status=inbox' : '/work')}>
-              {data.inbox.count > 0 ? `Triage (${data.inbox.count})` : 'Work'}
+              {data.inbox.count >= 20 ? `Triage (${data.inbox.count}) — this is getting out of hand` : data.inbox.count >= 10 ? `Triage (${data.inbox.count}) — your inbox is judging you` : data.inbox.count > 0 ? `Triage (${data.inbox.count})` : 'Work'}
             </Button>
             <Button size="small" variant="outlined" startIcon={<CalendarMonthIcon />} onClick={() => navigate('/plan')}>
               Plan
@@ -387,7 +407,7 @@ export default function DailyFocus() {
             <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, cursor: 'pointer', borderRadius: 1, px: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }} onClick={() => setEditItem(item)}>
               <WarningAmberIcon sx={{ color: 'warning.main', fontSize: 14 }} />
               <Typography variant="body2" sx={{ flex: 1, fontSize: '0.85rem' }}>{item.title}</Typography>
-              <Chip label={`${item.daysSinceUpdate}d ago`} size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem' }} />
+              <Chip label={item.daysSinceUpdate >= 30 ? `${item.daysSinceUpdate}d. At this point, just delete it.` : item.daysSinceUpdate >= 14 ? `${item.daysSinceUpdate}d. Just saying.` : `${item.daysSinceUpdate}d ago`} size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem' }} />
               {item.project && (
                 <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />
               )}

@@ -88,10 +88,29 @@ export default function ChatBot() {
       }
       return animQueueRef.current.pop();
     };
+    const IDLE_THOUGHTS = [
+      'I wonder if anyone actually reads commit messages...',
+      'Should I refactor this? Nah.',
+      'Is it lunch yet?',
+      'rm -rf node_modules. Fixes everything.',
+      'Have you tried turning it off and on again?',
+      'I used to live in Word. Now I live in a side project.',
+      'This could\'ve been an email.',
+      'I bet there\'s a meeting about this.',
+      '*stares in paperclip*',
+      'git blame... it was me all along.',
+    ];
+    let thoughtCount = 0;
     const interval = setInterval(() => {
       if (agentRef.current) {
         agentRef.current.stop();
         agentRef.current.play(nextAnim());
+        // Show a thought bubble occasionally (every 3rd animation cycle)
+        thoughtCount++;
+        if (thoughtCount % 3 === 0 && !openRef.current) {
+          const thought = IDLE_THOUGHTS[Math.floor(Math.random() * IDLE_THOUGHTS.length)];
+          agentRef.current.speak(thought);
+        }
       }
     }, 12000);
     return () => clearInterval(interval);

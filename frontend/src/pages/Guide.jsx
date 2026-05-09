@@ -149,6 +149,25 @@ export default function Guide() {
 
       <Section title="Keyboard Shortcuts">
         <P><strong>Ctrl+K</strong> (or Cmd+K) — Quick capture from anywhere. Type and hit Enter.</P>
+        <P><strong>Konami Code</strong> (Up Up Down Down Left Right Left Right B A) — Try it. You'll see.</P>
+      </Section>
+
+      <Section title="Badges">
+        <P>Badges appear on the Today page header based on your current state. They're computed in real-time — no grinding required.</P>
+        <B>Achievement Badges</B>
+        <P><strong>Clean Sweep</strong> — All scheduled priorities completed for the day.</P>
+        <P><strong>On Fire</strong> — 10+ items completed this week.</P>
+        <P><strong>Shipping Machine</strong> — 20+ items completed this week. You're unstoppable (or lying).</P>
+        <P><strong>X Down</strong> — Completed 3+ priorities today. Keep going.</P>
+        <B>Focus Badges</B>
+        <P><strong>Deep Focus</strong> — 6+ hours of uninterrupted focus time today.</P>
+        <P><strong>Meeting-Free</strong> — Zero meetings. A rare and beautiful thing.</P>
+        <P><strong>Meeting Survivor</strong> — 6+ meetings today. You earned this one.</P>
+        <B>Streaks</B>
+        <P><strong>X-Day Streak</strong> — Completed work items on consecutive days. 3+ days shows the streak. Don't break it.</P>
+        <B>Housekeeping</B>
+        <P><strong>No Dust</strong> — No stale items. Everything's been touched recently.</P>
+        <P><strong>TGIF</strong> — It's Friday. That's it. That's the badge.</P>
       </Section>
 
       <Section title="Settings">

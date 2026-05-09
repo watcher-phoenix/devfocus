@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -30,6 +30,8 @@ import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 import { useWorkItems, useUpdateWorkItem, useUpdateWorkItemStatus, useDeleteWorkItem } from '../api/workItems';
 import { useProjects } from '../api/projects';
 import WorkItemDialog from '../components/WorkItemDialog';
@@ -109,6 +111,22 @@ export default function Board() {
   const updateStatus = useUpdateWorkItemStatus();
   const updateItem = useUpdateWorkItem();
   const deleteItem = useDeleteWorkItem();
+  const [statusRoast, setStatusRoast] = useState('');
+
+  const STATUS_ROASTS = {
+    done: ['Another one bites the dust.', 'Shipped it. Ship happens.', 'Done done? Or "done"?', 'Cross it off with pride.'],
+    later: ['We both know what "later" means.', '"Later" — the graveyard of good intentions.', 'Sure. "Later."'],
+    waiting: ['Waiting on someone else? Classic.', 'Blocked. The dev\'s favorite excuse.', 'Hurry up and wait.'],
+    inbox: ['Back to the brain dump? No judgment.', 'Demoted back to the pile.'],
+    active: ['Let\'s actually do this one.', 'Promoted to "will think about."'],
+    scheduled: ['Penciled in. In pencil, obviously.', 'Future you\'s problem now.'],
+  };
+
+  const handleStatusChange = useCallback((id, newStatus) => {
+    updateStatus.mutate({ id, status: newStatus });
+    const roasts = STATUS_ROASTS[newStatus];
+    if (roasts) setStatusRoast(roasts[Math.floor(Math.random() * roasts.length)]);
+  }, [updateStatus]);
 
   const bulkApply = () => {
     const updates = {};
@@ -366,7 +384,7 @@ export default function Board() {
                     size="small"
                     variant="standard"
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => updateStatus.mutate({ id: item.id, status: e.target.value })}
+                    onChange={(e) => handleStatusChange(item.id, e.target.value)}
                     sx={{ fontSize: '0.75rem', '&:before': { borderBottom: 'none' }, '& .MuiSelect-select': { py: 0.25 } }}
                   >
                     {STATUS_OPTIONS.filter((s) => s.value !== 'all').map((s) => (
@@ -451,6 +469,9 @@ export default function Board() {
 
       <WorkItemDialog item={editItem} open={Boolean(editItem)} onClose={() => setEditItem(null)} />
       <NewWorkItemDialog open={newItemOpen} onClose={() => setNewItemOpen(false)} defaultStatus="active" />
+      <Snackbar open={!!statusRoast} autoHideDuration={2500} onClose={() => setStatusRoast('')} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="info" variant="filled" onClose={() => setStatusRoast('')} sx={{ bgcolor: 'rgba(124,77,255,0.9)' }}>{statusRoast}</Alert>
+      </Snackbar>
     </Box>
   );
 }
