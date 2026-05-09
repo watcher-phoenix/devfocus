@@ -141,21 +141,27 @@ export default function DailyFocus() {
     const { count } = data.meetings;
     const focusHrs = data.focusMinutes / 60;
     if (count === 0) return 'Zero meetings. Is this real life?';
+    if (count >= 8) return 'At this point just live in the conference room.';
     if (count >= 6) return 'You\'re basically a professional meeting attendee today.';
     if (count >= 4) return 'RIP your focus time.';
+    if (count === 1 && focusHrs > 6) return 'One meeting? That\'s basically a day off.';
     if (focusHrs < 1) return 'Focus time? Never heard of her.';
+    if (focusHrs < 2) return 'Two hours of focus. Use them wisely. Or don\'t.';
     return null;
   };
 
-  // Friday afternoon flavor
+  // Time-based flavor
   const getFridaySnark = () => {
     const now = new Date();
-    if (now.getDay() === 5 && now.getHours() >= 15) {
-      return "It's Friday. We both know you're not starting anything new.";
-    }
-    if (now.getDay() === 1 && now.getHours() < 10) {
-      return 'Monday morning. The audacity.';
-    }
+    const hour = now.getHours();
+    const day = now.getDay();
+    if (day === 5 && hour >= 15) return "It's Friday. We both know you're not starting anything new.";
+    if (day === 5 && hour < 10) return 'Friday. The light at the end of the tunnel.';
+    if (day === 1 && hour < 10) return 'Monday morning. The audacity.';
+    if (day === 3) return 'Wednesday. Halfway there. Allegedly.';
+    if (hour >= 16 && hour < 17) return 'The 4pm wall. Push through or surrender to snacks.';
+    if (hour >= 17) return 'Still here? Bold commitment to the craft.';
+    if (hour < 7) return 'Up before the sun? Respect. Or insomnia.';
     return null;
   };
 
@@ -268,8 +274,13 @@ export default function DailyFocus() {
           <Typography variant="body2" color="text.secondary">
             Nothing scheduled for today. Either you're crushing it or avoiding it. Go to <strong>Plan</strong> to drag items onto today, or <strong>Work</strong> to set priorities.
           </Typography>
-        ) : (
-          data.priorities.map((item) => {
+        ) : (<>
+          {data.priorities.length > 0 && data.priorities.every((i) => i.status === 'done') && (
+            <Typography variant="caption" sx={{ fontStyle: 'italic', color: 'success.main', display: 'block', mb: 0.5 }}>
+              {['All done. Go home.', 'Clean sweep. Your future self thanks you.', 'Everything checked off. Suspicious.'][Math.floor(Math.random() * 3)]}
+            </Typography>
+          )}
+          {data.priorities.map((item) => {
             const isDone = item.status === 'done';
             return (
               <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, opacity: isDone ? 0.5 : 1, cursor: 'pointer', borderRadius: 1, px: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
@@ -286,8 +297,8 @@ export default function DailyFocus() {
                 {item.project && <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />}
               </Box>
             );
-          })
-        )}
+          })}
+        </>)}
       </CollapsibleSection>
 
       {/* Meetings — open by default if there are meetings */}
@@ -430,7 +441,7 @@ export default function DailyFocus() {
           <RichTextEditor
             content={noteContent}
             onChange={handleNoteChange}
-            placeholder="Jot something down..."
+            placeholder="Dear diary, today I actually got stuff done..."
             minHeight={150}
             compact
           />

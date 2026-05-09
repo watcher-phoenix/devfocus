@@ -2,19 +2,24 @@
 const cron = require('node-cron');
 const { syncAll } = require('./services/sync');
 
-function initScheduler() {
-  // Sync every 30 minutes during work hours (7am-6pm ET, Mon-Fri)
-  cron.schedule('*/30 7-18 * * 1-5', async () => {
-    console.log('[scheduler] Running sync...');
-    try {
-      const results = await syncAll();
-      console.log('[scheduler] Sync complete:', JSON.stringify(results));
-    } catch (err) {
-      console.error('[scheduler] Sync failed:', err.message);
-    }
-  }, { timezone: 'America/New_York' });
+async function runSync() {
+  console.log('[scheduler] Running sync...');
+  try {
+    const results = await syncAll();
+    console.log('[scheduler] Sync complete:', JSON.stringify(results));
+  } catch (err) {
+    console.error('[scheduler] Sync failed:', err.message);
+  }
+}
 
-  console.log('Scheduler initialized — syncing every 30m during work hours (ET).');
+function initScheduler() {
+  // Sync every 30 minutes during extended hours (6am-10pm ET, every day)
+  cron.schedule('*/30 6-22 * * *', runSync, { timezone: 'America/New_York' });
+
+  // Run an initial sync shortly after startup
+  setTimeout(runSync, 5000);
+
+  console.log('Scheduler initialized — syncing every 30m (6am-10pm ET) + on startup.');
 }
 
 module.exports = { initScheduler };

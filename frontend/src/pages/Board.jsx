@@ -447,7 +447,7 @@ export default function Board() {
               <TableRow>
                 <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
                   <Typography variant="body2" color="text.secondary">
-                    {statusFilter === 'all' ? 'No items yet. Use "New Item" or Ctrl+K to add one.' : 'No items with this filter.'}
+                    {statusFilter === 'all' ? 'Nothing here yet. Either you\'re new or you deleted everything. Use "New Item" or Ctrl+K to start.' : 'No items match this filter. They\'re hiding.'}
                   </Typography>
                 </TableCell>
               </TableRow>

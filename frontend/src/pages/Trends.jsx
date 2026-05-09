@@ -358,10 +358,10 @@ export default function Trends() {
 
       {/* Summary stats */}
       <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
-        <StatCard label="Items Completed" value={summary.totalCompleted} subtitle={summary.totalCompleted > 50 ? 'machine mode' : summary.totalCompleted === 0 ? 'oof' : `${summary.avgItemsPerWeek}/week avg`} color="success.main" />
-        <StatCard label="Meetings" value={summary.totalMeetings} subtitle={summary.totalMeetings > 40 ? 'you poor soul' : `${summary.avgMeetingHoursPerWeek}h/week avg`} color="warning.main" />
-        <StatCard label="Meeting Hours" value={summary.totalMeetingHours} subtitle={summary.totalMeetingHours > 30 ? 'that\'s a part-time job' : 'total'} color="warning.main" />
-        <StatCard label="PRs Reviewed" value={summary.prsReviewed} subtitle={summary.prsReviewed > 10 ? 'team player alert' : undefined} color="secondary.main" />
+        <StatCard label="Items Completed" value={summary.totalCompleted} subtitle={summary.totalCompleted >= 30 ? 'machine mode activated' : summary.totalCompleted >= 15 ? 'look at you go' : summary.totalCompleted === 0 ? 'crickets' : `${summary.avgItemsPerWeek}/week avg`} color="success.main" />
+        <StatCard label="Meetings" value={summary.totalMeetings} subtitle={summary.totalMeetings >= 20 ? 'you poor soul' : summary.totalMeetings >= 10 ? 'calendar tetris champion' : summary.totalMeetings === 0 ? 'living the dream' : `${summary.avgMeetingHoursPerWeek}h/week avg`} color="warning.main" />
+        <StatCard label="Meeting Hours" value={summary.totalMeetingHours} subtitle={summary.totalMeetingHours >= 20 ? "that's a part-time job" : summary.totalMeetingHours >= 10 ? 'could\'ve been emails' : summary.totalMeetingHours === 0 ? 'inbox hero' : 'total'} color="warning.main" />
+        <StatCard label="PRs Reviewed" value={summary.prsReviewed} subtitle={summary.prsReviewed >= 5 ? 'team player alert' : summary.prsReviewed === 0 ? 'LGTM from the couch' : undefined} color="secondary.main" />
       </Stack>
 
       {/* Dynamic KPI cards for each work type */}
@@ -376,8 +376,8 @@ export default function Trends() {
               color={TYPE_COLORS[type] || '#9AA0A6'}
             />
           ))}
-        <StatCard label="After Hours Work" value={summary.afterHoursItems || 0} subtitle={summary.afterHoursItems > 5 ? 'boundaries are a thing' : 'outside work hours'} color="error.main" />
-        <StatCard label="After Hours Mtgs" value={summary.afterHoursMeetings || 0} subtitle={summary.afterHoursMeetings > 3 ? 'who scheduled these?!' : 'outside work hours'} color="warning.main" />
+        <StatCard label="After Hours Work" value={summary.afterHoursItems || 0} subtitle={summary.afterHoursItems >= 3 ? 'boundaries are a thing' : summary.afterHoursItems > 0 ? 'overtime vibes' : 'healthy work-life balance'} color="error.main" />
+        <StatCard label="After Hours Mtgs" value={summary.afterHoursMeetings || 0} subtitle={summary.afterHoursMeetings >= 2 ? 'who scheduled these?!' : summary.afterHoursMeetings > 0 ? 'someone owes you dinner' : 'as it should be'} color="warning.main" />
       </Stack>
 
       <Divider sx={{ my: 3 }} />
