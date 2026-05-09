@@ -70,9 +70,8 @@ export default function DailyFocus() {
   const { data, isLoading } = useDaily();
   const updateStatus = useUpdateWorkItemStatus();
   const capture = useQuickCapture();
-  // Days since Sunday (so activity = this week)
-  const daysSinceSunday = new Date().getDay();
-  const { data: activityData } = useActivity(daysSinceSunday + 1);
+  // Full week of activity (Sun-Sat)
+  const { data: activityData } = useActivity(7);
   const { data: snapshots = [] } = useSnapshots({ active: true });
 
   const [captureText, setCaptureText] = useState('');
@@ -315,7 +314,7 @@ export default function DailyFocus() {
             No activity yet. Complete items from Work or use "Log Work" to record what you've done.
           </Typography>
         ) : (
-          activityDates.slice(0, 5).map((date) => (
+          activityDates.map((date) => (
             <Box key={date} sx={{ mb: 1.5 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5, display: 'block' }}>
                 {formatDate(date)}
