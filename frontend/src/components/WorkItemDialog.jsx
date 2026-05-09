@@ -218,7 +218,7 @@ export default function WorkItemDialog({ item, open, onClose }) {
         {form.status === 'done' && (
           <FormControlLabel
             control={<Checkbox checked={form.afterHours || false} onChange={(e) => setForm({ ...form, afterHours: e.target.checked })} />}
-            label="After hours work"
+            label={(form.afterHours || false) ? 'After hours work (working late again?)' : 'After hours work'}
           />
         )}
       </DialogContent>

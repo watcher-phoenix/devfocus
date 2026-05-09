@@ -160,7 +160,7 @@ export default function LogWorkDialog({ open, onClose }) {
         />
         <FormControlLabel
           control={<Checkbox checked={form.afterHours} onChange={(e) => setForm({ ...form, afterHours: e.target.checked })} />}
-          label="After hours work"
+          label={form.afterHours ? 'After hours work (your laptop misses its sleep too)' : 'After hours work'}
         />
       </DialogContent>
       <DialogActions>

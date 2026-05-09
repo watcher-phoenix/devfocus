@@ -72,7 +72,7 @@ export default function DailyFocus() {
   const capture = useQuickCapture();
   // This week's activity (Sunday through today)
   const daysSinceSunday = new Date().getDay();
-  const { data: activityData } = useActivity(daysSinceSunday + 1);
+  const { data: activityData } = useActivity(daysSinceSunday);
   const { data: snapshots = [] } = useSnapshots({ active: true });
 
   const [captureText, setCaptureText] = useState('');
@@ -103,8 +103,18 @@ export default function DailyFocus() {
   }, [saveNote]);
 
   if (isLoading) {
+    const loadingQuips = [
+      'Pretending to think...',
+      'Consulting the cloud elves...',
+      'Reticulating splines...',
+      'Warming up the hamster wheel...',
+      'Asking the interns...',
+      'Dusting off the database...',
+    ];
+    const loadingMsg = loadingQuips[Math.floor(Math.random() * loadingQuips.length)];
     return (
       <Box sx={{ maxWidth: 700 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontStyle: 'italic' }}>{loadingMsg}</Typography>
         <Skeleton variant="rounded" height={80} sx={{ mb: 2 }} />
         <Skeleton variant="rounded" height={120} sx={{ mb: 2 }} />
       </Box>
@@ -124,6 +134,53 @@ export default function DailyFocus() {
 
   const activityGrouped = activityData?.grouped || {};
   const activityDates = Object.keys(activityGrouped).sort((a, b) => a.localeCompare(b));
+
+  // Snarky meeting commentary
+  const getMeetingSnark = () => {
+    if (!data) return null;
+    const { count } = data.meetings;
+    const focusHrs = data.focusMinutes / 60;
+    if (count === 0) return 'Zero meetings. Is this real life?';
+    if (count >= 6) return 'You\'re basically a professional meeting attendee today.';
+    if (count >= 4) return 'RIP your focus time.';
+    if (focusHrs < 1) return 'Focus time? Never heard of her.';
+    return null;
+  };
+
+  // Friday afternoon flavor
+  const getFridaySnark = () => {
+    const now = new Date();
+    if (now.getDay() === 5 && now.getHours() >= 15) {
+      return "It's Friday. We both know you're not starting anything new.";
+    }
+    if (now.getDay() === 1 && now.getHours() < 10) {
+      return 'Monday morning. The audacity.';
+    }
+    return null;
+  };
+
+  // Streak/milestone quips for completed items
+  const getActivitySnark = () => {
+    const count = activityData?.totalCount || 0;
+    if (count === 0) return null;
+    if (count >= 20) return 'Look at you, being productive and stuff.';
+    if (count >= 10) return 'Double digits. Your manager would be impressed. Maybe.';
+    if (count >= 5) return 'Not bad. Not amazing, but not bad.';
+    if (count === 1) return 'One down. Only everything else to go.';
+    return null;
+  };
+
+  // Snarky stale items commentary
+  const getStaleSnark = () => {
+    if (!data?.staleItems?.length) return null;
+    if (data.staleItems.length >= 4) return 'These are gathering dust. Either do them or let them go.';
+    return 'These have been sitting here judging you silently.';
+  };
+
+  const meetingSnark = getMeetingSnark();
+  const fridaySnark = getFridaySnark();
+  const activitySnark = getActivitySnark();
+  const staleSnark = getStaleSnark();
 
   return (
     <Box sx={{ maxWidth: { xs: '100%', md: 1100 } }}>
@@ -159,6 +216,11 @@ export default function DailyFocus() {
               <Chip icon={<AccessTimeIcon />} label={`${Math.floor(data.focusMinutes / 60)}h ${data.focusMinutes % 60}m focus`} variant="outlined" size="small" color={data.focusMinutes >= 240 ? 'success' : 'default'} />
             </Stack>
           </Box>
+          {(meetingSnark || fridaySnark) && (
+            <Typography variant="caption" sx={{ fontStyle: 'italic', color: 'text.secondary', display: 'block', mb: 1 }}>
+              {fridaySnark || meetingSnark}
+            </Typography>
+          )}
 
           {/* Quick actions */}
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -185,7 +247,7 @@ export default function DailyFocus() {
             <TextField
               fullWidth
               size="small"
-              placeholder="Capture a thought — type and hit Enter"
+              placeholder={['Capture a thought before it escapes...', 'Brain dump here. No judgment.', 'Type it before you forget. Again.', 'Quick, write it down before the next meeting...'][Math.floor(Math.random() * 4)]}
               value={captureText}
               onChange={(e) => setCaptureText(e.target.value)}
               autoComplete="off"
@@ -204,7 +266,7 @@ export default function DailyFocus() {
       >
         {data.priorities.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
-            Nothing scheduled for today. Go to <strong>Plan</strong> to drag items onto today, or <strong>Work</strong> to set priorities.
+            Nothing scheduled for today. Either you're crushing it or avoiding it. Go to <strong>Plan</strong> to drag items onto today, or <strong>Work</strong> to set priorities.
           </Typography>
         ) : (
           data.priorities.map((item) => {
@@ -262,8 +324,8 @@ export default function DailyFocus() {
           count={data.staleItems.length}
           defaultOpen={false}
         >
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem' }}>
-            These items haven't been touched in over a week.
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem', fontStyle: 'italic' }}>
+            {staleSnark || 'These items haven\'t been touched in over a week.'}
           </Typography>
           {data.staleItems.map((item) => (
             <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, cursor: 'pointer', borderRadius: 1, px: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }} onClick={() => setEditItem(item)}>
@@ -310,9 +372,12 @@ export default function DailyFocus() {
         defaultOpen={false}
         action={<Button size="small" startIcon={<AddIcon />} onClick={() => setLogWorkOpen(true)}>Log Work</Button>}
       >
+        {activitySnark && activityDates.length > 0 && (
+          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', display: 'block', mb: 1 }}>{activitySnark}</Typography>
+        )}
         {activityDates.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
-            No activity yet. Complete items from Work or use "Log Work" to record what you've done.
+            Inbox zero... for activity. Screenshot it before it lasts. Complete items from Work or use "Log Work" to record what you've done.
           </Typography>
         ) : (
           activityDates.map((date) => (

@@ -13,7 +13,7 @@ import { api } from '../api/client';
 export default function ChatBot() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'assistant', text: "It looks like you're trying to be productive! I'm Clippy, your DevFocus assistant. Ask me anything!" },
+    { role: 'assistant', text: "It looks like you're trying to be productive! Bold move. I'm Clippy, your questionably helpful DevFocus assistant. Ask me anything — I'll pretend to know." },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
