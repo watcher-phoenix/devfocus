@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { Op, fn, col, literal } = require('sequelize');
 const { WorkItem, CachedEvent, Project } = require('../database/models');
-const { getDaysAgoET, getTimeInET } = require('../utilities/timezone');
+const { getDaysAgoET, getTimeInET, isWeekendET } = require('../utilities/timezone');
 
 const router = Router();
 
@@ -89,6 +89,7 @@ router.get('/', async (req, res) => {
     const isAfterHours = (completedAt) => {
       if (!completedAt) return false;
       const d = new Date(completedAt);
+      if (isWeekendET(d)) return true;
       const { hour, minute, totalMinutes } = getTimeInET(d);
       if (hour === 12 && minute === 0) return false;
       return totalMinutes < workStartMins || totalMinutes > workEndMins;

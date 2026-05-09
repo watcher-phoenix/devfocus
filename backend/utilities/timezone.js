@@ -45,4 +45,13 @@ function getTimeInET(date) {
   return { hour, minute, totalMinutes: hour * 60 + minute };
 }
 
-module.exports = { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart, getDaysAgoET, getTimeInET, TZ };
+// Check if a Date falls on a weekend (Saturday or Sunday) in Eastern time
+function isWeekendET(date) {
+  const dayStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    weekday: 'short',
+  }).format(date);
+  return dayStr === 'Sat' || dayStr === 'Sun';
+}
+
+module.exports = { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart, getDaysAgoET, getTimeInET, isWeekendET, TZ };

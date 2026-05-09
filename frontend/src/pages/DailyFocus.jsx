@@ -210,9 +210,9 @@ export default function DailyFocus() {
           data.priorities.map((item) => {
             const isDone = item.status === 'done';
             return (
-              <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, opacity: isDone ? 0.5 : 1 }}>
-                <Checkbox size="small" checked={isDone} onChange={() => handleToggle(item.id, isDone ? 'active' : 'done')} sx={{ p: 0.5 }} />
-                <Typography variant="body2" sx={{ textDecoration: isDone ? 'line-through' : 'none', flex: 1 }}>{item.title}</Typography>
+              <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, opacity: isDone ? 0.5 : 1, cursor: 'pointer', borderRadius: 1, px: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                <Checkbox size="small" checked={isDone} onChange={() => handleToggle(item.id, isDone ? 'active' : 'done')} sx={{ p: 0.5 }} onClick={(e) => e.stopPropagation()} />
+                <Typography variant="body2" onClick={() => setEditItem(item)} sx={{ textDecoration: isDone ? 'line-through' : 'none', flex: 1, cursor: 'pointer' }}>{item.title}</Typography>
                 {item.priority > 0 && (
                   <Chip
                     label={item.priority === 3 ? 'High' : item.priority === 2 ? 'Med' : 'Low'}
