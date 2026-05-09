@@ -34,6 +34,8 @@ export default function ChatBot() {
         const agent = await initAgent(Clippy);
         if (disposed) { agent.dispose(); return; }
         agentRef.current = agent;
+        // Disable Clippy sounds
+        if (agent._animator) agent._animator._sounds = {};
         agent.show();
         agent.moveTo(window.innerWidth - 140, 60);
         agent.play('Greeting');

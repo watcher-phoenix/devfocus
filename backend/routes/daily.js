@@ -1,9 +1,18 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
 const { WorkItem, Project, ContextSnapshot, CachedEvent, IntegrationConfig, UserSettings } = require('../database/models');
-const { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart } = require('../utilities/timezone');
+const { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart, getTimeInET, isWeekendET } = require('../utilities/timezone');
 
 const router = Router();
+
+function isAfterHours(completedAt, workStartMins, workEndMins) {
+  if (!completedAt) return false;
+  const d = new Date(completedAt);
+  if (isWeekendET(d)) return true;
+  const { hour, minute, totalMinutes } = getTimeInET(d);
+  if (hour === 12 && minute === 0) return false;
+  return totalMinutes < workStartMins || totalMinutes > workEndMins;
+}
 
 router.get('/:date', async (req, res) => {
   try {
@@ -67,13 +76,17 @@ router.get('/:date', async (req, res) => {
 
   // Dynamic work hours + meeting exclude keywords from user settings
   let workdayMinutes = 8.5 * 60;
+  let workStartMins = 450; // 7:30
+  let workEndMins = 960; // 16:00
   let excludeKeywords = ['lunch'];
   try {
     const settings = await UserSettings.findOne();
     if (settings) {
       const [startH, startM] = settings.workStartTime.split(':').map(Number);
       const [endH, endM] = settings.workEndTime.split(':').map(Number);
-      workdayMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+      workStartMins = startH * 60 + startM;
+      workEndMins = endH * 60 + endM;
+      workdayMinutes = workEndMins - workStartMins;
       if (settings.meetingExcludeKeywords) {
         excludeKeywords = settings.meetingExcludeKeywords.split(',').map((k) => k.trim().toLowerCase());
       }
@@ -102,7 +115,11 @@ router.get('/:date', async (req, res) => {
       excludedCount: events.filter((e) => !e.allDay && isExcluded(e.title)).length,
     },
     focusMinutes: Math.round(focusMinutes),
-    priorities,
+    priorities: priorities.map((item) => {
+      const json = item.toJSON();
+      json.afterHours = isAfterHours(item.completedAt, workStartMins, workEndMins);
+      return json;
+    }),
     snapshot,
     inbox: { count: inboxCount, recent: inboxRecent },
     done: { today: doneToday, yesterday: doneYesterday },
