@@ -37,7 +37,13 @@ export default function ChatBot() {
         // Disable Clippy sounds
         if (agent._animator) agent._animator._sounds = {};
         agent.show();
-        agent.moveTo(window.innerWidth - 140, 60);
+        // Set position directly so the speech bubble renders in the right spot
+        // (moveTo animates a walk and the bubble appears at the start position)
+        const el = agent._el;
+        if (el) {
+          el.style.left = (window.innerWidth - 140) + 'px';
+          el.style.top = '60px';
+        }
         agent.play('Greeting');
         setAgentReady(true);
 

@@ -33,6 +33,9 @@ function expandRecurring(events, startDate, endDate) {
   for (const [uid, event] of Object.entries(events)) {
     if (event.type !== 'VEVENT') continue;
 
+    // Skip cancelled events (removed from calendar)
+    if ((event.status || '').toUpperCase() === 'CANCELLED') continue;
+
     // Skip events the user declined or hasn't accepted
     if (isDeclinedOrTentative(event)) continue;
 
