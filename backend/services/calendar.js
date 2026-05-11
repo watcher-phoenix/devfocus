@@ -45,7 +45,19 @@ function expandRecurring(events, startDate, endDate) {
         const instances = event.rrule.between(start, end, true);
         const duration = new Date(event.end) - new Date(event.start);
 
+        // Build set of excluded dates (cancelled occurrences)
+        const exdates = new Set();
+        if (event.exdate) {
+          for (const ex of Object.values(event.exdate)) {
+            const d = ex instanceof Date ? ex : new Date(ex);
+            if (!isNaN(d)) exdates.add(d.toISOString().split('T')[0]);
+          }
+        }
+
         for (const instanceStart of instances) {
+          // Skip cancelled occurrences
+          if (exdates.has(instanceStart.toISOString().split('T')[0])) continue;
+
           const instanceEnd = new Date(instanceStart.getTime() + duration);
           expanded.push({
             uid: `${uid}_${instanceStart.toISOString()}`,

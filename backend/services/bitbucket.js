@@ -213,23 +213,47 @@ async function syncBitbucket() {
       }
     }
 
-    // Delete BB items for PRs no longer open
-    const staleDeleted = await WorkItem.destroy({
+    // Handle PRs no longer open — mark merged ones done, delete the rest
+    const staleItems = await WorkItem.findAll({
       where: {
         externalSource: 'bitbucket',
+        status: { [Op.ne]: 'done' },
         ...(allOpenIds.length > 0
           ? { externalId: { [Op.notIn]: allOpenIds } }
           : {}),
       },
     });
-    deleted += staleDeleted;
+
+    let markedDone = 0;
+    for (const item of staleItems) {
+      const [repoSlug, prId] = item.externalId.split('#');
+      try {
+        const prDetail = await axios.get(
+          `${BB_API}/repositories/${workspace}/${repoSlug}/pullrequests/${prId}`,
+          { headers }
+        );
+        if (prDetail.data.state === 'MERGED') {
+          await item.update({
+            status: 'done',
+            completedAt: prDetail.data.updated_on ? new Date(prDetail.data.updated_on) : new Date(),
+          });
+          markedDone++;
+        } else {
+          await item.destroy();
+          deleted++;
+        }
+      } catch {
+        await item.destroy();
+        deleted++;
+      }
+    }
 
     await integrationConfig.update({
       lastSyncAt: new Date(),
       lastSyncStatus: errors.length > 0 ? 'partial' : 'success',
     });
 
-    return { success: true, created, updated, deleted, repos: repoList.length, user: currentUser?.displayName || 'workspace token', errors: errors.length > 0 ? errors : undefined };
+    return { success: true, created, updated, deleted, markedDone, repos: repoList.length, user: currentUser?.displayName || 'workspace token', errors: errors.length > 0 ? errors : undefined };
   } catch (err) {
     console.error('Bitbucket sync error:', err.response?.data || err.message);
     await integrationConfig.update({ lastSyncAt: new Date(), lastSyncStatus: 'error' });
