@@ -98,7 +98,9 @@ async function syncCalendar(startDate, endDate) {
   }
 
   try {
-    const rawEvents = await ical.async.fromURL(icsUrl);
+    const rawEvents = await ical.async.fromURL(icsUrl, {
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
     const events = expandRecurring(rawEvents, startDate, endDate);
 
     let created = 0;
