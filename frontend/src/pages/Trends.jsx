@@ -209,12 +209,26 @@ function ProjectBreakdown({ data, total, details }) {
   );
 }
 
+const RELEASE_ANCHOR = '2026-05-12';
+
+function releaseFlags(dateStr) {
+  const anchor = new Date(RELEASE_ANCHOR + 'T00:00:00');
+  const target = new Date(dateStr + 'T00:00:00');
+  const diffDays = Math.floor((target - anchor) / (24 * 60 * 60 * 1000));
+  const cycleDay = ((diffDays % 14) + 14) % 14;
+  const isWeek = cycleDay >= 13 || cycleDay <= 3;
+  const isDay = cycleDay === 0;
+  return { isWeek, isDay };
+}
+
 function exportTrendsCSV(data, days) {
-  const rows = [['Type', 'Title', 'Project', 'Completed', 'External ID', 'After Hours']];
+  const rows = [['Type', 'Title', 'Project', 'Completed', 'External ID', 'After Hours', 'Release Week', 'Release Day']];
 
   // Add completed items grouped by type
   Object.entries(data.typeDetails || {}).forEach(([type, items]) => {
     items.forEach((item) => {
+      const completedDate = item.completedAt ? new Date(item.completedAt).toLocaleDateString('en-CA') : '';
+      const rf = completedDate ? releaseFlags(completedDate) : {};
       rows.push([
         TYPE_LABELS[type] || type,
         item.title,
@@ -222,6 +236,8 @@ function exportTrendsCSV(data, days) {
         item.completedAt ? new Date(item.completedAt).toLocaleDateString() : '',
         item.externalId || '',
         item.afterHours ? 'Yes' : '',
+        rf.isWeek ? 'Yes' : '',
+        rf.isDay ? 'Yes' : '',
       ]);
     });
   });
@@ -229,11 +245,11 @@ function exportTrendsCSV(data, days) {
   // Add meetings section
   rows.push([]);
   rows.push(['--- Meetings ---']);
-  rows.push(['Week Of', 'Meeting Hours']);
+  rows.push(['Week Of', 'Meeting Hours', 'Release Week']);
   Object.entries(data.weeklyMeetingMinutes || {})
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([week, mins]) => {
-      rows.push([week, `${Math.round(mins / 60 * 10) / 10}h`]);
+      rows.push([week, `${Math.round(mins / 60 * 10) / 10}h`, releaseFlags(week).isWeek ? 'Yes' : '']);
     });
 
   // Add summary

@@ -287,6 +287,8 @@ export default function DailyFocus() {
             <Stack direction="row" spacing={1}>
               <Chip icon={<EventIcon />} label={`${data.meetings.count} mtg${data.meetings.count !== 1 ? 's' : ''}`} variant="outlined" size="small" color={data.meetings.count > 3 ? 'warning' : 'default'} />
               <Chip icon={<AccessTimeIcon />} label={`${Math.floor(data.focusMinutes / 60)}h ${data.focusMinutes % 60}m focus`} variant="outlined" size="small" color={data.focusMinutes >= 240 ? 'success' : 'default'} />
+              {data.releaseWeek?.isReleaseDay && <Chip label="Release Day" size="small" color="error" variant="outlined" />}
+              {data.releaseWeek?.isReleaseWeek && !data.releaseWeek?.isReleaseDay && <Chip label="Release Week" size="small" color="warning" variant="outlined" />}
             </Stack>
           </Box>
           {(meetingSnark || fridaySnark) && (

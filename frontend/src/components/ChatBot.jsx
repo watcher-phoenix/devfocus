@@ -1,27 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import IconButton from '@mui/material/IconButton';
-import Slide from '@mui/material/Slide';
-import CloseIcon from '@mui/icons-material/Close';
-import SendIcon from '@mui/icons-material/Send';
-import CircularProgress from '@mui/material/CircularProgress';
-import { api } from '../api/client';
+import { useRef, useEffect } from 'react';
 
 export default function ChatBot() {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    { role: 'assistant', text: "It looks like you're trying to be productive! Bold move. I'm Clippy, your questionably helpful DevFocus assistant. Ask me anything — I'll pretend to know." },
-  ]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [agentReady, setAgentReady] = useState(false);
-  const [panelPos, setPanelPos] = useState({ top: 60, right: 24 });
-  const messagesEndRef = useRef(null);
   const agentRef = useRef(null);
-  const openRef = useRef(false);
   const animQueueRef = useRef([]);
 
   // Initialize Clippy agent
@@ -38,37 +18,13 @@ export default function ChatBot() {
         if (agent._animator) agent._animator._sounds = {};
         agent.show();
         // Set position directly so the speech bubble renders in the right spot
-        // (moveTo animates a walk and the bubble appears at the start position)
         const el = agent._el;
         if (el) {
           el.style.left = (window.innerWidth - 140) + 'px';
           el.style.top = '60px';
+          el.style.zIndex = '9999';
         }
         agent.play('Greeting');
-        setAgentReady(true);
-
-        // Make Clippy's DOM element clickable using the agent's internal element
-        const clippyEl = agent._el;
-        if (clippyEl) {
-          clippyEl.style.cursor = 'pointer';
-          clippyEl.style.zIndex = '9999';
-          clippyEl.addEventListener('click', (e) => {
-            e.stopPropagation();
-            // Position panel near Clippy
-            const rect = clippyEl.getBoundingClientRect();
-            const panelWidth = 360;
-            const panelHeight = 480;
-            let left = rect.left - panelWidth - 10;
-            let top = rect.top;
-            // Keep on screen
-            if (left < 10) left = rect.right + 10;
-            if (top + panelHeight > window.innerHeight - 10) top = window.innerHeight - panelHeight - 10;
-            if (top < 10) top = 10;
-            setPanelPos({ top, left });
-            openRef.current = !openRef.current;
-            setOpen(openRef.current);
-          });
-        }
       } catch (err) {
         console.error('Failed to init Clippy:', err);
       }
@@ -78,182 +34,57 @@ export default function ChatBot() {
 
   // Clippy idle animations — shuffle all, play through, reshuffle
   useEffect(() => {
-    if (!agentReady || !agentRef.current) return;
-    const allAnims = agentRef.current.animations().filter((a) => !a.startsWith('Idle'));
-    const shuffle = (arr) => {
-      const copy = [...arr];
-      for (let i = copy.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [copy[i], copy[j]] = [copy[j], copy[i]];
-      }
-      return copy;
-    };
-    const nextAnim = () => {
-      if (animQueueRef.current.length === 0) {
-        animQueueRef.current = shuffle(allAnims);
-      }
-      return animQueueRef.current.pop();
-    };
-    const IDLE_THOUGHTS = [
-      'I wonder if anyone actually reads commit messages...',
-      'Should I refactor this? Nah.',
-      'Is it lunch yet?',
-      'rm -rf node_modules. Fixes everything.',
-      'Have you tried turning it off and on again?',
-      'I used to live in Word. Now I live in a side project.',
-      'This could\'ve been an email.',
-      'I bet there\'s a meeting about this.',
-      '*stares in paperclip*',
-      'git blame... it was me all along.',
-    ];
-    let thoughtCount = 0;
-    const interval = setInterval(() => {
-      if (agentRef.current) {
-        agentRef.current.stop();
-        agentRef.current.play(nextAnim());
-        // Show a thought bubble occasionally (every 3rd animation cycle)
-        thoughtCount++;
-        if (thoughtCount % 3 === 0 && !openRef.current) {
-          const thought = IDLE_THOUGHTS[Math.floor(Math.random() * IDLE_THOUGHTS.length)];
-          agentRef.current.speak(thought);
+    if (!agentRef.current) return;
+    // Small delay to ensure agent is fully ready
+    const startDelay = setTimeout(() => {
+      if (!agentRef.current) return;
+      const allAnims = agentRef.current.animations().filter((a) => !a.startsWith('Idle'));
+      const shuffle = (arr) => {
+        const copy = [...arr];
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
         }
-      }
-    }, 12000);
-    return () => clearInterval(interval);
-  }, [agentReady]);
+        return copy;
+      };
+      const nextAnim = () => {
+        if (animQueueRef.current.length === 0) {
+          animQueueRef.current = shuffle(allAnims);
+        }
+        return animQueueRef.current.pop();
+      };
+      const IDLE_THOUGHTS = [
+        'I wonder if anyone actually reads commit messages...',
+        'Should I refactor this? Nah.',
+        'Is it lunch yet?',
+        'rm -rf node_modules. Fixes everything.',
+        'Have you tried turning it off and on again?',
+        'I used to live in Word. Now I live in a side project.',
+        'This could\'ve been an email.',
+        'I bet there\'s a meeting about this.',
+        '*stares in paperclip*',
+        'git blame... it was me all along.',
+      ];
+      let thoughtCount = 0;
+      const interval = setInterval(() => {
+        if (agentRef.current) {
+          agentRef.current.stop();
+          agentRef.current.play(nextAnim());
+          thoughtCount++;
+          if (thoughtCount % 3 === 0) {
+            const thought = IDLE_THOUGHTS[Math.floor(Math.random() * IDLE_THOUGHTS.length)];
+            agentRef.current.speak(thought);
+          }
+        }
+      }, 12000);
+      // Store interval for cleanup
+      animQueueRef.current._interval = interval;
+    }, 1000);
+    return () => {
+      clearTimeout(startDelay);
+      if (animQueueRef.current._interval) clearInterval(animQueueRef.current._interval);
+    };
+  }, []);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Make Clippy speak the last assistant message
-  useEffect(() => {
-    if (!agentRef.current || messages.length === 0) return;
-    const last = messages[messages.length - 1];
-    if (last.role === 'assistant') {
-      agentRef.current.play('Explain');
-    }
-  }, [messages]);
-
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
-
-    const userMsg = input.trim();
-    setInput('');
-    setMessages((prev) => [...prev, { role: 'user', text: userMsg }]);
-    setLoading(true);
-
-    if (agentRef.current) {
-      agentRef.current.play('Searching');
-    }
-
-    try {
-      const res = await api.post('/chat', { message: userMsg });
-      setMessages((prev) => [...prev, { role: 'assistant', text: res.answer, source: res.source }]);
-    } catch {
-      setMessages((prev) => [...prev, { role: 'assistant', text: "Oops! Something went wrong on my end. Give it another try!" }]);
-    }
-    setLoading(false);
-  };
-
-  const handleToggle = () => {
-    if (open) {
-      setOpen(false);
-      if (agentRef.current) agentRef.current.play('Wave');
-    } else {
-      setOpen(true);
-      if (agentRef.current) {
-        agentRef.current.play('Greeting');
-      }
-    }
-  };
-
-  return (
-    <>
-      {/* Chat panel */}
-      <Slide direction="left" in={open} mountOnEnter unmountOnExit>
-        <Paper
-          elevation={8}
-          sx={{
-            position: 'fixed',
-            top: panelPos.top,
-            left: panelPos.left,
-            width: 360,
-            height: 480,
-            display: 'flex',
-            flexDirection: 'column',
-            borderRadius: 3,
-            overflow: 'hidden',
-            bgcolor: 'background.paper',
-            border: '1px solid rgba(255,215,0,0.3)',
-            zIndex: 1300,
-          }}
-        >
-          {/* Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, borderBottom: '1px solid rgba(255,215,0,0.2)', bgcolor: 'rgba(255,215,0,0.05)' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#FFD600' }}>Clippy</Typography>
-            <IconButton size="small" onClick={handleToggle}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-
-          {/* Messages */}
-          <Box sx={{ flex: 1, overflow: 'auto', px: 2, py: 1.5 }}>
-            {messages.map((msg, i) => (
-              <Box
-                key={i}
-                sx={{
-                  display: 'flex',
-                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  mb: 1.5,
-                }}
-              >
-                <Box
-                  sx={{
-                    maxWidth: '85%',
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: 2,
-                    bgcolor: msg.role === 'user' ? 'primary.main' : 'rgba(255,215,0,0.08)',
-                    color: msg.role === 'user' ? 'white' : 'text.primary',
-                  }}
-                >
-                  <Typography variant="body2" sx={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
-                    {msg.text}
-                  </Typography>
-                </Box>
-              </Box>
-            ))}
-            {loading && (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1.5 }}>
-                <Box sx={{ px: 1.5, py: 1, borderRadius: 2, bgcolor: 'rgba(255,215,0,0.08)' }}>
-                  <CircularProgress size={16} sx={{ color: '#FFD600' }} />
-                </Box>
-              </Box>
-            )}
-            <div ref={messagesEndRef} />
-          </Box>
-
-          {/* Input */}
-          <Box sx={{ px: 2, py: 1.5, borderTop: '1px solid rgba(255,215,0,0.2)' }}>
-            <form onSubmit={handleSend} style={{ display: 'flex', gap: 8 }}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Ask Clippy..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                autoComplete="off"
-                disabled={loading}
-              />
-              <IconButton type="submit" sx={{ color: '#FFD600' }} disabled={!input.trim() || loading}>
-                <SendIcon />
-              </IconButton>
-            </form>
-          </Box>
-        </Paper>
-      </Slide>
-    </>
-  );
+  return null;
 }

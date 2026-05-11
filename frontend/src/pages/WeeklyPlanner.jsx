@@ -111,7 +111,9 @@ export default function WeeklyPlanner() {
 
   const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,scheduled' });
   const updateItem = useUpdateWorkItem();
-  const { data: weekMeetings = {} } = useWeekMeetings(weekStart);
+  const { data: weekMeetingsRaw = {} } = useWeekMeetings(weekStart);
+  const weekMeetings = weekMeetingsRaw.days || weekMeetingsRaw;
+  const weekReleaseInfo = weekMeetingsRaw.releaseWeek || null;
   const { data: snapshots = [] } = useSnapshots({ active: true });
   const { data: settingsData } = useSettings();
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
@@ -238,6 +240,8 @@ export default function WeeklyPlanner() {
           </Typography>
           <IconButton onClick={() => setWeekOffset((o) => o + 1)} size="small"><ChevronRightIcon /></IconButton>
           {!isCurrentWeek && <Button size="small" variant="outlined" onClick={() => setWeekOffset(0)}>This Week</Button>}
+          {weekReleaseInfo?.isReleaseWeek && <Chip label="Release Week" size="small" color="warning" variant="outlined" />}
+          {weekReleaseInfo?.isReleaseDay && <Chip label="Release Day" size="small" color="error" variant="outlined" />}
         </Box>
       </Box>
 

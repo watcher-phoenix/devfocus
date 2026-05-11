@@ -5,6 +5,20 @@ const { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart, getTimeInET, isW
 
 const router = Router();
 
+// Biweekly release cycle — anchor is a release day Tuesday
+const RELEASE_ANCHOR = '2026-05-12'; // a Tuesday
+
+function getReleaseWeekInfo(targetDate) {
+  const anchor = new Date(RELEASE_ANCHOR + 'T00:00:00');
+  const target = new Date(targetDate + 'T00:00:00');
+  const diffDays = Math.floor((target - anchor) / (24 * 60 * 60 * 1000));
+  const cycleDay = ((diffDays % 14) + 14) % 14;
+  // Anchor is Tuesday (cycleDay 0). Mon before = 13, Wed = 1, Thu = 2, Fri = 3
+  const isReleaseWeek = cycleDay >= 13 || cycleDay <= 3;
+  const isReleaseDay = cycleDay === 0;
+  return { isReleaseWeek, isReleaseDay };
+}
+
 function isAfterHours(completedAt, workStartMins, workEndMins) {
   if (!completedAt) return false;
   const d = new Date(completedAt);
@@ -108,6 +122,7 @@ router.get('/:date', async (req, res) => {
     date: targetDate,
     dayOfWeek: getDayOfWeek(targetDate),
     weekStart: getWeekStart(targetDate),
+    releaseWeek: getReleaseWeekInfo(targetDate),
     meetings: {
       count: meetingEvents.length,
       totalMinutes: Math.round(meetingMinutes),
@@ -185,7 +200,9 @@ router.get('/week-meetings/:weekStart', async (req, res) => {
         })),
       };
     }
-    res.json(days);
+
+    const releaseWeek = getReleaseWeekInfo(weekStart);
+    res.json({ days, releaseWeek });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
