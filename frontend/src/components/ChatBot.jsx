@@ -1,8 +1,9 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 
 export default function ChatBot() {
   const agentRef = useRef(null);
   const animQueueRef = useRef([]);
+  const [agentReady, setAgentReady] = useState(false);
 
   // Initialize Clippy agent
   useEffect(() => {
@@ -25,6 +26,7 @@ export default function ChatBot() {
           el.style.zIndex = '9999';
         }
         agent.play('Greeting');
+        setAgentReady(true);
       } catch (err) {
         console.error('Failed to init Clippy:', err);
       }
@@ -34,57 +36,49 @@ export default function ChatBot() {
 
   // Clippy idle animations — shuffle all, play through, reshuffle
   useEffect(() => {
-    if (!agentRef.current) return;
-    // Small delay to ensure agent is fully ready
-    const startDelay = setTimeout(() => {
-      if (!agentRef.current) return;
-      const allAnims = agentRef.current.animations().filter((a) => !a.startsWith('Idle'));
-      const shuffle = (arr) => {
-        const copy = [...arr];
-        for (let i = copy.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [copy[i], copy[j]] = [copy[j], copy[i]];
-        }
-        return copy;
-      };
-      const nextAnim = () => {
-        if (animQueueRef.current.length === 0) {
-          animQueueRef.current = shuffle(allAnims);
-        }
-        return animQueueRef.current.pop();
-      };
-      const IDLE_THOUGHTS = [
-        'I wonder if anyone actually reads commit messages...',
-        'Should I refactor this? Nah.',
-        'Is it lunch yet?',
-        'rm -rf node_modules. Fixes everything.',
-        'Have you tried turning it off and on again?',
-        'I used to live in Word. Now I live in a side project.',
-        'This could\'ve been an email.',
-        'I bet there\'s a meeting about this.',
-        '*stares in paperclip*',
-        'git blame... it was me all along.',
-      ];
-      let thoughtCount = 0;
-      const interval = setInterval(() => {
-        if (agentRef.current) {
-          agentRef.current.stop();
-          agentRef.current.play(nextAnim());
-          thoughtCount++;
-          if (thoughtCount % 3 === 0) {
-            const thought = IDLE_THOUGHTS[Math.floor(Math.random() * IDLE_THOUGHTS.length)];
-            agentRef.current.speak(thought);
-          }
-        }
-      }, 12000);
-      // Store interval for cleanup
-      animQueueRef.current._interval = interval;
-    }, 1000);
-    return () => {
-      clearTimeout(startDelay);
-      if (animQueueRef.current._interval) clearInterval(animQueueRef.current._interval);
+    if (!agentReady || !agentRef.current) return;
+
+    const allAnims = agentRef.current.animations().filter((a) => !a.startsWith('Idle'));
+    const shuffle = (arr) => {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
     };
-  }, []);
+    const nextAnim = () => {
+      if (animQueueRef.current.length === 0) {
+        animQueueRef.current = shuffle(allAnims);
+      }
+      return animQueueRef.current.pop();
+    };
+    const IDLE_THOUGHTS = [
+      'I wonder if anyone actually reads commit messages...',
+      'Should I refactor this? Nah.',
+      'Is it lunch yet?',
+      'rm -rf node_modules. Fixes everything.',
+      'Have you tried turning it off and on again?',
+      'I used to live in Word. Now I live in a side project.',
+      'This could\'ve been an email.',
+      'I bet there\'s a meeting about this.',
+      '*stares in paperclip*',
+      'git blame... it was me all along.',
+    ];
+    let thoughtCount = 0;
+    const interval = setInterval(() => {
+      if (agentRef.current) {
+        agentRef.current.stop();
+        agentRef.current.play(nextAnim());
+        thoughtCount++;
+        if (thoughtCount % 3 === 0) {
+          const thought = IDLE_THOUGHTS[Math.floor(Math.random() * IDLE_THOUGHTS.length)];
+          agentRef.current.speak(thought);
+        }
+      }
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [agentReady]);
 
   return null;
 }

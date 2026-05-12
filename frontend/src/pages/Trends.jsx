@@ -32,8 +32,8 @@ const TYPE_LABELS = {
 };
 
 const TYPE_COLORS = {
-  task: '#9AA0A6',           // Gray
-  ticket: '#2196F3',         // Blue
+  task: '#42A5F5',           // Light blue
+  ticket: '#536DFE',         // Indigo
   strategic: '#7C4DFF',      // Purple
   followup: '#00BCD4',       // Teal
   review: '#FFD600',         // Yellow
@@ -157,8 +157,7 @@ function TypeBreakdown({ data, total, details }) {
   );
 }
 
-// Fallback palette for projects without a custom color
-const PROJECT_PALETTE = ['#7C4DFF', '#00BCD4', '#FF6D00', '#00C853', '#E91E63', '#536DFE', '#FFD600', '#795548'];
+const PROJECT_FALLBACK_COLOR = '#7C4DFF';
 
 function ProjectBreakdown({ data, total, details, colors = {} }) {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
@@ -171,7 +170,7 @@ function ProjectBreakdown({ data, total, details, colors = {} }) {
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
         const isOpen = expanded === project;
         const items = details?.[project] || [];
-        const barColor = colors[project] || PROJECT_PALETTE[idx % PROJECT_PALETTE.length];
+        const barColor = colors[project] || PROJECT_FALLBACK_COLOR;
         return (
           <Box key={project} sx={{ mb: 0.5 }}>
             <Box
@@ -420,7 +419,7 @@ export default function Trends() {
       {/* Weekly meeting hours */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <BarChart data={data.weeklyMeetingMinutes} label="Meeting Hours Per Week" color="#42A5F5" unit="hours" />
+          <BarChart data={data.weeklyMeetingMinutes} label="Meeting Hours Per Week" color="#78909C" unit="hours" />
         </CardContent>
       </Card>
 
