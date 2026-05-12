@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 
 // Lighten a hex color toward white for readability on dark backgrounds
 function lightenColor(hex, amount = 0.45) {
@@ -87,6 +87,34 @@ export default function DailyFocus() {
   const [captureText, setCaptureText] = useState('');
   const [editItem, setEditItem] = useState(null);
   const [logWorkOpen, setLogWorkOpen] = useState(false);
+
+  // Stabilize random snark so it doesn't re-roll on every keystroke
+  const capturePlaceholder = useMemo(() => {
+    const options = ['Capture a thought before it escapes...', 'Brain dump here. No judgment.', 'Type it before you forget. Again.', 'Quick, write it down before the next meeting...'];
+    return options[Math.floor(Math.random() * options.length)];
+  }, []);
+  const bannerEmoji = useMemo(() => ['\u26A1', '\uD83D\uDD25', '\uD83D\uDE80', '\uD83E\uDDE0', '\u2615', '\uD83D\uDCAA', '\uD83C\uDFAF'][Math.floor(Math.random() * 7)], []);
+  const bannerQuip = useMemo(() => {
+    const quips = [
+      "Your code won't write itself. Well, unless you use AI.",
+      'Ship it and let the tests catch the rest.',
+      'Remember: it worked on your machine. That counts for something.',
+      "Today's mass of tangled code is tomorrow's legacy system.",
+      'Debugging is like being a detective in a crime movie where you are also the murderer.',
+      'First, solve the problem. Then, write the code. Then, rewrite it. Then, rewrite it again.',
+      "It's not a bug, it's an undocumented feature.",
+      'The best error message is the one that never shows up.',
+      'Code never lies. Comments sometimes do.',
+      'Weeks of coding can save you hours of planning.',
+      "git push --force and pray.",
+      'There are only two hard things: cache invalidation, naming things, and off-by-one errors.',
+    ];
+    return quips[Math.floor(Math.random() * quips.length)];
+  }, []);
+  const allDoneQuip = useMemo(() => {
+    const options = ['All done. Go home.', 'Clean sweep. Your future self thanks you.', 'Everything checked off. Suspicious.'];
+    return options[Math.floor(Math.random() * options.length)];
+  }, []);
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
   const [editSnapshot, setEditSnapshot] = useState(null);
 
@@ -252,22 +280,9 @@ export default function DailyFocus() {
       {/* Motivational banner */}
       <Card sx={{ mb: 2, background: 'linear-gradient(135deg, rgba(124,77,255,0.08), rgba(0,229,255,0.08))', border: '1px solid rgba(124,77,255,0.15)' }}>
         <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Typography sx={{ fontSize: '1.1rem' }}>{['\u26A1', '\uD83D\uDD25', '\uD83D\uDE80', '\uD83E\uDDE0', '\u2615', '\uD83D\uDCAA', '\uD83C\uDFAF'][Math.floor(Math.random() * 7)]}</Typography>
+          <Typography sx={{ fontSize: '1.1rem' }}>{bannerEmoji}</Typography>
           <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
-            {[
-              "Your code won't write itself. Well, unless you use AI.",
-              'Ship it and let the tests catch the rest.',
-              'Remember: it worked on your machine. That counts for something.',
-              "Today's mass of tangled code is tomorrow's legacy system.",
-              'Debugging is like being a detective in a crime movie where you are also the murderer.',
-              'First, solve the problem. Then, write the code. Then, rewrite it. Then, rewrite it again.',
-              "It's not a bug, it's an undocumented feature.",
-              'The best error message is the one that never shows up.',
-              'Code never lies. Comments sometimes do.',
-              'Weeks of coding can save you hours of planning.',
-              "git push --force and pray.",
-              'There are only two hard things: cache invalidation, naming things, and off-by-one errors.',
-            ][Math.floor(Math.random() * 12)]}
+            {bannerQuip}
           </Typography>
         </Box>
       </Card>
@@ -339,7 +354,7 @@ export default function DailyFocus() {
             <TextField
               fullWidth
               size="small"
-              placeholder={['Capture a thought before it escapes...', 'Brain dump here. No judgment.', 'Type it before you forget. Again.', 'Quick, write it down before the next meeting...'][Math.floor(Math.random() * 4)]}
+              placeholder={capturePlaceholder}
               value={captureText}
               onChange={(e) => setCaptureText(e.target.value)}
               autoComplete="off"
@@ -363,7 +378,7 @@ export default function DailyFocus() {
         ) : (<>
           {data.priorities.length > 0 && data.priorities.every((i) => i.status === 'done') && (
             <Typography variant="caption" sx={{ fontStyle: 'italic', color: 'success.main', display: 'block', mb: 0.5 }}>
-              {['All done. Go home.', 'Clean sweep. Your future self thanks you.', 'Everything checked off. Suspicious.'][Math.floor(Math.random() * 3)]}
+              {allDoneQuip}
             </Typography>
           )}
           {data.priorities.map((item) => {
