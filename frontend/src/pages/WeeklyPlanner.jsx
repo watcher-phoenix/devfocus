@@ -36,6 +36,15 @@ import Collapse from '@mui/material/Collapse';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
+// Lighten a hex color toward white for readability on dark backgrounds
+function lightenColor(hex, amount = 0.45) {
+  const num = parseInt((hex || '#1976d2').slice(1), 16);
+  const r = Math.min(255, Math.round(((num >> 16) & 0xff) + (255 - ((num >> 16) & 0xff)) * amount));
+  const g = Math.min(255, Math.round(((num >> 8) & 0xff) + (255 - ((num >> 8) & 0xff)) * amount));
+  const b = Math.min(255, Math.round((num & 0xff) + (255 - (num & 0xff)) * amount));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -86,7 +95,7 @@ function DraggableCard({ item }) {
               height: 18,
               fontSize: '0.6rem',
               bgcolor: item.project.color + '33',
-              color: item.project.color,
+              color: lightenColor(item.project.color),
             }}
           />
         )}
@@ -431,7 +440,7 @@ export default function WeeklyPlanner() {
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>{item.title}</Typography>
                       {item.project && (
-                        <Chip label={item.project.name} size="small" sx={{ mt: 0.5, height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />
+                        <Chip label={item.project.name} size="small" sx={{ mt: 0.5, height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '33', color: lightenColor(item.project.color) }} />
                       )}
                     </Box>
                     <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>

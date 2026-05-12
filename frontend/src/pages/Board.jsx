@@ -37,6 +37,15 @@ import { useProjects } from '../api/projects';
 import WorkItemDialog from '../components/WorkItemDialog';
 import NewWorkItemDialog from '../components/NewWorkItemDialog';
 
+// Lighten a hex color toward white for readability on dark backgrounds
+function lightenColor(hex, amount = 0.45) {
+  const num = parseInt((hex || '#1976d2').slice(1), 16);
+  const r = Math.min(255, Math.round(((num >> 16) & 0xff) + (255 - ((num >> 16) & 0xff)) * amount));
+  const g = Math.min(255, Math.round(((num >> 8) & 0xff) + (255 - ((num >> 8) & 0xff)) * amount));
+  const b = Math.min(255, Math.round((num & 0xff) + (255 - (num & 0xff)) * amount));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'inbox', label: 'Brain Dump' },
@@ -438,7 +447,7 @@ export default function Board() {
                         height: 20,
                         fontSize: '0.65rem',
                         bgcolor: item.project.color + '33',
-                        color: item.project.color,
+                        color: lightenColor(item.project.color),
                       }}
                     />
                   )}

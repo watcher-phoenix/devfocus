@@ -1,4 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+
+// Lighten a hex color toward white for readability on dark backgrounds
+function lightenColor(hex, amount = 0.45) {
+  const num = parseInt((hex || '#1976d2').slice(1), 16);
+  const r = Math.min(255, Math.round(((num >> 16) & 0xff) + (255 - ((num >> 16) & 0xff)) * amount));
+  const g = Math.min(255, Math.round(((num >> 8) & 0xff) + (255 - ((num >> 8) & 0xff)) * amount));
+  const b = Math.min(255, Math.round((num & 0xff) + (255 - (num & 0xff)) * amount));
+  return `rgb(${r}, ${g}, ${b})`;
+}
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -371,7 +380,7 @@ export default function DailyFocus() {
                     sx={{ height: 18, fontSize: '0.6rem' }}
                   />
                 )}
-                {item.project && <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '33', color: item.project.color }} />}
+                {item.project && <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: lightenColor(item.project.color) + '33', color: lightenColor(item.project.color) }} />}
               </Box>
             );
           })}
@@ -421,7 +430,7 @@ export default function DailyFocus() {
               <Typography variant="body2" sx={{ flex: 1, fontSize: '0.85rem' }}>{item.title}</Typography>
               <Chip label={item.daysSinceUpdate >= 30 ? `${item.daysSinceUpdate}d. At this point, just delete it.` : item.daysSinceUpdate >= 14 ? `${item.daysSinceUpdate}d. Just saying.` : `${item.daysSinceUpdate}d ago`} size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem' }} />
               {item.project && (
-                <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '33', color: item.project.color }} />
+                <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: lightenColor(item.project.color) + '33', color: lightenColor(item.project.color) }} />
               )}
             </Box>
           ))}
