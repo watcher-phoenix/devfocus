@@ -32,6 +32,9 @@ import { useWorkItems, useUpdateWorkItem } from '../api/workItems';
 import { useWeekMeetings } from '../api/daily';
 import { useSettings } from '../api/settings';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import Collapse from '@mui/material/Collapse';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -108,6 +111,7 @@ export default function WeeklyPlanner() {
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
   const isCurrentWeek = weekOffset === 0;
   const [activeItem, setActiveItem] = useState(null);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(true);
 
   const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,scheduled' });
   const updateItem = useUpdateWorkItem();
@@ -252,8 +256,9 @@ export default function WeeklyPlanner() {
           : 510;
 
         const suggestions = [];
-        // All unscheduled sorted by priority (high first), then by type
-        const sorted = [...unscheduled].sort((a, b) => {
+        // Only Brain Dump and Active items for suggestions (not waiting/later)
+        const eligible = unscheduled.filter((i) => i.status === 'inbox' || i.status === 'active');
+        const sorted = [...eligible].sort((a, b) => {
           if (b.priority !== a.priority) return b.priority - a.priority;
           // Reviews and follow-ups are quicker tasks, good for meeting days
           const quickTypes = ['review', 'pr-review', 'followup'];
@@ -289,36 +294,45 @@ export default function WeeklyPlanner() {
         return (
           <Card sx={{ mb: 2, border: '1px solid rgba(255,215,0,0.15)' }}>
             <CardContent sx={{ py: '10px !important', '&:last-child': { pb: '10px !important' } }}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ cursor: 'pointer' }}
+                onClick={() => setSuggestionsOpen((o) => !o)}
+              >
                 <LightbulbIcon sx={{ color: '#FFD600', fontSize: 18 }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Suggestions</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.85rem', flex: 1 }}>Suggestions</Typography>
+                {suggestionsOpen ? <ExpandLessIcon sx={{ fontSize: 18, color: 'text.secondary' }} /> : <ExpandMoreIcon sx={{ fontSize: 18, color: 'text.secondary' }} />}
               </Stack>
-              <Stack spacing={1.5}>
-                {suggestions.map((sug) => (
-                  <Box key={sug.date}>
-                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                        {sug.day}
-                      </Typography>
-                      <Chip label={`${Math.floor(sug.focusMins / 60)}h ${sug.focusMins % 60}m free`} size="small" variant="outlined" color="success" sx={{ height: 20, fontSize: '0.65rem' }} />
-                      <Typography variant="caption" color="text.secondary">{sug.reason}</Typography>
-                    </Stack>
-                    {sug.items.map((item) => (
-                      <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25, pl: 1 }}>
-                        <Typography variant="body2" sx={{ flex: 1, fontSize: '0.8rem' }}>{item.title}</Typography>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          onClick={() => updateItem.mutate({ id: item.id, scheduledDate: sug.date })}
-                          sx={{ fontSize: '0.7rem', py: 0.25, px: 1.5, minWidth: 0 }}
-                        >
-                          Schedule for {sug.day.slice(0, 3)}
-                        </Button>
-                      </Box>
-                    ))}
-                  </Box>
-                ))}
-              </Stack>
+              <Collapse in={suggestionsOpen}>
+                <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+                  {suggestions.map((sug) => (
+                    <Box key={sug.date}>
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                          {sug.day}
+                        </Typography>
+                        <Chip label={`${Math.floor(sug.focusMins / 60)}h ${sug.focusMins % 60}m free`} size="small" variant="outlined" color="success" sx={{ height: 20, fontSize: '0.65rem' }} />
+                        <Typography variant="caption" color="text.secondary">{sug.reason}</Typography>
+                      </Stack>
+                      {sug.items.map((item) => (
+                        <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25, pl: 1 }}>
+                          <Typography variant="body2" sx={{ flex: 1, fontSize: '0.8rem' }}>{item.title}</Typography>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => updateItem.mutate({ id: item.id, scheduledDate: sug.date })}
+                            sx={{ fontSize: '0.7rem', py: 0.25, px: 1.5, minWidth: 0 }}
+                          >
+                            Schedule for {sug.day.slice(0, 3)}
+                          </Button>
+                        </Box>
+                      ))}
+                    </Box>
+                  ))}
+                </Stack>
+              </Collapse>
             </CardContent>
           </Card>
         );
