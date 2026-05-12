@@ -56,10 +56,12 @@ router.get('/', async (req, res) => {
 
     // Project breakdown
     const projectBreakdown = {};
+    const projectColors = {};
     const projectDetails = {};
     completedItems.forEach((item) => {
       const name = item.project?.name || 'Unassigned';
       projectBreakdown[name] = (projectBreakdown[name] || 0) + 1;
+      if (item.project?.color) projectColors[name] = item.project.color;
       if (!projectDetails[name]) projectDetails[name] = [];
       projectDetails[name].push({
         id: item.id,
@@ -188,6 +190,7 @@ router.get('/', async (req, res) => {
       weeklyMeetingMinutes,
       typeBreakdown,
       projectBreakdown,
+      projectColors,
       projectDetails,
       typeDetails,
       dailyBreakdown,

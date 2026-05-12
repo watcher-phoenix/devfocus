@@ -32,8 +32,16 @@ const TYPE_LABELS = {
 };
 
 const TYPE_COLORS = {
-  task: '#9AA0A6', ticket: '#2684FF', strategic: '#7C4DFF', followup: '#00E5FF',
-  review: '#FFD600', 'pr-review': '#FF9100', jira: '#2684FF', pr: '#00C853', support: '#FF5722', urgent: '#F44336',
+  task: '#9AA0A6',           // Gray
+  ticket: '#2196F3',         // Blue
+  strategic: '#7C4DFF',      // Purple
+  followup: '#00BCD4',       // Teal
+  review: '#FFD600',         // Yellow
+  'pr-review': '#FF6D00',    // Deep orange
+  jira: '#FFB300',           // Amber
+  pr: '#00C853',             // Green
+  support: '#E91E63',        // Pink
+  urgent: '#F44336',         // Red
 };
 
 function StatCard({ label, value, subtitle, color }) {
@@ -149,17 +157,21 @@ function TypeBreakdown({ data, total, details }) {
   );
 }
 
-function ProjectBreakdown({ data, total, details }) {
+// Fallback palette for projects without a custom color
+const PROJECT_PALETTE = ['#7C4DFF', '#00BCD4', '#FF6D00', '#00C853', '#E91E63', '#536DFE', '#FFD600', '#795548'];
+
+function ProjectBreakdown({ data, total, details, colors = {} }) {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
   const [expanded, setExpanded] = useState(null);
 
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>By Project</Typography>
-      {entries.map(([project, count]) => {
+      {entries.map(([project, count], idx) => {
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
         const isOpen = expanded === project;
         const items = details?.[project] || [];
+        const barColor = colors[project] || PROJECT_PALETTE[idx % PROJECT_PALETTE.length];
         return (
           <Box key={project} sx={{ mb: 0.5 }}>
             <Box
@@ -177,7 +189,7 @@ function ProjectBreakdown({ data, total, details }) {
                     height: 16,
                     borderRadius: 1,
                     bgcolor: 'rgba(255,255,255,0.05)',
-                    '& .MuiLinearProgress-bar': { bgcolor: '#7C4DFF', borderRadius: 1 },
+                    '& .MuiLinearProgress-bar': { bgcolor: barColor, borderRadius: 1 },
                   }}
                 />
               </Box>
@@ -408,7 +420,7 @@ export default function Trends() {
       {/* Weekly meeting hours */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <BarChart data={data.weeklyMeetingMinutes} label="Meeting Hours Per Week" color="#FF9800" unit="hours" />
+          <BarChart data={data.weeklyMeetingMinutes} label="Meeting Hours Per Week" color="#42A5F5" unit="hours" />
         </CardContent>
       </Card>
 
@@ -424,7 +436,7 @@ export default function Trends() {
       {/* Project breakdown */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <ProjectBreakdown data={data.projectBreakdown} total={summary.totalCompleted} details={data.projectDetails} />
+          <ProjectBreakdown data={data.projectBreakdown} total={summary.totalCompleted} details={data.projectDetails} colors={data.projectColors || {}} />
         </CardContent>
       </Card>
     </Box>
