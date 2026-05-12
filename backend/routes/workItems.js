@@ -1,9 +1,14 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
-const { WorkItem, Project, UserSettings } = require('../database/models');
+const { WorkItem, Project, UserSettings, StatusConfig } = require('../database/models');
 const { getTimeInET, isWeekendET } = require('../utilities/timezone');
 
 const router = Router();
+
+async function isCompletionStatus(key) {
+  const cfg = await StatusConfig.findOne({ where: { key } });
+  return cfg?.isCompletion || false;
+}
 
 async function getWorkHourBounds() {
   let workStartMins = 450; // 7:30
@@ -70,7 +75,7 @@ router.put('/:id', async (req, res) => {
   const item = await WorkItem.findByPk(req.params.id);
   if (!item) return res.status(404).json({ error: 'Not found' });
 
-  if (req.body.status === 'done' && item.status !== 'done') {
+  if (req.body.status && await isCompletionStatus(req.body.status) && !await isCompletionStatus(item.status)) {
     req.body.completedAt = new Date();
   }
 
@@ -86,7 +91,7 @@ router.patch('/:id/status', async (req, res) => {
   if (!item) return res.status(404).json({ error: 'Not found' });
 
   const update = { status: req.body.status };
-  if (req.body.status === 'done' && item.status !== 'done') {
+  if (await isCompletionStatus(req.body.status) && !await isCompletionStatus(item.status)) {
     update.completedAt = new Date();
   }
 

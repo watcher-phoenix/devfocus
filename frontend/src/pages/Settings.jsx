@@ -26,8 +26,10 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useProjects, useCreateProject, useUpdateProject } from '../api/projects';
 import { useSettings, useUpdateSettings } from '../api/settings';
+import { useStatuses, useCreateStatus, useUpdateStatus, useDeleteStatus } from '../api/statuses';
 import {
   useIntegrations,
   useUpdateIntegration,
@@ -486,6 +488,153 @@ function GeneralTab() {
   );
 }
 
+// ── Statuses Tab ─────────────────────────────────────────────────────────
+
+function StatusesTab() {
+  const { data: statuses = [] } = useStatuses();
+  const createStatus = useCreateStatus();
+  const updateStatus = useUpdateStatus();
+  const deleteStatus = useDeleteStatus();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState({ key: '', label: '', color: '#9AA0A6' });
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const openNew = () => {
+    setEditId(null);
+    setForm({ key: '', label: '', color: '#9AA0A6' });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (status) => {
+    setEditId(status.id);
+    setForm({ key: status.key, label: status.label, color: status.color });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.label.trim()) return;
+    if (editId) {
+      await updateStatus.mutateAsync({ id: editId, label: form.label, color: form.color });
+    } else {
+      const key = form.key.trim() || form.label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      await createStatus.mutateAsync({ key, label: form.label, color: form.color });
+    }
+    setDialogOpen(false);
+  };
+
+  const handleDelete = async (id) => {
+    await deleteStatus.mutateAsync(id);
+    setDeleteConfirm(null);
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontSize: '1rem' }}>Work Statuses</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Rename, recolor, or add custom statuses for your workflow.
+          </Typography>
+        </Box>
+        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openNew}>New</Button>
+      </Box>
+
+      <Stack spacing={1}>
+        {statuses.map((status) => (
+          <Card key={status.id}>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: '12px !important', '&:last-child': { pb: '12px !important' } }}>
+              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: status.color, flexShrink: 0 }} />
+              <Box sx={{ flex: 1 }}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>{status.label}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>{status.key}</Typography>
+                  {status.isSystem && <Chip label="System" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.6rem' }} />}
+                  {status.isCompletion && <Chip label="Completion" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.6rem' }} />}
+                </Stack>
+              </Box>
+              <Stack direction="row" spacing={0.5}>
+                <IconButton size="small" onClick={() => openEdit(status)} title="Edit"><EditIcon fontSize="small" /></IconButton>
+                {!status.isSystem && (
+                  <IconButton size="small" onClick={() => setDeleteConfirm(status)} title="Delete" color="error">
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+        ))}
+        {statuses.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+            Loading statuses...
+          </Typography>
+        )}
+      </Stack>
+
+      {/* Add/Edit dialog */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{editId ? 'Edit Status' : 'New Status'}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+          <TextField
+            label="Label"
+            value={form.label}
+            onChange={(e) => setForm({ ...form, label: e.target.value })}
+            fullWidth
+            autoFocus
+            placeholder="e.g. In Review, Blocked"
+          />
+          {!editId && (
+            <TextField
+              label="Key (optional)"
+              value={form.key}
+              onChange={(e) => setForm({ ...form, key: e.target.value })}
+              fullWidth
+              placeholder="Auto-generated from label if empty"
+              helperText="Internal identifier — lowercase, no spaces"
+            />
+          )}
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Color</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {PRESET_COLORS.map((c) => (
+                <Box
+                  key={c}
+                  onClick={() => setForm({ ...form, color: c })}
+                  sx={{
+                    width: 28, height: 28, borderRadius: '50%', bgcolor: c, cursor: 'pointer',
+                    border: form.color === c ? '3px solid white' : '3px solid transparent',
+                    '&:hover': { border: '3px solid rgba(255,255,255,0.5)' },
+                  }}
+                />
+              ))}
+            </Stack>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSave} disabled={!form.label.trim()}>
+            {editId ? 'Save' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} maxWidth="xs">
+        <DialogTitle>Delete Status</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Delete &quot;{deleteConfirm?.label}&quot;? Any work items using this status will keep their current status value but won&apos;t appear in filters until reassigned.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={() => handleDelete(deleteConfirm.id)}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
 // ── Settings Page ─────────────────────────────────────────────────────────
 
 export default function Settings() {
@@ -497,11 +646,13 @@ export default function Settings() {
       <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 3 }}>
         <Tab label="General" />
         <Tab label="Projects" />
+        <Tab label="Statuses" />
         <Tab label="Integrations" />
       </Tabs>
       {tab === 0 && <GeneralTab />}
       {tab === 1 && <ProjectsTab />}
-      {tab === 2 && <IntegrationsTab />}
+      {tab === 2 && <StatusesTab />}
+      {tab === 3 && <IntegrationsTab />}
     </Box>
   );
 }

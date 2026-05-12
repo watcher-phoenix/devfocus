@@ -8,6 +8,7 @@ const IntegrationConfig = require('./IntegrationConfig')(sequelize);
 const CachedEvent = require('./CachedEvent')(sequelize);
 const UserSettings = require('./UserSettings')(sequelize);
 const DailyNote = require('./DailyNote')(sequelize);
+const StatusConfig = require('./StatusConfig')(sequelize);
 
 // Associations
 Project.hasMany(WorkItem, { foreignKey: 'projectId', as: 'workItems' });
@@ -26,4 +27,5 @@ module.exports = {
   CachedEvent,
   UserSettings,
   DailyNote,
+  StatusConfig,
 };

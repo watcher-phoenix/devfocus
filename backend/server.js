@@ -42,6 +42,7 @@ app.use('/api/settings', require('./routes/userSettings'));
 app.use('/api/trends', require('./routes/trends'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/notes', require('./routes/notes'));
+app.use('/api/statuses', require('./routes/statuses'));
 
 // In production, serve the built frontend
 if (process.env.NODE_ENV === 'production') {

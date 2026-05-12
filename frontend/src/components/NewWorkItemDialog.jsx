@@ -12,15 +12,8 @@ import InputLabel from '@mui/material/InputLabel';
 import Stack from '@mui/material/Stack';
 import { useProjects } from '../api/projects';
 import { useCreateWorkItem } from '../api/workItems';
+import { useStatuses } from '../api/statuses';
 import EmojiButton from './EmojiButton';
-
-const STATUSES = [
-  { value: 'inbox', label: 'Brain Dump' },
-  { value: 'active', label: 'Active' },
-  { value: 'waiting', label: 'Waiting' },
-  { value: 'later', label: 'Later' },
-  { value: 'scheduled', label: 'Scheduled' },
-];
 
 const TYPES = [
   { value: 'task', label: 'Task' },
@@ -42,6 +35,8 @@ const PRIORITIES = [
 
 export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'active' }) {
   const { data: projects = [] } = useProjects();
+  const { data: statusConfigs = [] } = useStatuses();
+  const STATUSES = statusConfigs.filter((s) => !s.isCompletion).map((s) => ({ value: s.key, label: s.label }));
   const createItem = useCreateWorkItem();
   const defaultForm = {
     title: '',

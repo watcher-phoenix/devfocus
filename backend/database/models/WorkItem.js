@@ -9,10 +9,9 @@ module.exports = (sequelize) => {
       description: { type: DataTypes.TEXT, allowNull: true },
       notes: { type: DataTypes.TEXT, allowNull: true },
       status: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.STRING(30),
         allowNull: false,
         defaultValue: 'inbox',
-        validate: { isIn: [['inbox', 'active', 'waiting', 'later', 'scheduled', 'done', 'archived']] },
       },
       priority: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       type: {

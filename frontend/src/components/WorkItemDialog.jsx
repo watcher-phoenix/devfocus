@@ -16,16 +16,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import { useProjects } from '../api/projects';
 import { useUpdateWorkItem, useDeleteWorkItem } from '../api/workItems';
+import { useStatuses } from '../api/statuses';
 import EmojiButton from './EmojiButton';
-
-const STATUSES = [
-  { value: 'inbox', label: 'Brain Dump' },
-  { value: 'active', label: 'Active' },
-  { value: 'waiting', label: 'Waiting' },
-  { value: 'later', label: 'Later' },
-  { value: 'scheduled', label: 'Scheduled' },
-  { value: 'done', label: 'Done' },
-];
 
 const TYPES = [
   { value: 'task', label: 'Task' },
@@ -49,6 +41,9 @@ const PRIORITIES = [
 
 export default function WorkItemDialog({ item, open, onClose }) {
   const { data: projects = [] } = useProjects();
+  const { data: statusConfigs = [] } = useStatuses();
+  const STATUSES = statusConfigs.map((s) => ({ value: s.key, label: s.label }));
+  const completionKeys = new Set(statusConfigs.filter((s) => s.isCompletion).map((s) => s.key));
   const updateItem = useUpdateWorkItem();
   const deleteItem = useDeleteWorkItem();
   const [form, setForm] = useState({});
@@ -87,7 +82,7 @@ export default function WorkItemDialog({ item, open, onClose }) {
     delete payload.afterHours;
 
     // If status is done, always set completedAt based on afterHours toggle
-    if (form.status === 'done') {
+    if (completionKeys.has(form.status)) {
       const dateStr = form.scheduledDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
       if (form.afterHours) {
         payload.completedAt = new Date(dateStr + 'T18:00:00');
@@ -215,7 +210,7 @@ export default function WorkItemDialog({ item, open, onClose }) {
           multiline
           rows={3}
         />
-        {form.status === 'done' && (
+        {completionKeys.has(form.status) && (
           <FormControlLabel
             control={<Checkbox checked={form.afterHours || false} onChange={(e) => setForm({ ...form, afterHours: e.target.checked })} />}
             label={(form.afterHours || false) ? 'After hours work (working late again?)' : 'After hours work'}

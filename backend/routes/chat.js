@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { UserSettings, WorkItem, CachedEvent, Project } = require('../database/models');
+const { UserSettings, WorkItem, CachedEvent, Project, StatusConfig } = require('../database/models');
 const { Op } = require('sequelize');
 
 const router = Router();
@@ -49,7 +49,7 @@ async function getAppContext() {
 - Today's meetings: ${todayEvents}
 
 Pages: Today (command center), Work (table of items), Plan (weekly planner + snapshots), Trends (analytics), Settings, Guide.
-Statuses: Brain Dump (inbox), Active, Waiting, Later, Scheduled, Done.
+Statuses: ${(await StatusConfig.findAll({ order: [['sortOrder', 'ASC']] })).map((s) => `${s.label} (${s.key})`).join(', ') || 'Brain Dump (inbox), Active, Waiting, Later, Scheduled, Done'}.
 Types: Task, Ticket, Strategic, Follow-up, Review, Jira, PR, Weekend Support.
 Features: Ctrl+K capture, drag-to-schedule, Jira/Bitbucket/Calendar integrations, context snapshots, activity log, after-hours tracking.`;
 }

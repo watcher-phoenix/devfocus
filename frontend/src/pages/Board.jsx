@@ -34,6 +34,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import { useWorkItems, useUpdateWorkItem, useUpdateWorkItemStatus, useDeleteWorkItem } from '../api/workItems';
 import { useProjects } from '../api/projects';
+import { useStatuses, useStatusMap } from '../api/statuses';
 import WorkItemDialog from '../components/WorkItemDialog';
 import NewWorkItemDialog from '../components/NewWorkItemDialog';
 
@@ -46,17 +47,8 @@ function lightenColor(hex, amount = 0.45) {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'inbox', label: 'Brain Dump' },
-  { value: 'active', label: 'Active' },
-  { value: 'waiting', label: 'Waiting' },
-  { value: 'later', label: 'Later' },
-  { value: 'scheduled', label: 'Scheduled' },
-  { value: 'done', label: 'Done' },
-];
-
-const STATUS_COLORS = {
+// Fallback colors used only until dynamic statuses load
+const FALLBACK_STATUS_COLORS = {
   inbox: '#9AA0A6',
   active: '#7C4DFF',
   waiting: '#FFD600',
@@ -115,7 +107,18 @@ export default function Board() {
     status: '', type: '', priority: '', projectId: '', scheduledDate: '', dueDate: '',
   });
 
-  const { data: items = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,scheduled,done' });
+  const { data: statusConfigs = [] } = useStatuses();
+  const statusMap = useStatusMap();
+  const statusKeys = statusConfigs.filter((s) => !s.isCompletion).map((s) => s.key);
+  const doneKeys = statusConfigs.filter((s) => s.isCompletion).map((s) => s.key);
+  const allStatusKeys = [...statusKeys, ...doneKeys];
+  const statusOptions = [{ value: 'all', label: 'All' }, ...statusConfigs.map((s) => ({ value: s.key, label: s.label }))];
+  const statusColors = {};
+  statusConfigs.forEach((s) => { statusColors[s.key] = s.color; });
+  const getStatusColor = (key) => statusColors[key] || FALLBACK_STATUS_COLORS[key] || '#9AA0A6';
+  const getStatusLabel = (key) => statusMap[key]?.label || key;
+
+  const { data: items = [] } = useWorkItems({ statuses: allStatusKeys.length ? allStatusKeys.join(',') : 'inbox,active,waiting,later,scheduled,done' });
   const { data: projects = [] } = useProjects();
   const updateStatus = useUpdateWorkItemStatus();
   const updateItem = useUpdateWorkItem();
@@ -161,7 +164,7 @@ export default function Board() {
   const filtered = useMemo(() => {
     let result = items;
     if (!showDone && statusFilter === 'all') {
-      result = result.filter((i) => i.status !== 'done');
+      result = result.filter((i) => !statusMap[i.status]?.isCompletion);
     }
     if (statusFilter !== 'all') {
       result = result.filter((i) => i.status === statusFilter);
@@ -211,7 +214,7 @@ export default function Board() {
         <FormControl size="small" sx={{ minWidth: { xs: 'calc(50% - 6px)', sm: 140 } }}>
           <InputLabel>Status</InputLabel>
           <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
-            {STATUS_OPTIONS.map((s) => (
+            {statusOptions.map((s) => (
               <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
             ))}
           </Select>
@@ -272,7 +275,7 @@ export default function Board() {
               <InputLabel>Status</InputLabel>
               <Select value={bulkForm.status} label="Status" onChange={(e) => setBulkForm({ ...bulkForm, status: e.target.value })}>
                 <MenuItem value="">Don't change</MenuItem>
-                {STATUS_OPTIONS.filter((s) => s.value !== 'all').map((s) => (
+                {statusOptions.filter((s) => s.value !== 'all').map((s) => (
                   <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
                 ))}
               </Select>
@@ -396,7 +399,7 @@ export default function Board() {
                     onChange={(e) => handleStatusChange(item.id, e.target.value)}
                     sx={{ fontSize: '0.75rem', '&:before': { borderBottom: 'none' }, '& .MuiSelect-select': { py: 0.25 } }}
                   >
-                    {STATUS_OPTIONS.filter((s) => s.value !== 'all').map((s) => (
+                    {statusOptions.filter((s) => s.value !== 'all').map((s) => (
                       <MenuItem key={s.value} value={s.value} sx={{ fontSize: '0.8rem' }}>{s.label}</MenuItem>
                     ))}
                   </Select>
