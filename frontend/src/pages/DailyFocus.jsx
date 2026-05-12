@@ -371,7 +371,7 @@ export default function DailyFocus() {
                     sx={{ height: 18, fontSize: '0.6rem' }}
                   />
                 )}
-                {item.project && <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />}
+                {item.project && <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '33', color: item.project.color }} />}
               </Box>
             );
           })}
@@ -421,7 +421,7 @@ export default function DailyFocus() {
               <Typography variant="body2" sx={{ flex: 1, fontSize: '0.85rem' }}>{item.title}</Typography>
               <Chip label={item.daysSinceUpdate >= 30 ? `${item.daysSinceUpdate}d. At this point, just delete it.` : item.daysSinceUpdate >= 14 ? `${item.daysSinceUpdate}d. Just saying.` : `${item.daysSinceUpdate}d ago`} size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem' }} />
               {item.project && (
-                <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '22', color: item.project.color }} />
+                <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: item.project.color + '33', color: item.project.color }} />
               )}
             </Box>
           ))}

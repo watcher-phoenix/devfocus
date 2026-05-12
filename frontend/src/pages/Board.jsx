@@ -437,7 +437,7 @@ export default function Board() {
                       sx={{
                         height: 20,
                         fontSize: '0.65rem',
-                        bgcolor: item.project.color + '22',
+                        bgcolor: item.project.color + '33',
                         color: item.project.color,
                       }}
                     />

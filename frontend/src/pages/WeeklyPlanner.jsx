@@ -85,7 +85,7 @@ function DraggableCard({ item }) {
               mt: 0.5,
               height: 18,
               fontSize: '0.6rem',
-              bgcolor: item.project.color + '22',
+              bgcolor: item.project.color + '33',
               color: item.project.color,
             }}
           />
