@@ -213,6 +213,79 @@ async function syncBitbucket() {
       }
     }
 
+    // Catch recently merged PRs that may have been missed between sync cycles
+    const mergedSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    for (const repoSlug of repoList) {
+      try {
+        const mergedResponse = await axios.get(
+          `${BB_API}/repositories/${workspace}/${repoSlug}/pullrequests`,
+          { headers, params: { state: 'MERGED', q: `updated_on > ${mergedSince}`, pagelen: 50 } }
+        );
+
+        for (const pr of (mergedResponse.data.values || [])) {
+          const externalId = `${repoSlug}#${pr.id}`;
+          if (allOpenIds.includes(externalId)) continue;
+
+          const existing = await WorkItem.findOne({
+            where: { externalId, externalSource: 'bitbucket' },
+          });
+          if (existing && existing.status === 'done') continue;
+
+          const isAuthor = matchesUser(pr.author);
+          const prText = `${pr.title} ${pr.source?.branch?.name || ''}`.toUpperCase();
+          const isLinkedToMyJira = myJiraKeys.some((key) => prText.includes(key));
+
+          let hasApproved = false;
+          if (!isAuthor && !isLinkedToMyJira) {
+            const participants = pr.participants || [];
+            hasApproved = participants.some((p) => {
+              const userMatch = matchesUser(p.user);
+              const isApproved = p.approved === true || (p.state || '').toUpperCase() === 'APPROVED';
+              return userMatch && isApproved;
+            });
+          }
+
+          if (!isAuthor && !isLinkedToMyJira && !hasApproved) continue;
+
+          const projectId = await findProjectForRepo(repoSlug);
+          const prCompletedAt = pr.updated_on ? new Date(pr.updated_on) : new Date();
+
+          let prType = 'pr';
+          let prTitle = `PR: ${pr.title}`;
+          if ((hasApproved || isLinkedToMyJira) && !isAuthor) {
+            prType = 'pr-review';
+            prTitle = hasApproved ? `Approved: ${pr.title}` : `PR (Jira): ${pr.title}`;
+          }
+
+          if (existing) {
+            await existing.update({
+              title: prTitle,
+              status: 'done',
+              completedAt: prCompletedAt,
+              projectId: projectId || existing.projectId,
+            });
+            updated++;
+          } else {
+            await WorkItem.create({
+              title: prTitle,
+              externalId,
+              externalUrl: pr.links?.html?.href || '',
+              externalSource: 'bitbucket',
+              type: prType,
+              priority: 1,
+              projectId,
+              status: 'done',
+              completedAt: prCompletedAt,
+            });
+            created++;
+          }
+          allOpenIds.push(externalId);
+        }
+      } catch (err) {
+        errors.push(`${repoSlug} (merged): ${err.response?.data?.error?.message || err.message}`);
+      }
+    }
+
     // Handle PRs no longer open — mark merged ones done, delete the rest
     const staleItems = await WorkItem.findAll({
       where: {
