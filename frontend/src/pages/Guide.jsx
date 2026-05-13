@@ -180,11 +180,33 @@ export default function Guide() {
         <P><strong>TGIF</strong> — It's Friday. That's it. That's the badge.</P>
       </Section>
 
+      <Section title="Trends — Color Reference">
+        <P>The Trends page uses distinct colors for each data type so you can tell them apart at a glance.</P>
+        <B>Work Type Colors (By Type breakdown)</B>
+        <P><span style={{ color: '#42A5F5' }}>■</span> Task — Light blue</P>
+        <P><span style={{ color: '#536DFE' }}>■</span> Ticket — Indigo</P>
+        <P><span style={{ color: '#7C4DFF' }}>■</span> Strategic — Purple</P>
+        <P><span style={{ color: '#00BCD4' }}>■</span> Follow-up — Teal</P>
+        <P><span style={{ color: '#FFD600' }}>■</span> Review — Yellow</P>
+        <P><span style={{ color: '#FF6D00' }}>■</span> PR Review — Deep orange</P>
+        <P><span style={{ color: '#FFB300' }}>■</span> Jira — Amber</P>
+        <P><span style={{ color: '#00C853' }}>■</span> PR — Green</P>
+        <P><span style={{ color: '#E91E63' }}>■</span> Support — Pink</P>
+        <P><span style={{ color: '#F44336' }}>■</span> Urgent — Red</P>
+        <B>Chart Colors</B>
+        <P><span style={{ color: '#CE93D8' }}>■</span> Items Completed Per Week — Lavender</P>
+        <P><span style={{ color: '#78909C' }}>■</span> Meeting Hours Per Week — Slate</P>
+        <B>Other</B>
+        <P><span style={{ color: '#8D6E63' }}>■</span> By Project bars — Brown</P>
+      </Section>
+
       <Section title="Settings">
         <B>General</B>
         <P>Set your work hours (default 7:30 AM to 4:00 PM). This affects the focus time calculation on Today.</P>
         <B>Projects</B>
         <P>Create projects that map to your repos. Assign colors for visual grouping. One project can cover multiple repos (comma-separated slugs).</P>
+        <B>Statuses</B>
+        <P>Rename, recolor, or add custom work statuses. System statuses (Brain Dump, Active, Waiting, Later, Scheduled, Done) can be renamed and recolored but not deleted. Custom statuses can be added for your workflow.</P>
         <B>Integrations</B>
         <P>Connect Jira (API token), Bitbucket (access token or app password), and Outlook Calendar (ICS link). Each syncs automatically every 30 minutes during work hours, or sync on-demand with the Sync button. Set token expiry dates to get reminders before they expire.</P>
       </Section>

@@ -412,7 +412,7 @@ export default function Trends() {
       {/* Weekly completions chart */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <BarChart data={data.weeklyCompletions} label="Items Completed Per Week" color="#00C853" />
+          <BarChart data={data.weeklyCompletions} label="Items Completed Per Week" color="#CE93D8" />
         </CardContent>
       </Card>
 
