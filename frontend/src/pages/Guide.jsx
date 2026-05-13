@@ -195,9 +195,9 @@ export default function Guide() {
         <P><span style={{ color: '#F44336' }}>■</span> Urgent — Red</P>
         <B>Summary Stats</B>
         <P><span style={{ color: '#CE93D8' }}>■</span> Items Completed — Lavender (matches weekly chart)</P>
-        <P><span style={{ color: '#78909C' }}>■</span> Meetings / Meeting Hours — Slate (matches weekly chart)</P>
+        <P><span style={{ color: '#81D4FA' }}>■</span> Meetings / Meeting Hours — Sky blue</P>
         <P><span style={{ color: '#FF6D00' }}>■</span> PRs Reviewed — Deep orange (matches type color)</P>
-        <P><span style={{ color: '#880E4F' }}>■</span> After Hours Work / Mtgs — Dark magenta</P>
+        <P><span style={{ color: '#EF5350' }}>■</span> After Hours Work / Mtgs — Red</P>
         <B>Chart Colors</B>
         <P><span style={{ color: '#CE93D8' }}>■</span> Items Completed Per Week — Lavender</P>
         <P><span style={{ color: '#78909C' }}>■</span> Meeting Hours Per Week — Slate</P>
