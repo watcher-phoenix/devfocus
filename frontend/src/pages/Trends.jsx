@@ -170,7 +170,7 @@ function ProjectBreakdown({ data, total, details, colors = {} }) {
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
         const isOpen = expanded === project;
         const items = details?.[project] || [];
-        const barColor = colors[project] || PROJECT_FALLBACK_COLOR;
+        const barColor = PROJECT_FALLBACK_COLOR;
         return (
           <Box key={project} sx={{ mb: 0.5 }}>
             <Box
