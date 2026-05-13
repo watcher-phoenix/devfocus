@@ -5,7 +5,7 @@ export default function ChatBot() {
   const animQueueRef = useRef([]);
   const [agentReady, setAgentReady] = useState(false);
 
-  // Initialize Clippy agent
+  // Initialize Clippy agent with fly-in entrance
   useEffect(() => {
     let disposed = false;
     (async () => {
@@ -18,15 +18,34 @@ export default function ChatBot() {
         // Disable Clippy sounds
         if (agent._animator) agent._animator._sounds = {};
         agent.show();
-        // Set position directly so the speech bubble renders in the right spot
+
         const el = agent._el;
+        const landX = window.innerWidth - 140;
+        const landY = 200;
+
         if (el) {
-          el.style.left = (window.innerWidth - 140) + 'px';
-          el.style.top = '60px';
+          // Start off-screen to the right and above
+          el.style.left = (window.innerWidth + 100) + 'px';
+          el.style.top = '-100px';
           el.style.zIndex = '9999';
+          el.style.transition = 'left 1.2s cubic-bezier(0.34, 1.56, 0.64, 1), top 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+
+          // Fly in after a brief delay
+          setTimeout(() => {
+            el.style.left = landX + 'px';
+            el.style.top = landY + 'px';
+          }, 100);
+
+          // Remove transition after landing so clippyjs animations aren't affected
+          setTimeout(() => {
+            el.style.transition = '';
+            agent.play('Greeting');
+            setAgentReady(true);
+          }, 1400);
+        } else {
+          agent.play('Greeting');
+          setAgentReady(true);
         }
-        agent.play('Greeting');
-        setAgentReady(true);
       } catch (err) {
         console.error('Failed to init Clippy:', err);
       }

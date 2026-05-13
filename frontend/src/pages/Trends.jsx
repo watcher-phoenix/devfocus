@@ -157,7 +157,7 @@ function TypeBreakdown({ data, total, details }) {
   );
 }
 
-const PROJECT_FALLBACK_COLOR = '#7C4DFF';
+const PROJECT_FALLBACK_COLOR = '#8D6E63';
 
 function ProjectBreakdown({ data, total, details, colors = {} }) {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
