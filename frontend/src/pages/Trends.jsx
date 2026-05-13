@@ -394,6 +394,7 @@ export default function Trends() {
       {/* Dynamic KPI cards for each work type */}
       <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
         {Object.entries(data.typeBreakdown || {})
+          .filter(([type]) => type !== 'pr-review')
           .sort((a, b) => b[1] - a[1])
           .map(([type, count]) => (
             <StatCard
