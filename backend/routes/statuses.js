@@ -10,12 +10,19 @@ const DEFAULT_STATUSES = [
   { key: 'later', label: 'Later', color: '#03A9F4', sortOrder: 3, isSystem: true, isCompletion: false },
   { key: 'scheduled', label: 'Scheduled', color: '#AB47BC', sortOrder: 4, isSystem: true, isCompletion: false },
   { key: 'done', label: 'Done', color: '#00C853', sortOrder: 5, isSystem: true, isCompletion: true },
+  { key: 'cancelled', label: 'Cancelled', color: '#9E9E9E', sortOrder: 6, isSystem: true, isCompletion: false },
 ];
 
 async function ensureSeeded() {
   const count = await StatusConfig.count();
   if (count === 0) {
     await StatusConfig.bulkCreate(DEFAULT_STATUSES);
+  } else {
+    // Backfill cancelled status for existing installs
+    const hasCancelled = await StatusConfig.findOne({ where: { key: 'cancelled' } });
+    if (!hasCancelled) {
+      await StatusConfig.create({ key: 'cancelled', label: 'Cancelled', color: '#9E9E9E', sortOrder: 6, isSystem: true, isCompletion: false });
+    }
   }
 }
 

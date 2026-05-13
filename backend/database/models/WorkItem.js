@@ -28,6 +28,8 @@ module.exports = (sequelize) => {
       dueDate: { type: DataTypes.DATEONLY, allowNull: true },
       completedAt: { type: DataTypes.DATE, allowNull: true },
       sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      recurrenceRule: { type: DataTypes.STRING(20), allowNull: true },
+      recurrenceParentId: { type: DataTypes.INTEGER, allowNull: true },
     },
     { tableName: 'work_items', timestamps: true }
   );

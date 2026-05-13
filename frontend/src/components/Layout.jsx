@@ -15,6 +15,7 @@ import TodayIcon from '@mui/icons-material/Today';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import SummarizeIcon from '@mui/icons-material/Summarize';
 import NotesIcon from '@mui/icons-material/Notes';
 import SettingsIcon from '@mui/icons-material/Settings';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { label: 'Plan', path: '/plan', icon: <CalendarMonthIcon />, snark: 'pretend you have control' },
   { label: 'Notes', path: '/notes', icon: <NotesIcon />, snark: 'for things you\'ll forget anyway' },
   { label: 'Trends', path: '/trends', icon: <TrendingUpIcon />, snark: 'proof you did stuff' },
+  { label: 'Summary', path: '/summary', icon: <SummarizeIcon />, snark: 'your weekly highlight reel' },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon />, snark: 'tweak things instead of working' },
 ];
 

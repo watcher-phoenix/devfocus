@@ -286,11 +286,11 @@ async function syncBitbucket() {
       }
     }
 
-    // Handle PRs no longer open — mark merged ones done, delete the rest
+    // Handle PRs no longer open — mark merged ones done, declined/superseded as cancelled
     const staleItems = await WorkItem.findAll({
       where: {
         externalSource: 'bitbucket',
-        status: { [Op.ne]: 'done' },
+        status: { [Op.notIn]: ['done', 'cancelled'] },
         ...(allOpenIds.length > 0
           ? { externalId: { [Op.notIn]: allOpenIds } }
           : {}),
@@ -298,6 +298,7 @@ async function syncBitbucket() {
     });
 
     let markedDone = 0;
+    let markedCancelled = 0;
     for (const item of staleItems) {
       const [repoSlug, prId] = item.externalId.split('#');
       try {
@@ -311,6 +312,9 @@ async function syncBitbucket() {
             completedAt: prDetail.data.updated_on ? new Date(prDetail.data.updated_on) : new Date(),
           });
           markedDone++;
+        } else if (prDetail.data.state === 'DECLINED' || prDetail.data.state === 'SUPERSEDED') {
+          await item.update({ status: 'cancelled' });
+          markedCancelled++;
         } else {
           await item.destroy();
           deleted++;
@@ -326,7 +330,7 @@ async function syncBitbucket() {
       lastSyncStatus: errors.length > 0 ? 'partial' : 'success',
     });
 
-    return { success: true, created, updated, deleted, markedDone, repos: repoList.length, user: currentUser?.displayName || 'workspace token', errors: errors.length > 0 ? errors : undefined };
+    return { success: true, created, updated, deleted, markedDone, markedCancelled, repos: repoList.length, user: currentUser?.displayName || 'workspace token', errors: errors.length > 0 ? errors : undefined };
   } catch (err) {
     console.error('Bitbucket sync error:', err.response?.data || err.message);
     await integrationConfig.update({ lastSyncAt: new Date(), lastSyncStatus: 'error' });

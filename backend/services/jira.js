@@ -29,7 +29,9 @@ async function syncJira() {
     // 1. Active tickets (not done) — to track current work
     // 2. Recently completed tickets (last 14 days) — to capture completions with real dates
     const doneStatuses = ['Done', 'Ready for Release', 'Post Release Validation', 'Pass', 'Fail'];
-    const doneFilter = doneStatuses.map((s) => `"${s}"`).join(', ');
+    const cancelledStatuses = ["Won't Do", 'Duplicate', 'Cancelled'];
+    const allTerminalStatuses = [...doneStatuses, ...cancelledStatuses];
+    const doneFilter = allTerminalStatuses.map((s) => `"${s}"`).join(', ');
     const notDoneFilter = `status NOT IN (${doneFilter})`;
     const recentDoneFilter = `status IN (${doneFilter}) AND updated >= -14d`;
 
@@ -67,7 +69,8 @@ async function syncJira() {
 
       const jiraPriority = mapJiraPriority(issue.fields.priority?.name);
       const jiraStatus = (issue.fields.status?.name || '').toLowerCase();
-      const isDone = mapJiraStatusToDone(jiraStatus);
+      const isCancelled = mapJiraStatusToCancelled(jiraStatus);
+      const isDone = !isCancelled && mapJiraStatusToDone(jiraStatus);
       // Use real completion date — don't fall back to 'updated' since that
       // changes whenever anyone touches the ticket
       const completionDate = issue.fields.resolutiondate
@@ -98,17 +101,23 @@ async function syncJira() {
           description: data.description,
           priority: jiraPriority,
         };
-        // Auto-mark as done if Jira status is a "done" status
-        if (isDone && existing.status !== 'done') {
+        if (isCancelled && existing.status !== 'cancelled') {
+          updates.status = 'cancelled';
+          updates.completedAt = null;
+        } else if (isDone && existing.status !== 'done') {
           updates.status = 'done';
           updates.completedAt = completionDate ? new Date(completionDate) : new Date();
+        } else if (!isDone && !isCancelled && (existing.status === 'cancelled' || existing.status === 'done')) {
+          // Ticket was reopened in Jira — move back to inbox
+          updates.status = 'inbox';
+          updates.completedAt = null;
         }
         await existing.update(updates);
         updated++;
       } else {
         await WorkItem.create({
           ...data,
-          status: isDone ? 'done' : 'inbox',
+          status: isCancelled ? 'cancelled' : isDone ? 'done' : 'inbox',
           completedAt: isDone ? (completionDate ? new Date(completionDate) : new Date()) : null,
         });
         created++;
@@ -134,6 +143,11 @@ async function syncJira() {
 function mapJiraStatusToDone(statusName) {
   const doneStatuses = ['done', 'ready for release', 'post release validation', 'pass', 'fail'];
   return doneStatuses.includes(statusName.toLowerCase());
+}
+
+function mapJiraStatusToCancelled(statusName) {
+  const cancelledStatuses = ["won't do", 'duplicate', 'cancelled'];
+  return cancelledStatuses.includes(statusName.toLowerCase());
 }
 
 function mapJiraPriority(jiraPriorityName) {

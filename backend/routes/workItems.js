@@ -5,6 +5,47 @@ const { getTimeInET, isWeekendET } = require('../utilities/timezone');
 
 const router = Router();
 
+function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
+function addMonths(date, n) { const d = new Date(date); d.setMonth(d.getMonth() + n); return d; }
+
+async function spawnNextRecurrence(item) {
+  if (!item.recurrenceRule) return;
+  const parentId = item.recurrenceParentId || item.id;
+
+  // Don't spawn if there's already a pending instance
+  const existing = await WorkItem.findOne({
+    where: {
+      [Op.or]: [{ recurrenceParentId: parentId }, { id: parentId }],
+      status: { [Op.notIn]: ['done', 'cancelled'] },
+      id: { [Op.ne]: item.id },
+    },
+  });
+  if (existing) return;
+
+  const base = item.scheduledDate ? new Date(item.scheduledDate + 'T12:00:00') : new Date();
+  let next;
+  switch (item.recurrenceRule) {
+    case 'daily': next = addDays(base, 1); break;
+    case 'weekly': next = addDays(base, 7); break;
+    case 'biweekly': next = addDays(base, 14); break;
+    case 'monthly': next = addMonths(base, 1); break;
+    default: return;
+  }
+
+  await WorkItem.create({
+    title: item.title,
+    description: item.description,
+    type: item.type,
+    priority: item.priority,
+    projectId: item.projectId,
+    recurrenceRule: item.recurrenceRule,
+    recurrenceParentId: parentId,
+    scheduledDate: next.toLocaleDateString('en-CA'),
+    status: 'scheduled',
+    sortOrder: 0,
+  });
+}
+
 async function isCompletionStatus(key) {
   const cfg = await StatusConfig.findOne({ where: { key } });
   return cfg?.isCompletion || false;
@@ -75,11 +116,19 @@ router.put('/:id', async (req, res) => {
   const item = await WorkItem.findByPk(req.params.id);
   if (!item) return res.status(404).json({ error: 'Not found' });
 
-  if (req.body.status && await isCompletionStatus(req.body.status) && !await isCompletionStatus(item.status)) {
+  const wasCompletion = await isCompletionStatus(item.status);
+  const willBeCompletion = req.body.status ? await isCompletionStatus(req.body.status) : wasCompletion;
+  if (req.body.status && willBeCompletion && !wasCompletion) {
     req.body.completedAt = new Date();
   }
 
   await item.update(req.body);
+
+  // Spawn next recurrence on completion or cancellation of a single instance
+  if (req.body.status && (willBeCompletion || req.body.status === 'cancelled') && !wasCompletion && item.status !== 'cancelled') {
+    await spawnNextRecurrence(item);
+  }
+
   const full = await WorkItem.findByPk(item.id, {
     include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
   });
@@ -90,12 +139,19 @@ router.patch('/:id/status', async (req, res) => {
   const item = await WorkItem.findByPk(req.params.id);
   if (!item) return res.status(404).json({ error: 'Not found' });
 
+  const wasCompletion = await isCompletionStatus(item.status);
+  const willBeCompletion = await isCompletionStatus(req.body.status);
   const update = { status: req.body.status };
-  if (await isCompletionStatus(req.body.status) && !await isCompletionStatus(item.status)) {
+  if (willBeCompletion && !wasCompletion) {
     update.completedAt = new Date();
   }
 
   await item.update(update);
+
+  if ((willBeCompletion || req.body.status === 'cancelled') && !wasCompletion && item.status !== 'cancelled') {
+    await spawnNextRecurrence(item);
+  }
+
   return res.json(item);
 });
 
@@ -114,6 +170,15 @@ router.patch('/:id/sort', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const item = await WorkItem.findByPk(req.params.id);
   if (!item) return res.status(404).json({ error: 'Not found' });
+
+  // If deleting a recurrence template, stop recurrence on children
+  if (item.recurrenceRule && !item.recurrenceParentId) {
+    await WorkItem.update(
+      { recurrenceRule: null, recurrenceParentId: null },
+      { where: { recurrenceParentId: item.id } }
+    );
+  }
+
   await item.destroy();
   return res.json({ success: true });
 });

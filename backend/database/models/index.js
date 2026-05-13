@@ -14,6 +14,9 @@ const StatusConfig = require('./StatusConfig')(sequelize);
 Project.hasMany(WorkItem, { foreignKey: 'projectId', as: 'workItems' });
 WorkItem.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 
+WorkItem.belongsTo(WorkItem, { foreignKey: 'recurrenceParentId', as: 'recurrenceParent' });
+WorkItem.hasMany(WorkItem, { foreignKey: 'recurrenceParentId', as: 'recurrenceChildren' });
+
 Project.hasMany(ContextSnapshot, { foreignKey: 'projectId', as: 'snapshots' });
 ContextSnapshot.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 

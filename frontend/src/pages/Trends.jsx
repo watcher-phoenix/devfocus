@@ -17,32 +17,8 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import Button from '@mui/material/Button';
 import DownloadIcon from '@mui/icons-material/Download';
 import { useTrends } from '../api/trends';
-
-const TYPE_LABELS = {
-  task: 'Tasks',
-  ticket: 'Tickets',
-  strategic: 'Strategic',
-  followup: 'Follow-ups',
-  review: 'Reviews',
-  'pr-review': 'PR Reviews',
-  jira: 'Jira Tickets',
-  pr: 'PRs Merged',
-  support: 'Weekend Support',
-  urgent: 'Urgent',
-};
-
-const TYPE_COLORS = {
-  task: '#42A5F5',           // Light blue
-  ticket: '#536DFE',         // Indigo
-  strategic: '#7C4DFF',      // Purple
-  followup: '#00BCD4',       // Teal
-  review: '#FFD600',         // Yellow
-  'pr-review': '#FF6D00',    // Deep orange
-  jira: '#FFB300',           // Amber
-  pr: '#00C853',             // Green
-  support: '#E91E63',        // Pink
-  urgent: '#F44336',         // Red
-};
+import { TYPE_LABELS, TYPE_COLORS } from '../constants/workTypes';
+import { exportTrendsCSV, exportReportHTML } from '../utils/exportReport';
 
 function StatCard({ label, value, subtitle, color }) {
   return (
@@ -220,70 +196,6 @@ function ProjectBreakdown({ data, total, details, colors = {} }) {
   );
 }
 
-const RELEASE_ANCHOR = '2026-05-12';
-
-function releaseFlags(dateStr) {
-  const anchor = new Date(RELEASE_ANCHOR + 'T00:00:00');
-  const target = new Date(dateStr + 'T00:00:00');
-  const diffDays = Math.floor((target - anchor) / (24 * 60 * 60 * 1000));
-  const cycleDay = ((diffDays % 14) + 14) % 14;
-  const isWeek = cycleDay >= 13 || cycleDay <= 3;
-  const isDay = cycleDay === 0;
-  return { isWeek, isDay };
-}
-
-function exportTrendsCSV(data, days) {
-  const rows = [['Type', 'Title', 'Project', 'Completed', 'External ID', 'After Hours', 'Release Week', 'Release Day']];
-
-  // Add completed items grouped by type
-  Object.entries(data.typeDetails || {}).forEach(([type, items]) => {
-    items.forEach((item) => {
-      const completedDate = item.completedAt ? new Date(item.completedAt).toLocaleDateString('en-CA') : '';
-      const rf = completedDate ? releaseFlags(completedDate) : {};
-      rows.push([
-        TYPE_LABELS[type] || type,
-        item.title,
-        item.project || '',
-        item.completedAt ? new Date(item.completedAt).toLocaleDateString() : '',
-        item.externalId || '',
-        item.afterHours ? 'Yes' : '',
-        rf.isWeek ? 'Yes' : '',
-        rf.isDay ? 'Yes' : '',
-      ]);
-    });
-  });
-
-  // Add meetings section
-  rows.push([]);
-  rows.push(['--- Meetings ---']);
-  rows.push(['Week Of', 'Meeting Hours', 'Release Week']);
-  Object.entries(data.weeklyMeetingMinutes || {})
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .forEach(([week, mins]) => {
-      rows.push([week, `${Math.round(mins / 60 * 10) / 10}h`, releaseFlags(week).isWeek ? 'Yes' : '']);
-    });
-
-  // Add summary
-  rows.push([]);
-  rows.push(['--- Summary ---']);
-  rows.push(['Total Completed', data.summary.totalCompleted]);
-  rows.push(['Total Meetings', data.summary.totalMeetings]);
-  rows.push(['Total Meeting Hours', data.summary.totalMeetingHours]);
-  rows.push(['Avg Items/Week', data.summary.avgItemsPerWeek]);
-  rows.push(['Avg Meeting Hours/Week', data.summary.avgMeetingHoursPerWeek]);
-  rows.push(['After Hours Items', data.summary.afterHoursItems]);
-  rows.push(['After Hours Meetings', data.summary.afterHoursMeetings]);
-
-  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `devfocus-trends-${days}d-${new Date().toLocaleDateString('en-CA')}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 function daysAgo(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -347,14 +259,24 @@ export default function Trends() {
             Evidence of what you've accomplished and where your time goes.
           </Typography>
         </Box>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<DownloadIcon />}
-          onClick={() => exportTrendsCSV(data, exportLabel)}
-        >
-          Export CSV
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={() => exportTrendsCSV(data, `trends-${exportLabel}`)}
+          >
+            CSV
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={() => exportReportHTML(data, { mode: 'shareable', dateRange: useCustom ? `${fromDate} to ${toDate}` : `Last ${preset} days` })}
+          >
+            Report
+          </Button>
+        </Stack>
       </Box>
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
         <ToggleButtonGroup value={preset} exclusive onChange={handlePreset} size="small">

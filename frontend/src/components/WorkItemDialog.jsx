@@ -62,6 +62,7 @@ export default function WorkItemDialog({ item, open, onClose }) {
         dueDate: item.dueDate || '',
         externalId: item.externalId || '',
         externalUrl: item.externalUrl || '',
+        recurrenceRule: item.recurrenceRule || '',
         afterHours: item.afterHours || false,
       });
     }
@@ -78,6 +79,7 @@ export default function WorkItemDialog({ item, open, onClose }) {
       dueDate: form.dueDate || null,
       externalId: form.externalId || null,
       externalUrl: form.externalUrl || null,
+      recurrenceRule: form.recurrenceRule || null,
     };
     delete payload.afterHours;
 
@@ -195,6 +197,20 @@ export default function WorkItemDialog({ item, open, onClose }) {
             slotProps={{ inputLabel: { shrink: true } }}
           />
         </Stack>
+        <FormControl fullWidth>
+          <InputLabel>Recurrence</InputLabel>
+          <Select
+            value={form.recurrenceRule || ''}
+            label="Recurrence"
+            onChange={(e) => setForm({ ...form, recurrenceRule: e.target.value })}
+          >
+            <MenuItem value="">None</MenuItem>
+            <MenuItem value="daily">Daily</MenuItem>
+            <MenuItem value="weekly">Weekly</MenuItem>
+            <MenuItem value="biweekly">Biweekly</MenuItem>
+            <MenuItem value="monthly">Monthly</MenuItem>
+          </Select>
+        </FormControl>
         <TextField
           label="Ticket ID (optional)"
           value={form.externalId || ''}

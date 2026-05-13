@@ -30,6 +30,7 @@ import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import RepeatIcon from '@mui/icons-material/Repeat';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import { useWorkItems, useUpdateWorkItem, useUpdateWorkItemStatus, useDeleteWorkItem } from '../api/workItems';
@@ -55,6 +56,7 @@ const FALLBACK_STATUS_COLORS = {
   later: '#03A9F4',
   scheduled: '#AB47BC',
   done: '#00C853',
+  cancelled: '#9E9E9E',
 };
 
 const TYPE_LABELS = {
@@ -79,6 +81,7 @@ export default function Board() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [showDone, setShowDone] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
   const [sortField, setSortField] = useState('priority');
   const [sortDir, setSortDir] = useState('desc');
   const [editItem, setEditItem] = useState(null);
@@ -132,6 +135,7 @@ export default function Board() {
     inbox: ['Back to the brain dump? No judgment.', 'Demoted back to the pile.'],
     active: ['Let\'s actually do this one.', 'Promoted to "will think about."'],
     scheduled: ['Penciled in. In pencil, obviously.', 'Future you\'s problem now.'],
+    cancelled: ['Dead to us.', 'Into the void it goes.', 'Never happened.'],
   };
 
   const handleStatusChange = useCallback((id, newStatus) => {
@@ -166,6 +170,9 @@ export default function Board() {
     if (!showDone && statusFilter === 'all') {
       result = result.filter((i) => !statusMap[i.status]?.isCompletion);
     }
+    if (!showCancelled && statusFilter === 'all') {
+      result = result.filter((i) => i.status !== 'cancelled');
+    }
     if (statusFilter !== 'all') {
       result = result.filter((i) => i.status === statusFilter);
     }
@@ -189,7 +196,7 @@ export default function Board() {
       if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [items, showDone, statusFilter, typeFilter, projectFilter, sortField, sortDir]);
+  }, [items, showDone, showCancelled, statusFilter, typeFilter, projectFilter, sortField, sortDir]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -240,6 +247,11 @@ export default function Board() {
         <FormControlLabel
           control={<Switch checked={showDone} onChange={(e) => setShowDone(e.target.checked)} size="small" />}
           label="Done"
+          sx={{ ml: 0 }}
+        />
+        <FormControlLabel
+          control={<Switch checked={showCancelled} onChange={(e) => setShowCancelled(e.target.checked)} size="small" />}
+          label="Cancelled"
           sx={{ ml: 0 }}
         />
         <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
@@ -406,6 +418,7 @@ export default function Board() {
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                    {item.recurrenceRule && <RepeatIcon sx={{ fontSize: '0.85rem', mr: 0.5, verticalAlign: 'middle', color: '#AB47BC' }} />}
                     {item.title}
                   </Typography>
                   {item.externalId && (

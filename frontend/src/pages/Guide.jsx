@@ -115,7 +115,11 @@ export default function Guide() {
         <P>Future/someday items. Not forgotten, just not now.</P>
         <B>Done (green)</B>
         <P>Completed work. These show up in your Activity on Today.</P>
+        <B>Cancelled (gray)</B>
+        <P>Items that were cancelled, declined, or superseded. Jira tickets marked Won't Do/Duplicate and declined Bitbucket PRs land here automatically. Cancelled items do NOT count toward any Trends metrics. Toggle the Cancelled switch on the Board to show/hide them.</P>
         <P>Click any card to edit details. Use the "New Item" button for items that go straight to Active.</P>
+        <B>Recurring Items</B>
+        <P>Set a recurrence rule (Daily, Weekly, Biweekly, Monthly) on any work item. When you complete or cancel an instance, the next one auto-spawns with the next scheduled date. Recurring items show a repeat icon on the Board. To stop the series, set recurrence to None or delete the original item.</P>
       </Section>
 
       <Section title="Plan — Weekly Planner and Snapshots">
@@ -181,7 +185,7 @@ export default function Guide() {
       </Section>
 
       <Section title="Trends — Color Reference">
-        <P>The Trends page uses distinct colors for each data type so you can tell them apart at a glance.</P>
+        <P>The Trends page uses distinct colors for each data type so you can tell them apart at a glance. Use the CSV button for raw data or the Report button for a formatted, printable summary.</P>
         <B>Work Type Colors (By Type breakdown)</B>
         <P><span style={{ color: '#42A5F5' }}>■</span> Task — Light blue</P>
         <P><span style={{ color: '#536DFE' }}>■</span> Ticket — Indigo</P>
@@ -203,13 +207,22 @@ export default function Guide() {
         <P><span style={{ color: '#8D6E63' }}>■</span> By Project bars — Brown</P>
       </Section>
 
+      <Section title="Weekly Summary">
+        <P>A focused weekly snapshot accessible from the nav. Shows items completed, meetings, project breakdown, and after-hours work for the current or previous week.</P>
+        <B>Modes</B>
+        <P><strong>Personal</strong> — Snarky commentary and all the details. For your eyes only.</P>
+        <P><strong>Shareable</strong> — Clean, professional layout suitable for screenshots or 1:1s with your manager.</P>
+        <B>Export</B>
+        <P>CSV downloads a spreadsheet of all items and stats. Report opens a formatted, printable page you can save as PDF or print directly.</P>
+      </Section>
+
       <Section title="Settings">
         <B>General</B>
         <P>Set your work hours (default 7:30 AM to 4:00 PM). This affects the focus time calculation on Today.</P>
         <B>Projects</B>
         <P>Create projects that map to your repos. Assign colors for visual grouping. One project can cover multiple repos (comma-separated slugs).</P>
         <B>Statuses</B>
-        <P>Rename, recolor, or add custom work statuses. System statuses (Brain Dump, Active, Waiting, Later, Scheduled, Done) can be renamed and recolored but not deleted. Custom statuses can be added for your workflow.</P>
+        <P>Rename, recolor, or add custom work statuses. System statuses (Brain Dump, Active, Waiting, Later, Scheduled, Done, Cancelled) can be renamed and recolored but not deleted. Custom statuses can be added for your workflow.</P>
         <B>Integrations</B>
         <P>Connect Jira (API token), Bitbucket (access token or app password), and Outlook Calendar (ICS link). Each syncs automatically every 30 minutes during work hours, or sync on-demand with the Sync button. Set token expiry dates to get reminders before they expire.</P>
       </Section>

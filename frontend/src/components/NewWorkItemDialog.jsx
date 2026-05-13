@@ -50,6 +50,7 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
     dueDate: '',
     externalId: '',
     externalUrl: '',
+    recurrenceRule: '',
   };
   const [form, setForm] = useState(defaultForm);
 
@@ -62,6 +63,7 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
       dueDate: form.dueDate || null,
       externalId: form.externalId || null,
       externalUrl: form.externalUrl || null,
+      recurrenceRule: form.recurrenceRule || null,
     });
     setForm({ ...defaultForm });
     onClose();
@@ -160,6 +162,20 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
             slotProps={{ inputLabel: { shrink: true } }}
           />
         </Stack>
+        <FormControl fullWidth>
+          <InputLabel>Recurrence</InputLabel>
+          <Select
+            value={form.recurrenceRule}
+            label="Recurrence"
+            onChange={(e) => setForm({ ...form, recurrenceRule: e.target.value })}
+          >
+            <MenuItem value="">None</MenuItem>
+            <MenuItem value="daily">Daily</MenuItem>
+            <MenuItem value="weekly">Weekly</MenuItem>
+            <MenuItem value="biweekly">Biweekly</MenuItem>
+            <MenuItem value="monthly">Monthly</MenuItem>
+          </Select>
+        </FormControl>
         <TextField
           label="Ticket ID (optional)"
           value={form.externalId}
