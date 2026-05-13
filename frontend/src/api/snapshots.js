@@ -24,6 +24,17 @@ export function useCreateSnapshot() {
   });
 }
 
+export function useDeactivateSnapshot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => api.post(`/snapshots/${id}/deactivate`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['snapshots'] });
+      qc.invalidateQueries({ queryKey: ['daily'] });
+    },
+  });
+}
+
 export function useUpdateSnapshot() {
   const qc = useQueryClient();
   return useMutation({

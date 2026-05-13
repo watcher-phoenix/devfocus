@@ -17,14 +17,6 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  // Deactivate previous active snapshot for this project
-  if (req.body.projectId) {
-    await ContextSnapshot.update(
-      { active: false },
-      { where: { projectId: req.body.projectId, active: true } }
-    );
-  }
-
   const snapshot = await ContextSnapshot.create({
     ...req.body,
     active: true,
@@ -41,6 +33,16 @@ router.put('/:id', async (req, res) => {
   if (!snapshot) return res.status(404).json({ error: 'Not found' });
 
   await snapshot.update({ ...req.body, lastTouchedAt: new Date() });
+  const full = await ContextSnapshot.findByPk(snapshot.id, {
+    include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
+  });
+  return res.json(full);
+});
+
+router.post('/:id/reactivate', async (req, res) => {
+  const snapshot = await ContextSnapshot.findByPk(req.params.id);
+  if (!snapshot) return res.status(404).json({ error: 'Not found' });
+  await snapshot.update({ active: true });
   const full = await ContextSnapshot.findByPk(snapshot.id, {
     include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
   });

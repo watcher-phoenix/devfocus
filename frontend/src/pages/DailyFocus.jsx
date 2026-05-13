@@ -36,10 +36,11 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import NotesIcon from '@mui/icons-material/Notes';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import CloseIcon from '@mui/icons-material/Close';
 import { useDaily } from '../api/daily';
 import { useUpdateWorkItemStatus, useQuickCapture } from '../api/workItems';
 import { useActivity } from '../api/activity';
-import { useSnapshots } from '../api/snapshots';
+import { useSnapshots, useDeactivateSnapshot } from '../api/snapshots';
 import { useDailyNote, useSaveDailyNote } from '../api/notes';
 import WorkItemDialog from '../components/WorkItemDialog';
 import SnapshotDialog from '../components/SnapshotDialog';
@@ -83,6 +84,7 @@ export default function DailyFocus() {
   const daysSinceSunday = new Date().getDay();
   const { data: activityData } = useActivity(daysSinceSunday);
   const { data: snapshots = [] } = useSnapshots({ active: true });
+  const deactivateSnapshot = useDeactivateSnapshot();
 
   const [captureText, setCaptureText] = useState('');
   const [editItem, setEditItem] = useState(null);
@@ -463,14 +465,24 @@ export default function DailyFocus() {
           {snapshots.map((snap) => (
             <Box
               key={snap.id}
-              sx={{ py: 0.75, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' }, borderRadius: 1, px: 1, mb: 0.5 }}
+              sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, py: 0.75, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' }, borderRadius: 1, px: 1, mb: 0.5 }}
               onClick={() => { setEditSnapshot(snap); setSnapshotDialogOpen(true); }}
             >
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.25 }}>
-                <Chip label={snap.project?.name || 'No project'} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: (snap.project?.color || '#666') + '22', color: snap.project?.color || '#666' }} />
-                {snap.branch && <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{snap.branch}</Typography>}
-              </Stack>
-              <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>{snap.summary}</Typography>
+              <Box sx={{ flex: 1 }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.25 }}>
+                  <Chip label={snap.project?.name || 'No project'} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: (snap.project?.color || '#666') + '22', color: snap.project?.color || '#666' }} />
+                  {snap.branch && <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{snap.branch}</Typography>}
+                </Stack>
+                <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>{snap.summary}</Typography>
+              </Box>
+              <IconButton
+                size="small"
+                title="Done with this context"
+                onClick={(e) => { e.stopPropagation(); deactivateSnapshot.mutate(snap.id); }}
+                sx={{ mt: 0.25, opacity: 0.5, '&:hover': { opacity: 1 } }}
+              >
+                <CloseIcon sx={{ fontSize: 16 }} />
+              </IconButton>
             </Box>
           ))}
         </CollapsibleSection>
