@@ -9,15 +9,20 @@ function toDateInTZ(date) {
   return date.toLocaleDateString('en-CA', { timeZone: TZ });
 }
 
-// Check if the user explicitly declined this event
+// Check if the event should be excluded from sync
 // Outlook ICS uses X-MICROSOFT-CDO-BUSYSTATUS:
 //   BUSY = accepted, TENTATIVE = not yet responded, FREE = declined, OOF = out of office
-// Note: TENTATIVE is kept because Outlook marks recurring meeting instances as tentative
-// even when the series was accepted — filtering them drops legitimate one-on-ones etc.
-function isDeclined(event) {
+// For recurring events, Outlook marks instances as TENTATIVE even when the series was
+// accepted, so we only filter tentative on non-recurring events (intentionally tentative).
+function shouldExclude(event) {
   // node-ical strips the X- prefix from Microsoft fields
   const busyStatus = (event['MICROSOFT-CDO-BUSYSTATUS'] || event['X-MICROSOFT-CDO-BUSYSTATUS'] || '').toUpperCase();
+
+  // Always exclude explicitly declined
   if (busyStatus === 'FREE') return true;
+
+  // For non-recurring events, also exclude tentative (intentionally not accepted)
+  if (busyStatus === 'TENTATIVE' && !event.rrule && !event.recurrenceid) return true;
 
   // Fallback: check PARTSTAT on attendees
   const attendees = event.attendee;
@@ -51,7 +56,7 @@ function expandRecurring(events, startDate, endDate) {
     if ((event.status || '').toUpperCase() === 'CANCELLED') continue;
 
     // Skip events the user declined or hasn't accepted
-    if (isDeclined(event)) continue;
+    if (shouldExclude(event)) continue;
 
     // If it has a recurrence rule, expand it
     if (event.rrule) {
