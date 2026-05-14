@@ -9,20 +9,13 @@ function toDateInTZ(date) {
   return date.toLocaleDateString('en-CA', { timeZone: TZ });
 }
 
-// Check if the event should be excluded from sync
+// Check if the user declined or hasn't accepted this event
 // Outlook ICS uses X-MICROSOFT-CDO-BUSYSTATUS:
-//   BUSY = accepted, TENTATIVE = not yet responded, FREE = declined, OOF = out of office
-// For recurring events, Outlook marks instances as TENTATIVE even when the series was
-// accepted, so we only filter tentative on non-recurring events (intentionally tentative).
+//   BUSY = accepted, TENTATIVE = not accepted, FREE = declined, OOF = out of office
 function shouldExclude(event) {
   // node-ical strips the X- prefix from Microsoft fields
   const busyStatus = (event['MICROSOFT-CDO-BUSYSTATUS'] || event['X-MICROSOFT-CDO-BUSYSTATUS'] || '').toUpperCase();
-
-  // Always exclude explicitly declined
-  if (busyStatus === 'FREE') return true;
-
-  // For non-recurring events, also exclude tentative (intentionally not accepted)
-  if (busyStatus === 'TENTATIVE' && !event.rrule && !event.recurrenceid) return true;
+  if (busyStatus === 'TENTATIVE' || busyStatus === 'FREE') return true;
 
   // Fallback: check PARTSTAT on attendees
   const attendees = event.attendee;
@@ -137,6 +130,28 @@ async function syncCalendar(startDate, endDate) {
     const rawEvents = await ical.async.fromURL(icsUrl, {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
     });
+
+    // Diagnostic: log all recurring VEVENTs to understand what the ICS feed contains
+    const today = toDateInTZ(new Date());
+    for (const [uid, ev] of Object.entries(rawEvents)) {
+      if (ev.type !== 'VEVENT') continue;
+      if (!ev.rrule) continue;
+      const busyStatus = (ev['MICROSOFT-CDO-BUSYSTATUS'] || ev['X-MICROSOFT-CDO-BUSYSTATUS'] || '').toUpperCase();
+      const status = (ev.status || '').toUpperCase();
+      try {
+        const todayStart = new Date(today + 'T00:00:00Z');
+        const todayEnd = new Date(today + 'T23:59:59Z');
+        todayStart.setDate(todayStart.getDate() - 1);
+        todayEnd.setDate(todayEnd.getDate() + 1);
+        const instances = ev.rrule.between(todayStart, todayEnd, true);
+        if (instances.length > 0) {
+          console.log(`[calendar-diag] RECURRING "${ev.summary}" | uid=${uid} | busyStatus=${busyStatus} | status=${status} | rrule=${ev.rrule.origOptions?.freq} | instances today: ${instances.length} | excluded=${shouldExclude(ev)}`);
+        }
+      } catch (err) {
+        console.log(`[calendar-diag] RECURRING "${ev.summary}" | uid=${uid} | rrule FAILED: ${err.message}`);
+      }
+    }
+
     const events = expandRecurring(rawEvents, startDate, endDate);
 
     let created = 0;
