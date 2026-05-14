@@ -68,14 +68,16 @@ function expandRecurring(events, startDate, endDate) {
         }
 
         for (const instanceStart of instances) {
-          const instanceEnd = new Date(instanceStart.getTime() + duration);
+          const instanceDate = toDateInTZ(instanceStart);
 
-          // Filter to actual requested range after expansion
-          if (instanceEnd < start || instanceStart > end) continue;
+          // Filter by date in app timezone — rrule can generate wrong-day
+          // instances due to UTC/local timezone mismatch
+          if (instanceDate < startDate || instanceDate > endDate) continue;
 
           // Skip cancelled occurrences (compare in app timezone)
-          if (exdates.has(toDateInTZ(instanceStart))) continue;
+          if (exdates.has(instanceDate)) continue;
 
+          const instanceEnd = new Date(instanceStart.getTime() + duration);
           expanded.push({
             uid: `${uid}_${instanceStart.toISOString()}`,
             title: event.summary || '(No title)',
@@ -130,27 +132,6 @@ async function syncCalendar(startDate, endDate) {
     const rawEvents = await ical.async.fromURL(icsUrl, {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
     });
-
-    // Diagnostic: log all recurring VEVENTs to understand what the ICS feed contains
-    const today = toDateInTZ(new Date());
-    for (const [uid, ev] of Object.entries(rawEvents)) {
-      if (ev.type !== 'VEVENT') continue;
-      if (!ev.rrule) continue;
-      const busyStatus = (ev['MICROSOFT-CDO-BUSYSTATUS'] || ev['X-MICROSOFT-CDO-BUSYSTATUS'] || '').toUpperCase();
-      const status = (ev.status || '').toUpperCase();
-      try {
-        const todayStart = new Date(today + 'T00:00:00Z');
-        const todayEnd = new Date(today + 'T23:59:59Z');
-        todayStart.setDate(todayStart.getDate() - 1);
-        todayEnd.setDate(todayEnd.getDate() + 1);
-        const instances = ev.rrule.between(todayStart, todayEnd, true);
-        if (instances.length > 0) {
-          console.log(`[calendar-diag] RECURRING "${ev.summary}" | uid=${uid} | busyStatus=${busyStatus} | status=${status} | rrule=${ev.rrule.origOptions?.freq} | instances today: ${instances.length} | excluded=${shouldExclude(ev)}`);
-        }
-      } catch (err) {
-        console.log(`[calendar-diag] RECURRING "${ev.summary}" | uid=${uid} | rrule FAILED: ${err.message}`);
-      }
-    }
 
     const events = expandRecurring(rawEvents, startDate, endDate);
 
