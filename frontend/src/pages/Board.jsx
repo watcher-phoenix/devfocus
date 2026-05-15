@@ -82,6 +82,7 @@ export default function Board() {
   const [projectFilter, setProjectFilter] = useState('all');
   const [showDone, setShowDone] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [afterHoursOnly, setAfterHoursOnly] = useState(false);
   const [sortField, setSortField] = useState('priority');
   const [sortDir, setSortDir] = useState('desc');
   const [editItem, setEditItem] = useState(null);
@@ -182,6 +183,9 @@ export default function Board() {
     if (projectFilter !== 'all') {
       result = result.filter((i) => i.projectId && String(i.projectId) === String(projectFilter));
     }
+    if (afterHoursOnly) {
+      result = result.filter((i) => i.afterHours);
+    }
     return result.sort((a, b) => {
       let aVal, bVal;
       switch (sortField) {
@@ -196,7 +200,7 @@ export default function Board() {
       if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [items, showDone, showCancelled, statusFilter, typeFilter, projectFilter, sortField, sortDir]);
+  }, [items, showDone, showCancelled, afterHoursOnly, statusFilter, typeFilter, projectFilter, sortField, sortDir]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -252,6 +256,11 @@ export default function Board() {
         <FormControlLabel
           control={<Switch checked={showCancelled} onChange={(e) => setShowCancelled(e.target.checked)} size="small" />}
           label="Cancelled"
+          sx={{ ml: 0 }}
+        />
+        <FormControlLabel
+          control={<Switch checked={afterHoursOnly} onChange={(e) => setAfterHoursOnly(e.target.checked)} size="small" />}
+          label="After Hours"
           sx={{ ml: 0 }}
         />
         <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
