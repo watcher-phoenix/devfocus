@@ -237,12 +237,21 @@ async function syncBitbucket() {
 
           let hasApproved = false;
           if (!isAuthor && !isLinkedToMyJira) {
-            const participants = pr.participants || [];
-            hasApproved = participants.some((p) => {
-              const userMatch = matchesUser(p.user);
-              const isApproved = p.approved === true || (p.state || '').toUpperCase() === 'APPROVED';
-              return userMatch && isApproved;
-            });
+            // List endpoint doesn't reliably include participants — fetch detail
+            try {
+              const prDetail = await axios.get(
+                `${BB_API}/repositories/${workspace}/${repoSlug}/pullrequests/${pr.id}`,
+                { headers }
+              );
+              const participants = prDetail.data.participants || [];
+              hasApproved = participants.some((p) => {
+                const userMatch = matchesUser(p.user);
+                const isApproved = p.approved === true || (p.state || '').toUpperCase() === 'APPROVED';
+                return userMatch && isApproved;
+              });
+            } catch (err) {
+              console.error(`[bitbucket] Error checking approval for merged ${repoSlug}#${pr.id}:`, err.message);
+            }
           }
 
           if (!isAuthor && !isLinkedToMyJira && !hasApproved) continue;
