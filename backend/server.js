@@ -19,7 +19,7 @@ if (process.env.NODE_ENV === 'production') {
   corsOrigins.push('https://devfocus.fly.dev');
 }
 app.use(cors({ origin: corsOrigins, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
 // Health check (unauthenticated)
