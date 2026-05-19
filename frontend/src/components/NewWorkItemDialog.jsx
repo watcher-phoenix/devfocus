@@ -14,6 +14,8 @@ import { useProjects } from '../api/projects';
 import { useCreateWorkItem } from '../api/workItems';
 import { useStatuses } from '../api/statuses';
 import EmojiButton from './EmojiButton';
+import RichTextEditor from './RichTextEditor';
+import Box from '@mui/material/Box';
 
 const TYPES = [
   { value: 'task', label: 'Task' },
@@ -83,14 +85,16 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
           />
           <EmojiButton onSelect={(emoji) => setForm({ ...form, title: form.title + emoji })} />
         </Stack>
-        <TextField
-          label="Description"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          fullWidth
-          multiline
-          rows={2}
-        />
+        <Box>
+          <Box sx={{ mb: 0.5, fontSize: '0.75rem', color: 'text.secondary' }}>Description</Box>
+          <RichTextEditor
+            content={form.description}
+            onChange={(html) => setForm((prev) => ({ ...prev, description: html }))}
+            placeholder="Add a description... (paste images here)"
+            minHeight={80}
+            compact
+          />
+        </Box>
         <Stack direction="row" spacing={2}>
           <FormControl fullWidth>
             <InputLabel>Status</InputLabel>

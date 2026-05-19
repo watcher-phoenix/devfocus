@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import Image from '@tiptap/extension-image';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -41,7 +42,47 @@ export default function RichTextEditor({ content, onChange, placeholder, minHeig
     extensions: [
       StarterKit,
       Placeholder.configure({ placeholder: placeholder || 'Start typing...' }),
+      Image.configure({ inline: true, allowBase64: true }),
     ],
+    editorProps: {
+      handlePaste(view, event) {
+        const items = Array.from(event.clipboardData?.items || []);
+        const imageItem = items.find((i) => i.type.startsWith('image/'));
+        if (!imageItem) return false;
+        event.preventDefault();
+        const file = imageItem.getAsFile();
+        const reader = new FileReader();
+        reader.onload = () => {
+          view.dispatch(
+            view.state.tr.replaceSelectionWith(
+              view.state.schema.nodes.image.create({ src: reader.result })
+            )
+          );
+        };
+        reader.readAsDataURL(file);
+        return true;
+      },
+      handleDrop(view, event) {
+        const files = Array.from(event.dataTransfer?.files || []);
+        const imageFile = files.find((f) => f.type.startsWith('image/'));
+        if (!imageFile) return false;
+        event.preventDefault();
+        const reader = new FileReader();
+        reader.onload = () => {
+          const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+          if (pos) {
+            view.dispatch(
+              view.state.tr.insert(
+                pos.pos,
+                view.state.schema.nodes.image.create({ src: reader.result })
+              )
+            );
+          }
+        };
+        reader.readAsDataURL(imageFile);
+        return true;
+      },
+    },
     content: content || '',
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML();
@@ -129,6 +170,12 @@ export default function RichTextEditor({ content, onChange, placeholder, minHeig
               borderRadius: 0.5,
               fontFamily: 'monospace',
               fontSize: '0.85em',
+            },
+            '& img': {
+              maxWidth: '100%',
+              height: 'auto',
+              borderRadius: 4,
+              my: 0.5,
             },
             '& pre': {
               bgcolor: 'rgba(255,255,255,0.06)',

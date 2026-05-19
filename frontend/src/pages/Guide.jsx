@@ -118,6 +118,8 @@ export default function Guide() {
         <B>Cancelled (gray)</B>
         <P>Items that were cancelled, declined, or superseded. Jira tickets marked Won't Do/Duplicate and declined Bitbucket PRs land here automatically. Cancelled items do NOT count toward any Trends metrics. Toggle the Cancelled switch on the Board to show/hide them.</P>
         <P>Click any card to edit details. Use the "New Item" button for items that go straight to Active. Toggle the After Hours switch to filter for tasks completed outside work hours or on weekends.</P>
+        <B>Rich Descriptions</B>
+        <P>The description field supports rich text formatting (bold, lists, code, etc.) and image pasting. Copy a screenshot to your clipboard and paste it directly into the description — the image embeds inline.</P>
         <B>Recurring Items</B>
         <P>Set a recurrence rule (Daily, Weekly, Biweekly, Monthly) on any work item. When you complete or cancel an instance, the next one auto-spawns with the next scheduled date. Recurring items show a repeat icon on the Board. To stop the series, set recurrence to None or delete the original item.</P>
       </Section>
