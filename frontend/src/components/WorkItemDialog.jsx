@@ -127,6 +127,7 @@ export default function WorkItemDialog({ item, open, onClose }) {
             placeholder="Add a description... (paste images here)"
             minHeight={80}
             compact
+            debounce={0}
           />
         </Box>
         <Stack direction="row" spacing={2}>

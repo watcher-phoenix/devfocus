@@ -35,7 +35,7 @@ function ToolbarButton({ icon, label, active, onClick }) {
   );
 }
 
-export default function RichTextEditor({ content, onChange, placeholder, minHeight = 200, compact = false }) {
+export default function RichTextEditor({ content, onChange, placeholder, minHeight = 200, compact = false, debounce = 800 }) {
   const saveTimer = useRef(null);
 
   const editor = useEditor({
@@ -86,8 +86,12 @@ export default function RichTextEditor({ content, onChange, placeholder, minHeig
     content: content || '',
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML();
-      clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => onChange(html), 800);
+      if (debounce > 0) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = setTimeout(() => onChange(html), debounce);
+      } else {
+        onChange(html);
+      }
     },
   });
 

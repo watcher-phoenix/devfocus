@@ -93,6 +93,7 @@ export default function NewWorkItemDialog({ open, onClose, defaultStatus = 'acti
             placeholder="Add a description... (paste images here)"
             minHeight={80}
             compact
+            debounce={0}
           />
         </Box>
         <Stack direction="row" spacing={2}>
