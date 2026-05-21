@@ -40,6 +40,19 @@ router.get('/:date', async (req, res) => {
     order: [['priority', 'DESC'], ['sortOrder', 'ASC']],
   });
 
+  // Active work items NOT already in today's priorities
+  const activeItems = await WorkItem.findAll({
+    where: {
+      status: 'active',
+      [Op.or]: [
+        { scheduledDate: null },
+        { scheduledDate: { [Op.ne]: targetDate } },
+      ],
+    },
+    include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
+    order: [['priority', 'DESC'], ['updatedAt', 'DESC']],
+  });
+
   // Most recently touched active context snapshot
   const snapshot = await ContextSnapshot.findOne({
     where: { active: true },
@@ -135,6 +148,7 @@ router.get('/:date', async (req, res) => {
       json.afterHours = isAfterHours(item.completedAt, workStartMins, workEndMins);
       return json;
     }),
+    activeItems,
     snapshot,
     inbox: { count: inboxCount, recent: inboxRecent },
     done: { today: doneToday, yesterday: doneYesterday },

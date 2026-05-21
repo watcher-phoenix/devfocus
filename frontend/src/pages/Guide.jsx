@@ -82,6 +82,8 @@ export default function Guide() {
         <P>Your calendar events with times, durations, and locations. Requires the Outlook calendar integration.</P>
         <B>Top Priorities</B>
         <P>Items scheduled for today with medium or high priority, or status Active. Check them off right here.</P>
+        <B>Active Work</B>
+        <P>All items with status Active that aren't already in today's priorities. Click any item to open it. This section only appears when you have active work.</P>
         <B>Context Snapshots</B>
         <P>All your active "where I left off" snapshots. Click to edit, or create new ones.</P>
         <B>Activity</B>

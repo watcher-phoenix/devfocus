@@ -25,6 +25,7 @@ import Alert from '@mui/material/Alert';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
 import WhatshotIcon from '@mui/icons-material/Whatshot';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -403,6 +404,32 @@ export default function DailyFocus() {
           })}
         </>)}
       </CollapsibleSection>
+
+      {/* Active work — items you're actively working on */}
+      {data.activeItems?.length > 0 && (
+        <CollapsibleSection
+          title="Active Work"
+          icon={<PlayArrowIcon sx={{ color: '#7C4DFF', fontSize: 20 }} />}
+          count={data.activeItems.length}
+          defaultOpen
+        >
+          {data.activeItems.map((item) => (
+            <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, cursor: 'pointer', borderRadius: 1, px: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }} onClick={() => setEditItem(item)}>
+              <PlayArrowIcon sx={{ color: '#7C4DFF', fontSize: 14 }} />
+              <Typography variant="body2" sx={{ flex: 1, fontSize: '0.85rem' }}>{item.title}</Typography>
+              {item.priority > 0 && (
+                <Chip
+                  label={item.priority === 3 ? 'High' : item.priority === 2 ? 'Med' : 'Low'}
+                  size="small"
+                  color={item.priority === 3 ? 'error' : item.priority === 2 ? 'warning' : 'default'}
+                  sx={{ height: 18, fontSize: '0.6rem' }}
+                />
+              )}
+              {item.project && <Chip label={item.project.name} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: lightenColor(item.project.color) + '33', color: lightenColor(item.project.color) }} />}
+            </Box>
+          ))}
+        </CollapsibleSection>
+      )}
 
       {/* Meetings — open by default if there are meetings */}
       {data.meetings.events?.length > 0 && (
