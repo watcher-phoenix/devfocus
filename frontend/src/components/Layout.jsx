@@ -64,7 +64,7 @@ export default function Layout() {
   const drawer = (
     <Box sx={{ mt: 1 }}>
       <Box sx={{ px: 2, py: 1.5, mb: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Box component="img" src="/logo.png" alt="WIT" sx={{ width: 48, height: 48 }} />
+        <Box component="img" src="/logo.png" alt="WIT" sx={{ width: 64, height: 64 }} />
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
           DevFocus
         </Typography>
