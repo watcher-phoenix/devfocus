@@ -36,7 +36,8 @@ export default function Login() {
       }}
     >
       <Card sx={{ maxWidth: 400, width: '100%', mx: 2 }}>
-        <CardContent sx={{ p: 4 }}>
+        <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box component="img" src="/logo.png" alt="WIT" sx={{ width: 80, height: 80, mb: 2 }} />
           <Typography variant="h5" sx={{ mb: 1, fontWeight: 700, color: 'primary.main' }}>
             DevFocus
           </Typography>
