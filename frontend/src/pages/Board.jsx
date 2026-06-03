@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -125,6 +125,19 @@ export default function Board() {
   const allStatusKeys = [...statusKeys, ...doneKeys];
   // Show the completed-date column whenever we're looking at done items
   const showCompletedCol = showDone || doneKeys.includes(statusFilter);
+
+  // When the done view appears, default to newest-completed-first; revert when it goes away
+  const prevShowCompleted = useRef(showCompletedCol);
+  useEffect(() => {
+    if (showCompletedCol && !prevShowCompleted.current) {
+      setSortField('completedAt');
+      setSortDir('desc');
+    } else if (!showCompletedCol && prevShowCompleted.current && sortField === 'completedAt') {
+      setSortField('priority');
+      setSortDir('desc');
+    }
+    prevShowCompleted.current = showCompletedCol;
+  }, [showCompletedCol, sortField]);
   const statusOptions = [{ value: 'all', label: 'All' }, ...statusConfigs.map((s) => ({ value: s.key, label: s.label }))];
   const statusColors = {};
   statusConfigs.forEach((s) => { statusColors[s.key] = s.color; });
