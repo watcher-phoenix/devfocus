@@ -75,6 +75,13 @@ const TYPE_LABELS = {
 const PRIORITY_LABELS = { 0: '-', 1: 'Low', 2: 'Med', 3: 'High' };
 const PRIORITY_COLORS = { 1: 'default', 2: 'warning', 3: 'error' };
 
+function formatCompleted(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export default function Board() {
   const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
@@ -116,6 +123,8 @@ export default function Board() {
   const statusKeys = statusConfigs.filter((s) => !s.isCompletion).map((s) => s.key);
   const doneKeys = statusConfigs.filter((s) => s.isCompletion).map((s) => s.key);
   const allStatusKeys = [...statusKeys, ...doneKeys];
+  // Show the completed-date column whenever we're looking at done items
+  const showCompletedCol = showDone || doneKeys.includes(statusFilter);
   const statusOptions = [{ value: 'all', label: 'All' }, ...statusConfigs.map((s) => ({ value: s.key, label: s.label }))];
   const statusColors = {};
   statusConfigs.forEach((s) => { statusColors[s.key] = s.color; });
@@ -194,6 +203,10 @@ export default function Board() {
         case 'status': aVal = a.status; bVal = b.status; break;
         case 'type': aVal = a.type; bVal = b.type; break;
         case 'updatedAt': aVal = new Date(a.updatedAt); bVal = new Date(b.updatedAt); break;
+        case 'completedAt':
+          aVal = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+          bVal = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+          break;
         default: aVal = a.priority; bVal = b.priority;
       }
       if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
@@ -391,6 +404,13 @@ export default function Board() {
                   Priority
                 </TableSortLabel>
               </TableCell>
+              {showCompletedCol && (
+                <TableCell sx={{ fontWeight: 600, width: 110 }}>
+                  <TableSortLabel active={sortField === 'completedAt'} direction={sortField === 'completedAt' ? sortDir : 'desc'} onClick={() => handleSort('completedAt')}>
+                    Completed
+                  </TableSortLabel>
+                </TableCell>
+              )}
               <TableCell sx={{ fontWeight: 600, width: 100 }}>Project</TableCell>
               <TableCell sx={{ fontWeight: 600, width: 50 }} />
             </TableRow>
@@ -463,6 +483,13 @@ export default function Board() {
                     />
                   )}
                 </TableCell>
+                {showCompletedCol && (
+                  <TableCell>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatCompleted(item.completedAt)}
+                    </Typography>
+                  </TableCell>
+                )}
                 <TableCell>
                   {item.project && (
                     <Chip
@@ -490,7 +517,7 @@ export default function Board() {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
+                <TableCell colSpan={showCompletedCol ? 8 : 7} sx={{ textAlign: 'center', py: 4 }}>
                   <Typography variant="body2" color="text.secondary">
                     {statusFilter === 'all' ? 'Nothing here yet. Either you\'re new or you deleted everything. Use "New Item" or Ctrl+K to start.' : 'No items match this filter. They\'re hiding.'}
                   </Typography>

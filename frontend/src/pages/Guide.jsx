@@ -116,7 +116,7 @@ export default function Guide() {
         <B>Later (blue)</B>
         <P>Future/someday items. Not forgotten, just not now.</P>
         <B>Done (green)</B>
-        <P>Completed work. These show up in your Activity on Today.</P>
+        <P>Completed work. These show up in your Activity on Today. When you turn on the Done switch (or filter the Status dropdown to a completion status), the table adds a sortable Completed column showing the date each item was finished.</P>
         <B>Cancelled (gray)</B>
         <P>Items that were cancelled, declined, or superseded. Jira tickets marked Won't Do/Duplicate and declined Bitbucket PRs land here automatically. Cancelled items do NOT count toward any Trends metrics. Toggle the Cancelled switch on the Board to show/hide them.</P>
         <P>Click any card to edit details. Use the "New Item" button for items that go straight to Active. Toggle the After Hours switch to filter for tasks completed outside work hours or on weekends.</P>
