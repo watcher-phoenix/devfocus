@@ -10,6 +10,7 @@ module.exports = (sequelize) => {
       startTime: { type: DataTypes.DATE, allowNull: false },
       endTime: { type: DataTypes.DATE, allowNull: false },
       allDay: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      isOOO: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       location: { type: DataTypes.STRING(500), allowNull: true },
       date: { type: DataTypes.DATEONLY, allowNull: false },
     },

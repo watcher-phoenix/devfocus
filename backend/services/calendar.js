@@ -30,6 +30,12 @@ function shouldExclude(event) {
   return false;
 }
 
+// Check if an event is marked Out of Office (Show as → Out of Office in Outlook)
+function isOutOfOffice(event) {
+  const busyStatus = (event['MICROSOFT-CDO-BUSYSTATUS'] || event['X-MICROSOFT-CDO-BUSYSTATUS'] || '').toUpperCase();
+  return busyStatus === 'OOF';
+}
+
 // Expand recurring events into individual instances within a date range
 function expandRecurring(events, startDate, endDate) {
   // Pad the rrule search range by 1 day on each side to handle timezone offsets
@@ -84,6 +90,7 @@ function expandRecurring(events, startDate, endDate) {
             start: instanceStart,
             end: instanceEnd,
             allDay: event.datetype === 'date',
+            isOOO: isOutOfOffice(event),
             location: event.location || null,
           });
         }
@@ -103,6 +110,7 @@ function expandRecurring(events, startDate, endDate) {
         start: eventStart,
         end: eventEnd,
         allDay: event.datetype === 'date',
+        isOOO: isOutOfOffice(event),
         location: event.location || null,
       });
     }
@@ -149,6 +157,7 @@ async function syncCalendar(startDate, endDate) {
         startTime: event.start,
         endTime: event.end,
         allDay: event.allDay,
+        isOOO: event.isOOO,
         location: event.location,
         date,
       });

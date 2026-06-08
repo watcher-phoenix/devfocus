@@ -83,6 +83,7 @@ export default function WeeklySummary() {
   const itemsSnark = summary.totalCompleted >= 20 ? 'Machine mode.' : summary.totalCompleted >= 10 ? 'Solid week.' : summary.totalCompleted >= 5 ? 'Steady.' : summary.totalCompleted > 0 ? 'Light week.' : 'Ghost mode.';
   const meetingsSnark = summary.totalMeetings >= 15 ? 'RIP your calendar.' : summary.totalMeetings >= 8 ? 'Meeting marathon.' : summary.totalMeetings >= 3 ? 'Manageable.' : summary.totalMeetings > 0 ? 'Breezy.' : 'Meeting-free. Living the dream.';
   const afterHoursSnark = (summary.afterHoursItems || 0) > 0 ? `${summary.afterHoursItems} after-hours item${summary.afterHoursItems !== 1 ? 's' : ''}. Boundaries.` : 'No after-hours work. As it should be.';
+  const oooSnark = (summary.oooDays || 0) >= 3 ? 'Real time off. Good.' : (summary.oooDays || 0) > 0 || (summary.oooHours || 0) > 0 ? 'Stepped away.' : 'No time off this week.';
 
   return (
     <Box>
@@ -150,6 +151,16 @@ export default function WeeklySummary() {
                     label="After Hours"
                     value={`${summary.afterHoursItems || 0} items, ${summary.afterHoursMeetings || 0} mtgs`}
                     subtitle={!isShareable ? afterHoursSnark : undefined}
+                  />
+                </>
+              )}
+              {(summary.oooDays > 0 || summary.oooHours > 0 || !isShareable) && (
+                <>
+                  <Divider sx={{ my: 0.5 }} />
+                  <StatRow
+                    label="Out of Office"
+                    value={`${summary.oooDays || 0} days, ${summary.oooHours || 0}h`}
+                    subtitle={!isShareable ? oooSnark : undefined}
                   />
                 </>
               )}

@@ -204,6 +204,8 @@ export default function Guide() {
         <B>Summary Stats</B>
         <P><span style={{ color: '#CE93D8' }}>■</span> Items Completed / Meetings / Meeting Hours / PRs Reviewed — Lavender</P>
         <P><span style={{ color: '#EF5350' }}>■</span> After Hours Work / Mtgs — Red</P>
+        <P><span style={{ color: '#4DB6AC' }}>■</span> Out of Office (days · hours) — Muted teal</P>
+        <P>Out of Office is pulled from synced calendar events marked “Show as → Out of Office”. All-day blocks count as days; timed blocks count as hours. These are excluded from meeting counts.</P>
         <B>Chart Colors</B>
         <P><span style={{ color: '#CE93D8' }}>■</span> Items Completed Per Week — Lavender</P>
         <P><span style={{ color: '#78909C' }}>■</span> Meeting Hours Per Week — Slate</P>

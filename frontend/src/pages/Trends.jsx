@@ -328,6 +328,7 @@ export default function Trends() {
           ))}
         <StatCard label="After Hours Work" value={summary.afterHoursItems || 0} subtitle={summary.afterHoursItems >= 3 ? 'boundaries are a thing' : summary.afterHoursItems > 0 ? 'overtime vibes' : 'healthy work-life balance'} color="#EF5350" />
         <StatCard label="After Hours Mtgs" value={summary.afterHoursMeetings || 0} subtitle={summary.afterHoursMeetings >= 2 ? 'who scheduled these?!' : summary.afterHoursMeetings > 0 ? 'someone owes you dinner' : 'as it should be'} color="#EF5350" />
+        <StatCard label="Out of Office" value={`${summary.oooDays || 0}d · ${summary.oooHours || 0}h`} subtitle={(summary.oooDays || 0) >= 3 ? 'enjoy the recharge' : (summary.oooDays || 0) > 0 || (summary.oooHours || 0) > 0 ? 'stepped away' : 'all hands on deck'} color="#4DB6AC" />
       </Stack>
 
       <Divider sx={{ my: 3 }} />

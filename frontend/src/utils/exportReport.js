@@ -50,6 +50,8 @@ export function exportTrendsCSV(data, label) {
   rows.push(['Avg Meeting Hours/Week', data.summary.avgMeetingHoursPerWeek]);
   rows.push(['After Hours Items', data.summary.afterHoursItems]);
   rows.push(['After Hours Meetings', data.summary.afterHoursMeetings]);
+  rows.push(['Out of Office Days', data.summary.oooDays]);
+  rows.push(['Out of Office Hours', data.summary.oooHours]);
 
   const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -77,6 +79,7 @@ export function exportReportHTML(data, { mode = 'shareable', dateRange = '' } = 
     { label: 'PRs Reviewed', value: summary.prsReviewed || 0 },
     { label: 'After Hours Items', value: summary.afterHoursItems || 0 },
     { label: 'After Hours Meetings', value: summary.afterHoursMeetings || 0 },
+    { label: 'Out of Office', value: `${summary.oooDays || 0} days, ${summary.oooHours || 0}h` },
   ];
 
   const typeRows = topTypes.map(([type, count]) => `<tr><td>${TYPE_LABELS[type] || type}</td><td style="text-align:right;font-weight:600">${count}</td></tr>`).join('');

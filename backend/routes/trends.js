@@ -29,11 +29,20 @@ router.get('/', async (req, res) => {
       order: [['completedAt', 'DESC']],
     });
 
-    // Meetings
-    const meetingWhere = { date: { [Op.gte]: sinceDate }, allDay: false };
-    if (untilDate) meetingWhere.date = { [Op.gte]: sinceDate, [Op.lte]: untilDate };
+    // Shared date filter for cached calendar events
+    const eventDateWhere = untilDate
+      ? { [Op.gte]: sinceDate, [Op.lte]: untilDate }
+      : { [Op.gte]: sinceDate };
+
+    // Meetings (timed, non-OOO events)
     const meetings = await CachedEvent.findAll({
-      where: meetingWhere,
+      where: { date: eventDateWhere, allDay: false, isOOO: false },
+      order: [['startTime', 'ASC']],
+    });
+
+    // Out-of-office events (vacation / OOO blocks)
+    const oooEvents = await CachedEvent.findAll({
+      where: { date: eventDateWhere, isOOO: true },
       order: [['startTime', 'ASC']],
     });
 
@@ -148,6 +157,23 @@ router.get('/', async (req, res) => {
       (sum, dayMeetings) => sum + getMergedMinutes(dayMeetings), 0
     );
     const totalMeetingHours = Math.round(totalMergedMinutes / 6) / 10;
+
+    // Out-of-office: all-day blocks count as days, timed blocks count as hours
+    const oooDayDates = new Set();
+    const oooTimedByDate = {};
+    oooEvents.forEach((event) => {
+      if (event.allDay) {
+        oooDayDates.add(event.date);
+      } else {
+        if (!oooTimedByDate[event.date]) oooTimedByDate[event.date] = [];
+        oooTimedByDate[event.date].push(event);
+      }
+    });
+    const oooDays = oooDayDates.size;
+    const oooTimedMinutes = Object.values(oooTimedByDate).reduce(
+      (sum, dayEvents) => sum + getMergedMinutes(dayEvents), 0
+    );
+    const oooHours = Math.round(oooTimedMinutes / 6) / 10;
     const prsReviewed = completedItems.filter((i) => i.type === 'pr-review').length;
     const prsMerged = completedItems.filter((i) => i.type === 'pr').length;
     const jiraTickets = completedItems.filter((i) => i.type === 'jira').length;
@@ -185,6 +211,8 @@ router.get('/', async (req, res) => {
         avgMeetingHoursPerWeek,
         afterHoursItems: afterHoursItems.length,
         afterHoursMeetings: afterHoursMeetings.length,
+        oooDays,
+        oooHours,
       },
       weeklyCompletions,
       weeklyMeetingMinutes,
