@@ -9,6 +9,54 @@ function toDateInTZ(date) {
   return date.toLocaleDateString('en-CA', { timeZone: TZ });
 }
 
+// YYYY-MM-DD from a Date's local components. All-day (VALUE=DATE) events are
+// parsed by node-ical at the *server's* local midnight, so reading them back
+// in local time recovers the intended calendar date on any server timezone.
+// (toDateInTZ would shift them to the previous day on a UTC server.)
+function toLocalDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Push an event into the expanded list, computing its `date`. All-day events
+// that span multiple calendar days (e.g. a 3-day OOO block, where DTEND is
+// exclusive) are split into one instance per day so each day is counted.
+function pushExpanded(expanded, base) {
+  if (!base.allDay) {
+    expanded.push({ ...base, date: toDateInTZ(base.start) });
+    return;
+  }
+
+  const startStr = toLocalDateStr(base.start);
+  const endStr = toLocalDateStr(base.end);
+
+  // Single-day or malformed (end <= start) all-day event: emit just the start day.
+  if (endStr <= startStr) {
+    expanded.push({ ...base, date: startStr });
+    return;
+  }
+
+  // Walk each calendar day in [start, end) and emit a per-day instance.
+  const cursor = new Date(base.start.getFullYear(), base.start.getMonth(), base.start.getDate());
+  const endDate = new Date(base.end.getFullYear(), base.end.getMonth(), base.end.getDate());
+  while (cursor < endDate) {
+    const dateStr = toLocalDateStr(cursor);
+    const dayStart = new Date(cursor);
+    const dayEnd = new Date(cursor);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    expanded.push({
+      ...base,
+      uid: `${base.uid}_${dateStr}`,
+      start: dayStart,
+      end: dayEnd,
+      date: dateStr,
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+}
+
 // Check if the user declined or hasn't accepted this event
 // Outlook ICS uses X-MICROSOFT-CDO-BUSYSTATUS:
 //   BUSY = accepted, TENTATIVE = not accepted, FREE = declined, OOF = out of office
@@ -73,23 +121,26 @@ function expandRecurring(events, startDate, endDate) {
           }
         }
 
+        const allDay = event.datetype === 'date';
         for (const instanceStart of instances) {
-          const instanceDate = toDateInTZ(instanceStart);
+          // All-day instances are dated from local components (see toLocalDateStr);
+          // timed instances use the app timezone.
+          const instanceDate = allDay ? toLocalDateStr(instanceStart) : toDateInTZ(instanceStart);
 
-          // Filter by date in app timezone — rrule can generate wrong-day
-          // instances due to UTC/local timezone mismatch
+          // Filter by date — rrule can generate wrong-day instances due to
+          // UTC/local timezone mismatch
           if (instanceDate < startDate || instanceDate > endDate) continue;
 
           // Skip cancelled occurrences (compare in app timezone)
           if (exdates.has(instanceDate)) continue;
 
           const instanceEnd = new Date(instanceStart.getTime() + duration);
-          expanded.push({
+          pushExpanded(expanded, {
             uid: `${uid}_${instanceStart.toISOString()}`,
             title: event.summary || '(No title)',
             start: instanceStart,
             end: instanceEnd,
-            allDay: event.datetype === 'date',
+            allDay,
             isOOO: isOutOfOffice(event),
             location: event.location || null,
           });
@@ -104,7 +155,7 @@ function expandRecurring(events, startDate, endDate) {
       // Skip events outside our date range
       if (eventEnd < start || eventStart > end) continue;
 
-      expanded.push({
+      pushExpanded(expanded, {
         uid: event.recurrenceid ? `${uid}_${eventStart.toISOString()}` : uid,
         title: event.summary || '(No title)',
         start: eventStart,
@@ -148,7 +199,6 @@ async function syncCalendar(startDate, endDate) {
     const processedIds = [];
 
     for (const event of events) {
-      const date = toDateInTZ(event.start);
       processedIds.push(event.uid);
 
       const [, wasCreated] = await CachedEvent.upsert({
@@ -159,7 +209,7 @@ async function syncCalendar(startDate, endDate) {
         allDay: event.allDay,
         isOOO: event.isOOO,
         location: event.location,
-        date,
+        date: event.date,
       });
 
       if (wasCreated) created++;
