@@ -75,7 +75,7 @@ export default function Guide() {
           Today is where you spend most of your time. Everything you need is on this one page:
         </P>
         <B>Meeting count and focus time</B>
-        <P>Shows how many meetings you have and how much uninterrupted time is left, based on your work hours (set in Settings).</P>
+        <P>Shows how many meetings you have and how much uninterrupted time is left, based on your work hours (set in Settings). Events titled &ldquo;Focus time&rdquo; or just &ldquo;Focus&rdquo; don&rsquo;t count as meetings — that time stays in your focus minutes.</P>
         <B>Brain Dump input</B>
         <P>Type anything and hit Enter. It goes straight to the Brain Dump column on Work. No friction.</P>
         <B>Today's Meetings</B>
@@ -205,7 +205,7 @@ export default function Guide() {
         <P><span style={{ color: '#CE93D8' }}>■</span> Items Completed / Meetings / Meeting Hours / PRs Reviewed — Lavender</P>
         <P><span style={{ color: '#EF5350' }}>■</span> After Hours Work / Mtgs — Red</P>
         <P><span style={{ color: '#4DB6AC' }}>■</span> Out of Office (days · hours) — Muted teal</P>
-        <P>Out of Office is pulled from synced calendar events marked “Show as → Out of Office”. All-day blocks count as days; timed blocks count as hours. These are excluded from meeting counts.</P>
+        <P>Out of Office is pulled from synced calendar events marked “Show as → Out of Office”. All-day blocks count as days; timed blocks count as hours. These are excluded from meeting counts, as are events titled “Focus time” or just “Focus”.</P>
         <B>Chart Colors</B>
         <P><span style={{ color: '#CE93D8' }}>■</span> Items Completed Per Week — Lavender</P>
         <P><span style={{ color: '#78909C' }}>■</span> Meeting Hours Per Week — Slate</P>
@@ -225,6 +225,7 @@ export default function Guide() {
       <Section title="Settings">
         <B>General</B>
         <P>Set your work hours (default 7:30 AM to 4:00 PM). This affects the focus time calculation on Today.</P>
+        <P>Set &ldquo;Exclude from meeting count&rdquo; to keep specific events (e.g. lunch, holds) out of your meeting count and focus-time math. Titles are matched exactly; events titled &ldquo;Focus time&rdquo; or just &ldquo;Focus&rdquo; are always excluded.</P>
         <B>Projects</B>
         <P>Create projects that map to your repos. Assign colors for visual grouping. One project can cover multiple repos (comma-separated slugs).</P>
         <B>Statuses</B>

@@ -411,8 +411,16 @@ function IntegrationsTab() {
 function GeneralTab() {
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
+  const [excludeDraft, setExcludeDraft] = useState(null);
 
   if (isLoading || !settings) return null;
+
+  const excludeValue = excludeDraft ?? (settings.meetingExcludeKeywords || '');
+  const saveExclude = () => {
+    if (excludeDraft != null && excludeDraft !== (settings.meetingExcludeKeywords || '')) {
+      updateSettings.mutate({ meetingExcludeKeywords: excludeDraft.trim() });
+    }
+  };
 
   const handleTimeChange = (field, value) => {
     updateSettings.mutate({ [field]: value });
@@ -457,6 +465,26 @@ function GeneralTab() {
       <Typography variant="body2" color="text.secondary">
         {hours}h {mins}m workday ({settings.workStartTime} — {settings.workEndTime})
       </Typography>
+
+      <Divider sx={{ my: 3 }} />
+
+      <Typography variant="h6" sx={{ fontSize: '1rem', mb: 1 }}>Meeting Count</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Calendar events whose title exactly matches one of these (comma-separated,
+        not case-sensitive) won&rsquo;t count toward your meeting count or eat into
+        your focus time. Events titled &ldquo;Focus time&rdquo; or just
+        &ldquo;Focus&rdquo; are always excluded automatically.
+      </Typography>
+      <TextField
+        label="Exclude from meeting count"
+        value={excludeValue}
+        onChange={(e) => setExcludeDraft(e.target.value)}
+        onBlur={saveExclude}
+        fullWidth
+        placeholder="lunch, hold, block"
+        helperText="Exact title match — e.g. “lunch” excludes events titled exactly “Lunch”, not “Lunch with a client”."
+        sx={{ mb: 2 }}
+      />
 
       <Divider sx={{ my: 3 }} />
 

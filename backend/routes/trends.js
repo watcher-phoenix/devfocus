@@ -1,7 +1,8 @@
 const { Router } = require('express');
 const { Op, fn, col, literal } = require('sequelize');
-const { WorkItem, CachedEvent, Project } = require('../database/models');
+const { WorkItem, CachedEvent, Project, UserSettings } = require('../database/models');
 const { getDaysAgoET, getTimeInET, isWeekendET } = require('../utilities/timezone');
+const { makeIsExcludedMeeting } = require('../utilities/meetings');
 
 const router = Router();
 
@@ -34,11 +35,15 @@ router.get('/', async (req, res) => {
       ? { [Op.gte]: sinceDate, [Op.lte]: untilDate }
       : { [Op.gte]: sinceDate };
 
-    // Meetings (timed, non-OOO events)
-    const meetings = await CachedEvent.findAll({
+    // User's meeting exclude keywords (also drops Focus time blocks)
+    const userSettings = await UserSettings.findOne();
+    const isExcludedMeeting = makeIsExcludedMeeting(userSettings?.meetingExcludeKeywords ?? 'lunch');
+
+    // Meetings (timed, non-OOO events; Focus time + excluded titles dropped)
+    const meetings = (await CachedEvent.findAll({
       where: { date: eventDateWhere, allDay: false, isOOO: false },
       order: [['startTime', 'ASC']],
-    });
+    })).filter((e) => !isExcludedMeeting(e.title));
 
     // Out-of-office events (vacation / OOO blocks)
     const oooEvents = await CachedEvent.findAll({
@@ -83,19 +88,15 @@ router.get('/', async (req, res) => {
       });
     });
 
-    // Get work hours for after-hours detection
+    // Get work hours for after-hours detection (reuse settings loaded above)
     let workStartMins = 450; // 7:30
     let workEndMins = 960; // 16:00
-    try {
-      const { UserSettings } = require('../database/models');
-      const settings = await UserSettings.findOne();
-      if (settings) {
-        const [sh, sm] = settings.workStartTime.split(':').map(Number);
-        const [eh, em] = settings.workEndTime.split(':').map(Number);
-        workStartMins = sh * 60 + sm;
-        workEndMins = eh * 60 + em;
-      }
-    } catch { /* use defaults */ }
+    if (userSettings) {
+      const [sh, sm] = userSettings.workStartTime.split(':').map(Number);
+      const [eh, em] = userSettings.workEndTime.split(':').map(Number);
+      workStartMins = sh * 60 + sm;
+      workEndMins = eh * 60 + em;
+    }
 
     const isAfterHours = (completedAt) => {
       if (!completedAt) return false;

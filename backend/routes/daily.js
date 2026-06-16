@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { Op } = require('sequelize');
 const { WorkItem, Project, ContextSnapshot, CachedEvent, IntegrationConfig, UserSettings } = require('../database/models');
 const { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart, getTimeInET, isWeekendET } = require('../utilities/timezone');
+const { makeIsExcludedMeeting } = require('../utilities/meetings');
 
 const router = Router();
 
@@ -105,7 +106,7 @@ router.get('/:date', async (req, res) => {
   let workdayMinutes = 8.5 * 60;
   let workStartMins = 450; // 7:30
   let workEndMins = 960; // 16:00
-  let excludeKeywords = ['lunch'];
+  let excludeKeywords = 'lunch';
   try {
     const settings = await UserSettings.findOne();
     if (settings) {
@@ -114,16 +115,13 @@ router.get('/:date', async (req, res) => {
       workStartMins = startH * 60 + startM;
       workEndMins = endH * 60 + endM;
       workdayMinutes = workEndMins - workStartMins;
-      if (settings.meetingExcludeKeywords) {
-        excludeKeywords = settings.meetingExcludeKeywords.split(',').map((k) => k.trim().toLowerCase());
+      if (settings.meetingExcludeKeywords != null) {
+        excludeKeywords = settings.meetingExcludeKeywords;
       }
     }
   } catch { /* use default */ }
 
-  const isExcluded = (title) => {
-    const lower = (title || '').trim().toLowerCase();
-    return excludeKeywords.some((kw) => kw && lower === kw.toLowerCase());
-  };
+  const isExcluded = makeIsExcludedMeeting(excludeKeywords);
 
   const meetingEvents = events.filter((e) => !e.allDay && !isExcluded(e.title));
   const meetingMinutes = meetingEvents.reduce((sum, e) => {
@@ -167,14 +165,14 @@ router.get('/week-meetings/:weekStart', async (req, res) => {
     const { weekStart } = req.params;
 
     // Get exclude keywords from settings
-    let excludeKw = ['lunch'];
+    let excludeKw = 'lunch';
     try {
       const s = await UserSettings.findOne();
-      if (s?.meetingExcludeKeywords) {
-        excludeKw = s.meetingExcludeKeywords.split(',').map((k) => k.trim().toLowerCase());
+      if (s?.meetingExcludeKeywords != null) {
+        excludeKw = s.meetingExcludeKeywords;
       }
     } catch { /* use defaults */ }
-    const isExcl = (title) => excludeKw.some((kw) => kw && (title || '').trim().toLowerCase() === kw.toLowerCase());
+    const isExcl = makeIsExcludedMeeting(excludeKw);
 
     const days = {};
     for (let i = 0; i < 5; i++) {
