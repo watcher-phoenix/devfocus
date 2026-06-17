@@ -14,6 +14,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { useTrends } from '../api/trends';
 import { TYPE_LABELS, TYPE_COLORS } from '../constants/workTypes';
 import { exportTrendsCSV, exportReportHTML } from '../utils/exportReport';
+import { rollupOOO } from '../utils/ooo';
 import ContextualHint from '../components/ContextualHint';
 
 function getMonday(date) {
@@ -63,6 +64,7 @@ export default function WeeklySummary() {
 
   const { data, isLoading } = useTrends({ from: formatDate(monday), to: formatDate(friday) });
   const summary = data?.summary || {};
+  const ooo = rollupOOO(summary.oooDays, summary.oooHours);
   const typeBreakdown = data?.typeBreakdown || {};
   const projectBreakdown = data?.projectBreakdown || {};
   const projectColors = data?.projectColors || {};
@@ -83,7 +85,7 @@ export default function WeeklySummary() {
   const itemsSnark = summary.totalCompleted >= 20 ? 'Machine mode.' : summary.totalCompleted >= 10 ? 'Solid week.' : summary.totalCompleted >= 5 ? 'Steady.' : summary.totalCompleted > 0 ? 'Light week.' : 'Ghost mode.';
   const meetingsSnark = summary.totalMeetings >= 15 ? 'RIP your calendar.' : summary.totalMeetings >= 8 ? 'Meeting marathon.' : summary.totalMeetings >= 3 ? 'Manageable.' : summary.totalMeetings > 0 ? 'Breezy.' : 'Meeting-free. Living the dream.';
   const afterHoursSnark = (summary.afterHoursItems || 0) > 0 ? `${summary.afterHoursItems} after-hours item${summary.afterHoursItems !== 1 ? 's' : ''}. Boundaries.` : 'No after-hours work. As it should be.';
-  const oooSnark = (summary.oooDays || 0) >= 3 ? 'Real time off. Good.' : (summary.oooDays || 0) > 0 || (summary.oooHours || 0) > 0 ? 'Stepped away.' : 'No time off this week.';
+  const oooSnark = ooo.days >= 3 ? 'Real time off. Good.' : ooo.days > 0 || ooo.hours > 0 ? 'Stepped away.' : 'No time off this week.';
 
   return (
     <Box>
@@ -154,12 +156,12 @@ export default function WeeklySummary() {
                   />
                 </>
               )}
-              {(summary.oooDays > 0 || summary.oooHours > 0 || !isShareable) && (
+              {(ooo.days > 0 || ooo.hours > 0 || !isShareable) && (
                 <>
                   <Divider sx={{ my: 0.5 }} />
                   <StatRow
                     label="Out of Office"
-                    value={`${summary.oooDays || 0} days, ${summary.oooHours || 0}h`}
+                    value={`${ooo.days} days, ${ooo.hours}h`}
                     subtitle={!isShareable ? oooSnark : undefined}
                   />
                 </>

@@ -19,6 +19,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { useTrends } from '../api/trends';
 import { TYPE_LABELS, TYPE_COLORS } from '../constants/workTypes';
 import { exportTrendsCSV, exportReportHTML } from '../utils/exportReport';
+import { rollupOOO } from '../utils/ooo';
 
 function StatCard({ label, value, subtitle, color }) {
   return (
@@ -248,6 +249,7 @@ export default function Trends() {
   }
 
   const { summary } = data;
+  const ooo = rollupOOO(summary.oooDays, summary.oooHours);
   const exportLabel = useCustom ? `${fromDate}_${toDate}` : `${preset}d`;
 
   return (
@@ -328,7 +330,7 @@ export default function Trends() {
           ))}
         <StatCard label="After Hours Work" value={summary.afterHoursItems || 0} subtitle={summary.afterHoursItems >= 3 ? 'boundaries are a thing' : summary.afterHoursItems > 0 ? 'overtime vibes' : 'healthy work-life balance'} color="#EF5350" />
         <StatCard label="After Hours Mtgs" value={summary.afterHoursMeetings || 0} subtitle={summary.afterHoursMeetings >= 2 ? 'who scheduled these?!' : summary.afterHoursMeetings > 0 ? 'someone owes you dinner' : 'as it should be'} color="#EF5350" />
-        <StatCard label="Out of Office" value={`${summary.oooDays || 0}d · ${summary.oooHours || 0}h`} subtitle={(summary.oooDays || 0) >= 3 ? 'enjoy the recharge' : (summary.oooDays || 0) > 0 || (summary.oooHours || 0) > 0 ? 'stepped away' : 'all hands on deck'} color="#4DB6AC" />
+        <StatCard label="Out of Office" value={`${ooo.days}d · ${ooo.hours}h`} subtitle={ooo.days >= 3 ? 'enjoy the recharge' : ooo.days > 0 || ooo.hours > 0 ? 'stepped away' : 'all hands on deck'} color="#4DB6AC" />
       </Stack>
 
       <Divider sx={{ my: 3 }} />

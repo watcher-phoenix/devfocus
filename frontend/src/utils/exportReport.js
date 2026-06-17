@@ -1,4 +1,5 @@
 import { TYPE_LABELS, TYPE_COLORS } from '../constants/workTypes';
+import { rollupOOO } from './ooo';
 
 const RELEASE_ANCHOR = '2026-05-12';
 
@@ -79,7 +80,7 @@ export function exportReportHTML(data, { mode = 'shareable', dateRange = '' } = 
     { label: 'PRs Reviewed', value: summary.prsReviewed || 0 },
     { label: 'After Hours Items', value: summary.afterHoursItems || 0 },
     { label: 'After Hours Meetings', value: summary.afterHoursMeetings || 0 },
-    { label: 'Out of Office', value: `${summary.oooDays || 0} days, ${summary.oooHours || 0}h` },
+    { label: 'Out of Office', value: (() => { const o = rollupOOO(summary.oooDays, summary.oooHours); return `${o.days} days, ${o.hours}h`; })() },
   ];
 
   const typeRows = topTypes.map(([type, count]) => `<tr><td>${TYPE_LABELS[type] || type}</td><td style="text-align:right;font-weight:600">${count}</td></tr>`).join('');
