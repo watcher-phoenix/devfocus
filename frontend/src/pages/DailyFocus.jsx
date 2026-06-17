@@ -46,6 +46,7 @@ import { useDailyNote, useSaveDailyNote } from '../api/notes';
 import WorkItemDialog from '../components/WorkItemDialog';
 import SnapshotDialog from '../components/SnapshotDialog';
 import LogWorkDialog from '../components/LogWorkDialog';
+import NewWorkItemDialog from '../components/NewWorkItemDialog';
 import RichTextEditor from '../components/RichTextEditor';
 import { spawnConfetti } from '../components/DevEasterEggs';
 
@@ -90,6 +91,7 @@ export default function DailyFocus() {
   const [captureText, setCaptureText] = useState('');
   const [editItem, setEditItem] = useState(null);
   const [logWorkOpen, setLogWorkOpen] = useState(false);
+  const [logNewItemOpen, setLogNewItemOpen] = useState(false);
 
   // Stabilize random snark so it doesn't re-roll on every keystroke
   const capturePlaceholder = useMemo(() => {
@@ -343,6 +345,9 @@ export default function DailyFocus() {
             <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => setLogWorkOpen(true)}>
               Log Work
             </Button>
+            <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => setLogNewItemOpen(true)}>
+              Log New Item
+            </Button>
             <Button size="small" variant="outlined" startIcon={<BookmarkIcon />} onClick={() => { setEditSnapshot(null); setSnapshotDialogOpen(true); }}>
               Save Context
             </Button>
@@ -567,6 +572,7 @@ export default function DailyFocus() {
 
       <WorkItemDialog item={editItem} open={Boolean(editItem)} onClose={() => setEditItem(null)} />
       <LogWorkDialog open={logWorkOpen} onClose={() => setLogWorkOpen(false)} />
+      <NewWorkItemDialog open={logNewItemOpen} onClose={() => setLogNewItemOpen(false)} />
       <SnapshotDialog open={snapshotDialogOpen} onClose={() => setSnapshotDialogOpen(false)} editSnapshot={editSnapshot} />
     </Box>
 

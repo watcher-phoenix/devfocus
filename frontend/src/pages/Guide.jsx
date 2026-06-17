@@ -152,6 +152,7 @@ export default function Guide() {
         <P>Items you mark as Done on the Board show up automatically. Meetings from your synced calendar appear too.</P>
         <B>Manual logging</B>
         <P>Use the "Log Work" button for things that weren't on the Board — ad-hoc requests, ticket work, meetings you handled. You can set the type (Task, Ticket, Strategic, etc.), project, ticket ID, and date.</P>
+        <P>Use the "Log New Item" button to create a new planned task right from Today, without going to the Board. It opens the same form as the Board's New Item, so you pick a status, type, project, dates, and recurrence — the item lands on your Board rather than being logged as already done.</P>
         <P>Click any activity item to edit it if you made a mistake.</P>
       </Section>
 
@@ -205,7 +206,7 @@ export default function Guide() {
         <P><span style={{ color: '#CE93D8' }}>■</span> Items Completed / Meetings / Meeting Hours / PRs Reviewed — Lavender</P>
         <P><span style={{ color: '#EF5350' }}>■</span> After Hours Work / Mtgs — Red</P>
         <P><span style={{ color: '#4DB6AC' }}>■</span> Out of Office (days · hours) — Muted teal</P>
-        <P>Out of Office is pulled from synced calendar events marked “Show as → Out of Office”. All-day blocks count as days; timed blocks count as hours. These are excluded from meeting counts, as are events titled “Focus time” or just “Focus”.</P>
+        <P>Out of Office is pulled from synced calendar events marked “Show as → Out of Office”. All-day blocks count as days; timed blocks count as hours. These are excluded from meeting counts, as are events titled “Focus time” or just “Focus”. When you have an all-day Out of Office block on a date, every meeting on that date is dropped from meeting counts and meeting hours. For a timed Out of Office block, the overlapping portion of each meeting is subtracted (prorated) from your meeting hours — a meeting that falls entirely inside the block drops out completely, while one that only partially overlaps keeps the time outside the block. Either way, OOO time doesn’t skew your meeting totals.</P>
         <B>Chart Colors</B>
         <P><span style={{ color: '#CE93D8' }}>■</span> Items Completed Per Week — Lavender</P>
         <P><span style={{ color: '#78909C' }}>■</span> Meeting Hours Per Week — Slate</P>

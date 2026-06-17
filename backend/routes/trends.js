@@ -39,17 +39,42 @@ router.get('/', async (req, res) => {
     const userSettings = await UserSettings.findOne();
     const isExcludedMeeting = makeIsExcludedMeeting(userSettings?.meetingExcludeKeywords ?? 'lunch');
 
-    // Meetings (timed, non-OOO events; Focus time + excluded titles dropped)
-    const meetings = (await CachedEvent.findAll({
-      where: { date: eventDateWhere, allDay: false, isOOO: false },
-      order: [['startTime', 'ASC']],
-    })).filter((e) => !isExcludedMeeting(e.title));
-
     // Out-of-office events (vacation / OOO blocks)
     const oooEvents = await CachedEvent.findAll({
       where: { date: eventDateWhere, isOOO: true },
       order: [['startTime', 'ASC']],
     });
+
+    // Dates with an all-day OOO block — drop every meeting on these days so OOO days don't skew meeting hours
+    const oooAllDayDates = new Set(oooEvents.filter((e) => e.allDay).map((e) => e.date));
+
+    // Timed OOO blocks grouped by date — meeting time overlapping these is subtracted (prorated) from meeting hours
+    const oooTimedIntervalsByDate = {};
+    oooEvents.filter((e) => !e.allDay).forEach((e) => {
+      if (!oooTimedIntervalsByDate[e.date]) oooTimedIntervalsByDate[e.date] = [];
+      oooTimedIntervalsByDate[e.date].push({
+        start: new Date(e.startTime).getTime(),
+        end: new Date(e.endTime).getTime(),
+      });
+    });
+    // A meeting fully covered by OOO (all-day date, or entirely inside timed OOO blocks) is dropped outright;
+    // partially-overlapping meetings stay and have the overlap prorated out of their minutes below.
+    const fullyOOO = (event) => {
+      if (oooAllDayDates.has(event.date)) return true;
+      const intervals = oooTimedIntervalsByDate[event.date];
+      if (!intervals) return false;
+      const remaining = subtractIntervals(
+        { start: new Date(event.startTime).getTime(), end: new Date(event.endTime).getTime() },
+        intervals
+      );
+      return remaining.reduce((sum, iv) => sum + (iv.end - iv.start), 0) === 0;
+    };
+
+    // Meetings (timed, non-OOO events; Focus time + excluded titles dropped; meetings fully covered by OOO dropped)
+    const meetings = (await CachedEvent.findAll({
+      where: { date: eventDateWhere, allDay: false, isOOO: false },
+      order: [['startTime', 'ASC']],
+    })).filter((e) => !isExcludedMeeting(e.title) && !fullyOOO(e));
 
     // --- Metrics ---
 
@@ -134,19 +159,19 @@ router.get('/', async (req, res) => {
       meetingsByDate[event.date].push(event);
     });
 
-    // Meeting hours per week (merged overlaps)
+    // Meeting hours per week (merged overlaps, OOO time prorated out)
     const weeklyMeetingMinutes = {};
     Object.entries(meetingsByDate).forEach(([date, dayMeetings]) => {
       const weekStart = getWeekStart(new Date(date + 'T12:00:00'));
       if (!weeklyMeetingMinutes[weekStart]) weeklyMeetingMinutes[weekStart] = 0;
-      weeklyMeetingMinutes[weekStart] += getMergedMinutes(dayMeetings);
+      weeklyMeetingMinutes[weekStart] += getMergedMinutes(dayMeetings, oooTimedIntervalsByDate[date]);
     });
 
-    // Daily meeting vs focus breakdown (merged overlaps)
+    // Daily meeting vs focus breakdown (merged overlaps, OOO time prorated out)
     const dailyBreakdown = {};
     Object.entries(meetingsByDate).forEach(([date, dayMeetings]) => {
       dailyBreakdown[date] = {
-        meetingMinutes: getMergedMinutes(dayMeetings),
+        meetingMinutes: getMergedMinutes(dayMeetings, oooTimedIntervalsByDate[date]),
         meetingCount: dayMeetings.length,
       };
     });
@@ -154,8 +179,8 @@ router.get('/', async (req, res) => {
     // Summary stats
     const totalCompleted = completedItems.length;
     const totalMeetings = meetings.length;
-    const totalMergedMinutes = Object.values(meetingsByDate).reduce(
-      (sum, dayMeetings) => sum + getMergedMinutes(dayMeetings), 0
+    const totalMergedMinutes = Object.entries(meetingsByDate).reduce(
+      (sum, [date, dayMeetings]) => sum + getMergedMinutes(dayMeetings, oooTimedIntervalsByDate[date]), 0
     );
     const totalMeetingHours = Math.round(totalMergedMinutes / 6) / 10;
 
@@ -230,8 +255,23 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Merge overlapping meeting intervals and return total minutes
-function getMergedMinutes(events) {
+// Remove the portions of `interval` that overlap any interval in `subtract`, returning the leftover pieces.
+function subtractIntervals(interval, subtract = []) {
+  let remaining = [interval];
+  subtract.forEach((sub) => {
+    remaining = remaining.flatMap((iv) => {
+      if (sub.end <= iv.start || sub.start >= iv.end) return [iv]; // no overlap
+      const parts = [];
+      if (sub.start > iv.start) parts.push({ start: iv.start, end: sub.start });
+      if (sub.end < iv.end) parts.push({ start: sub.end, end: iv.end });
+      return parts;
+    });
+  });
+  return remaining;
+}
+
+// Merge overlapping meeting intervals and return total minutes, prorating out any overlapping OOO time.
+function getMergedMinutes(events, oooIntervals = []) {
   if (events.length === 0) return 0;
   const intervals = events
     .map((e) => ({ start: new Date(e.startTime).getTime(), end: new Date(e.endTime).getTime() }))
@@ -245,7 +285,10 @@ function getMergedMinutes(events) {
       merged.push(intervals[i]);
     }
   }
-  return merged.reduce((sum, iv) => sum + (iv.end - iv.start) / 60000, 0);
+  return merged.reduce(
+    (sum, iv) => sum + subtractIntervals(iv, oooIntervals).reduce((s, p) => s + (p.end - p.start) / 60000, 0),
+    0
+  );
 }
 
 function getWeekStart(date) {
