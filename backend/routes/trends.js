@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { Op, fn, col, literal } = require('sequelize');
 const { WorkItem, CachedEvent, Project, UserSettings } = require('../database/models');
-const { getDaysAgoET, getTimeInET, isWeekendET } = require('../utilities/timezone');
+const { getDaysAgoET, getTodayET, getTimeInET, isWeekendET } = require('../utilities/timezone');
 const { makeIsExcludedMeeting } = require('../utilities/meetings');
 
 const router = Router();
@@ -30,10 +30,13 @@ router.get('/', async (req, res) => {
       order: [['completedAt', 'DESC']],
     });
 
-    // Shared date filter for cached calendar events
+    // Shared date filter for cached calendar events. Calendar events are synced
+    // ~28 days into the future, so without an upper bound, future meetings and OOO
+    // would leak into the totals. Cap at today (or the explicit `to`) so Trends
+    // only reflects events that have actually happened.
     const eventDateWhere = untilDate
       ? { [Op.gte]: sinceDate, [Op.lte]: untilDate }
-      : { [Op.gte]: sinceDate };
+      : { [Op.gte]: sinceDate, [Op.lte]: getTodayET() };
 
     // User's meeting exclude keywords (also drops Focus time blocks)
     const userSettings = await UserSettings.findOne();
