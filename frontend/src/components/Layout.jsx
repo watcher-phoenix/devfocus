@@ -19,6 +19,8 @@ import SummarizeIcon from '@mui/icons-material/Summarize';
 import NotesIcon from '@mui/icons-material/Notes';
 import SettingsIcon from '@mui/icons-material/Settings';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import InsightsIcon from '@mui/icons-material/Insights';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import AddIcon from '@mui/icons-material/Add';
 import Fab from '@mui/material/Fab';
 import Tooltip from '@mui/material/Tooltip';
@@ -40,6 +42,12 @@ const NAV_ITEMS = [
 ];
 
 const SECONDARY_NAV = [
+  {
+    label: 'Live Dashboard',
+    path: '/report',
+    icon: <InsightsIcon />,
+    external: true,
+  },
   { label: 'Guide', path: '/guide', icon: <HelpOutlineIcon /> },
 ];
 
@@ -91,15 +99,22 @@ export default function Layout() {
         {SECONDARY_NAV.map((item) => (
           <ListItemButton
             key={item.path}
-            selected={location.pathname === item.path}
+            selected={!item.external && location.pathname === item.path}
             onClick={() => {
-              navigate(item.path);
+              if (item.external) {
+                window.open(item.path, '_blank', 'noopener,noreferrer');
+              } else {
+                navigate(item.path);
+              }
               setMobileOpen(false);
             }}
             sx={{ mx: 1, borderRadius: 2, mb: 0.5 }}
           >
             <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
             <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: '0.9rem' }} />
+            {item.external && (
+              <OpenInNewIcon sx={{ fontSize: 14, color: 'text.secondary', ml: 1 }} />
+            )}
           </ListItemButton>
         ))}
       </List>

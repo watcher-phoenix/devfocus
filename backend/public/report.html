@@ -5,43 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DevFocus Trends Report</title>
   <style>
+    /* Dark theme matched to the DevFocus app (frontend/src/theme.js) */
     :root {
-      --artifact-background: var(--theme-background, #ffffff);
-      --artifact-background-light: var(--theme-background-light, #f6f6f6);
-      --artifact-background-mid: var(--theme-background-mid, #f0f0f0);
-      --artifact-border-light: var(--theme-border-light, #e5e5e5);
-      --artifact-border-dark: var(--theme-border-dark, #cccccc);
-      --artifact-primary-brand: var(--theme-primary-brand, #343ced);
-      --artifact-selected: var(--theme-selected, #e8e8e8);
-      --artifact-text-primary: var(--theme-text-primary, #1b1b1b);
-      --artifact-text-secondary: var(--theme-text-secondary, #727272);
-      --artifact-chart-a: #343ced;
-      --artifact-chart-b: #82951e;
-      --artifact-chart-c: #ef601b;
-      --artifact-chart-d: #dd2ca5;
-      --artifact-chart-e: #cda515;
-      --artifact-chart-a-soft: #e6e8ff;
-      --artifact-chart-b-soft: #eef5d9;
-      --artifact-chart-c-soft: #ffe7d8;
-      --artifact-chart-d-soft: #fde5f5;
-      --artifact-chart-e-soft: #fbf3cf;
-      --artifact-danger-bg: #fff0ee;
-      --artifact-danger-text: #5c2315;
-      --artifact-good-bg: #e9f7ef;
-      --artifact-good-text: #21442d;
-      --artifact-card-shadow: 0 12px 32px rgba(0,0,0,0.06);
-    }
-    html[data-theme='dark'] {
-      --artifact-chart-a-soft: #1d245f;
-      --artifact-chart-b-soft: #243617;
-      --artifact-chart-c-soft: #4d2411;
-      --artifact-chart-d-soft: #4b173a;
-      --artifact-chart-e-soft: #47380a;
-      --artifact-danger-bg: #3c1911;
-      --artifact-danger-text: #ffd7cf;
-      --artifact-good-bg: #12351f;
-      --artifact-good-text: #d8f5df;
-      --artifact-card-shadow: 0 12px 32px rgba(0,0,0,0.24);
+      --artifact-background: #0F1117;
+      --artifact-background-light: #1A1D27;
+      --artifact-background-mid: #252937;
+      --artifact-border-light: rgba(255, 255, 255, 0.08);
+      --artifact-border-dark: rgba(255, 255, 255, 0.18);
+      --artifact-primary-brand: #7C4DFF;
+      --artifact-selected: rgba(124, 77, 255, 0.18);
+      --artifact-text-primary: #E8EAED;
+      --artifact-text-secondary: #9AA0A6;
+      --artifact-chart-a: #7C4DFF;
+      --artifact-chart-b: #00C853;
+      --artifact-chart-c: #FF6D00;
+      --artifact-chart-d: #00E5FF;
+      --artifact-chart-e: #FFD600;
+      --artifact-chart-a-soft: #261c4d;
+      --artifact-chart-b-soft: #0e3a22;
+      --artifact-chart-c-soft: #3f2410;
+      --artifact-chart-d-soft: #0c3a40;
+      --artifact-chart-e-soft: #3d370c;
+      --artifact-danger-bg: rgba(255, 82, 82, 0.12);
+      --artifact-danger-text: #FFB4B4;
+      --artifact-good-bg: rgba(0, 200, 83, 0.12);
+      --artifact-good-text: #8BE9B0;
+      --artifact-card-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--artifact-background); color: var(--artifact-text-primary); font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
