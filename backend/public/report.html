@@ -740,9 +740,7 @@
         next.lastAttemptLabel = 'Last live refresh: ' + stamp();
         renderState(next);
       } catch (err) {
-        const msg = READER_TOKEN
-          ? 'Could not load data from DevFocus (' + err.message + '). Confirm the app is running and the token in the URL is valid.'
-          : 'No access token in the URL. Open this page as /report?token=YOUR_READER_TOKEN.';
+        const msg = 'Could not load data from DevFocus (' + err.message + '). Open this dashboard from inside the app while logged in, or use /report?token=YOUR_READER_TOKEN.';
         const empty = normalizeApiData({}, fromISO, toISO);
         empty.status = msg;
         empty.lastAttemptLabel = 'Last attempt: ' + stamp();

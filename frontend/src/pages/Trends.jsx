@@ -16,6 +16,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import Button from '@mui/material/Button';
 import DownloadIcon from '@mui/icons-material/Download';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTrends } from '../api/trends';
 import { TYPE_LABELS, TYPE_COLORS } from '../constants/workTypes';
 import { exportTrendsCSV, exportReportHTML } from '../utils/exportReport';
@@ -326,6 +327,16 @@ export default function Trends() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<OpenInNewIcon />}
+            href="/report"
+            target="_blank"
+            rel="noopener"
+          >
+            Live Dashboard
+          </Button>
           <Button
             size="small"
             variant="outlined"

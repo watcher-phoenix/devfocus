@@ -225,6 +225,8 @@ export default function Guide() {
         <P><strong>Shareable</strong> — Clean, professional layout suitable for screenshots or 1:1s with your manager.</P>
         <B>Export</B>
         <P>CSV downloads a spreadsheet of all items and stats. Report opens a formatted, printable page you can save as PDF or print directly.</P>
+        <B>Live Dashboard</B>
+        <P>The Live Dashboard button opens a full interactive dashboard (at /report) that reads live straight from the database — click any chart or bar to drill into the underlying items. It opens with your logged-in session; to share it outside the app (e.g. embed in Glean), use the tokenized link /report?token=YOUR_READER_TOKEN.</P>
       </Section>
 
       <Section title="Settings">
