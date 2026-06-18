@@ -18,7 +18,20 @@ const corsOrigins = [frontendUrl];
 if (process.env.NODE_ENV === 'production') {
   corsOrigins.push('https://devfocus.fly.dev');
 }
-app.use(cors({ origin: corsOrigins, credentials: true }));
+// Trusted origins (the app itself + dev frontend) get credentialed CORS so the
+// cookie-based login works. Any other origin — e.g. an external read-only
+// dashboard like a Glean artifact — is allowed WITHOUT credentials: the bearer
+// token (GET-only) still works, but cookies are never shared cross-origin, so a
+// random site can't ride a logged-in session. Sandboxed iframes send
+// `Origin: null`, which is reflected fine for the token path.
+app.use(cors((req, callback) => {
+  const origin = req.header('Origin');
+  if (!origin || corsOrigins.includes(origin)) {
+    callback(null, { origin: true, credentials: true });
+  } else {
+    callback(null, { origin: true, credentials: false });
+  }
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
