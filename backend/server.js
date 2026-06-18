@@ -5,7 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const { sequelize } = require('./database/models');
-const { verify } = require('./utilities/auth');
+const { verify, readTokenAuthorized } = require('./utilities/auth');
 const { initScheduler } = require('./scheduler');
 
 const app = express();
@@ -37,6 +37,18 @@ app.use(cookieParser());
 
 // Health check (unauthenticated)
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+// Standalone read-only Trends dashboard (self-contained HTML). Token-gated the
+// same way as the read API: open it as /report?token=<DEVFOCUS_READER_TOKEN>.
+// The page reads that token from its own URL and fetches /api/trends same-origin,
+// so it pulls live straight from the database with no CORS or sandbox involved.
+app.get('/report', (req, res) => {
+  const devOpen = !process.env.DEVFOCUS_PASS_HASH && process.env.NODE_ENV !== 'production';
+  if (devOpen || readTokenAuthorized(req)) {
+    return res.sendFile(path.join(__dirname, 'public', 'report.html'));
+  }
+  return res.status(401).send('Unauthorized — append ?token=YOUR_READER_TOKEN to the URL.');
+});
 
 // Auth routes (unauthenticated)
 app.use('/api/auth', require('./routes/auth'));

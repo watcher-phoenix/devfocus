@@ -155,7 +155,7 @@ export default function Guide() {
         <P>Use the "Log New Item" button to create a new planned task right from Today, without going to the Board. It opens the same form as the Board's New Item, so you pick a status, type, project, dates, and recurrence — the item lands on your Board rather than being logged as already done.</P>
         <P>Click any activity item to edit it if you made a mistake.</P>
         <B>Non-task tally</B>
-        <P>On Today, the "Non-task tally" card has tap-to-increment chips for the things that eat your day but never become tasks — Interrupted, Helped someone, Firefighting, Admin, Reading. Tap a chip to add one; tap its × to remove one. The optional note is for jotting what pulled you away. Totals roll up on Trends.</P>
+        <P>On Today, the "Non-task tally" card has tap-to-increment chips for the things that eat your day but never become tasks — Interrupted, Helped someone, Firefighting, Admin, Reading, Ad-hoc meeting, Context switch, Blocked / waiting, Planning, and Documentation. Tap a chip to add one; tap its × to remove one. The optional note is for jotting what pulled you away. Totals roll up on Trends.</P>
         <B>Context switches</B>
         <P>Trends shows a "Context Switches" stat — derived automatically (no logging) from the order of your completed work and meetings each day. A switch is counted whenever the context (project, or a meeting) changes. The "Context &amp; non-task activity" section lists what you actually switched between, day by day.</P>
       </Section>

@@ -6,6 +6,11 @@ export const TALLY_CATEGORIES = [
   { key: 'firefighting', label: 'Firefighting', emoji: '🔥' },
   { key: 'admin', label: 'Admin', emoji: '🗂️' },
   { key: 'reading', label: 'Reading / learning', emoji: '📖' },
+  { key: 'adhoc_meeting', label: 'Ad-hoc meeting', emoji: '📞' },
+  { key: 'context_switch', label: 'Context switch', emoji: '🔀' },
+  { key: 'blocked', label: 'Blocked / waiting', emoji: '⏳' },
+  { key: 'planning', label: 'Planning', emoji: '🗓️' },
+  { key: 'docs', label: 'Documentation', emoji: '📝' },
 ];
 
 export const TALLY_LABELS = Object.fromEntries(TALLY_CATEGORIES.map((c) => [c.key, c.label]));

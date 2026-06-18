@@ -64,4 +64,4 @@ function logout(token) {
   sessions.delete(token);
 }
 
-module.exports = { login, verify, logout };
+module.exports = { login, verify, logout, readTokenAuthorized };
