@@ -210,6 +210,20 @@ router.get('/', async (req, res) => {
     const switchDays = Object.keys(contextTimeline).length || 1;
     const avgSwitchesPerDay = Math.round((totalSwitches / switchDays) * 10) / 10;
 
+    // Flat item-level rows for external dashboards (live drill-down, charts).
+    // releaseWeek/releaseDay are intentionally omitted — they're a client-side
+    // construct (a fixed release cadence), so consumers derive them from completedISO.
+    const items = completedItems.map((i) => ({
+      type: i.type,
+      title: i.title,
+      project: i.project?.name || 'Unassigned',
+      completedISO: i.completedAt ? dateStrET(i.completedAt) : null,
+      completedAt: i.completedAt,
+      externalId: i.externalId || '',
+      externalUrl: i.externalUrl || null,
+      afterHours: isAfterHours(i.completedAt),
+    }));
+
     // --- Non-task tally totals (Interrupted / Helped / Firefighting / etc.) ---
     const tallyRows = await DailyTally.findAll({ where: { date: eventDateWhere } });
     const tallyTotals = {};
@@ -287,6 +301,7 @@ router.get('/', async (req, res) => {
       },
       contextTimeline,
       tallyTotals,
+      items,
       weeklyCompletions,
       weeklyMeetingMinutes,
       typeBreakdown,

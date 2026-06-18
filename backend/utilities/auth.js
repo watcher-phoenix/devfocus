@@ -1,19 +1,34 @@
 const crypto = require('crypto');
 
 const PASS_HASH = process.env.DEVFOCUS_PASS_HASH;
-// Optional static token for external read-only API access (e.g. a live dashboard
-// pulling /api/trends). Grants GET-only access so a leaked token can't mutate data.
+// Optional static tokens for external read-only API access. Both grant GET-only
+// access so a leaked token can't mutate data:
+//   DEVFOCUS_API_TOKEN    — sent as `Authorization: Bearer <token>` (e.g. the
+//                           browser dashboard embeds this).
+//   DEVFOCUS_READER_TOKEN — sent as a `?token=<token>` query param (e.g. Glean's
+//                           document reader, which can't add headers).
+// Either token is accepted on either channel, so they can be rotated
+// independently — rotating the URL token doesn't disturb the header token.
 const API_TOKEN = process.env.DEVFOCUS_API_TOKEN;
+const READER_TOKEN = process.env.DEVFOCUS_READER_TOKEN;
+const READ_TOKENS = [API_TOKEN, READER_TOKEN].filter(Boolean);
 const sessions = new Map();
 
-// Constant-time comparison of the request's Bearer token against API_TOKEN.
-function bearerMatches(req) {
-  if (!API_TOKEN) return false;
-  const match = (req.headers?.authorization || '').match(/^Bearer\s+(.+)$/i);
-  if (!match) return false;
-  const provided = Buffer.from(match[1]);
-  const expected = Buffer.from(API_TOKEN);
-  return provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
+// Constant-time string comparison (guards against length + timing leaks).
+function safeEqual(a, b) {
+  const x = Buffer.from(String(a));
+  const y = Buffer.from(String(b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+// True if the request carries a valid read token via Bearer header or ?token=.
+function readTokenAuthorized(req) {
+  if (!READ_TOKENS.length) return false;
+  const presented = [];
+  const header = (req.headers?.authorization || '').match(/^Bearer\s+(.+)$/i);
+  if (header) presented.push(header[1]);
+  if (typeof req.query?.token === 'string' && req.query.token) presented.push(req.query.token);
+  return presented.some((p) => READ_TOKENS.some((t) => safeEqual(p, t)));
 }
 
 function login(password) {
@@ -33,8 +48,9 @@ function verify(req, res, next) {
   if (!PASS_HASH && process.env.NODE_ENV !== 'production') {
     return next();
   }
-  // Read-only access for external dashboards: a valid Bearer token allows GETs only.
-  if (req.method === 'GET' && bearerMatches(req)) {
+  // Read-only access for external dashboards: a valid token (header or ?token=)
+  // allows GETs only.
+  if (req.method === 'GET' && readTokenAuthorized(req)) {
     return next();
   }
   const token = req.cookies?.devfocus_session;
