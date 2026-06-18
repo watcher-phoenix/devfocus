@@ -8,6 +8,7 @@ const IntegrationConfig = require('./IntegrationConfig')(sequelize);
 const CachedEvent = require('./CachedEvent')(sequelize);
 const UserSettings = require('./UserSettings')(sequelize);
 const DailyNote = require('./DailyNote')(sequelize);
+const DailyTally = require('./DailyTally')(sequelize);
 const StatusConfig = require('./StatusConfig')(sequelize);
 
 // Associations
@@ -30,5 +31,6 @@ module.exports = {
   CachedEvent,
   UserSettings,
   DailyNote,
+  DailyTally,
   StatusConfig,
 };

@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { Op, fn, col, literal } = require('sequelize');
-const { WorkItem, CachedEvent, Project, UserSettings } = require('../database/models');
+const { WorkItem, CachedEvent, Project, UserSettings, DailyTally } = require('../database/models');
 const { getDaysAgoET, getTodayET, getTimeInET, isWeekendET } = require('../utilities/timezone');
 const { makeIsExcludedMeeting } = require('../utilities/meetings');
 
@@ -179,6 +179,46 @@ router.get('/', async (req, res) => {
       };
     });
 
+    // --- Context switches (derived, zero-overhead) ---
+    // Build a per-day timeline of "contexts" from completed work (labeled by project)
+    // and meetings, ordered by time, then count how many times the context changes.
+    // Consecutive items in the same context don't count as a switch.
+    const dateStrET = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const ctxEventsByDate = {};
+    const pushCtx = (date, time, label) => {
+      if (!ctxEventsByDate[date]) ctxEventsByDate[date] = [];
+      ctxEventsByDate[date].push({ time: new Date(time).getTime(), label });
+    };
+    completedItems.forEach((item) => {
+      if (!item.completedAt) return;
+      pushCtx(dateStrET(item.completedAt), item.completedAt, item.project?.name || 'Unassigned');
+    });
+    meetings.forEach((event) => pushCtx(event.date, event.startTime, 'Meeting'));
+
+    const contextTimeline = {};
+    let totalSwitches = 0;
+    Object.entries(ctxEventsByDate).forEach(([date, evs]) => {
+      evs.sort((a, b) => a.time - b.time);
+      const sequence = [];
+      evs.forEach((e) => {
+        if (sequence.length === 0 || sequence[sequence.length - 1] !== e.label) sequence.push(e.label);
+      });
+      const switches = Math.max(0, sequence.length - 1);
+      totalSwitches += switches;
+      contextTimeline[date] = { sequence, switches };
+    });
+    const switchDays = Object.keys(contextTimeline).length || 1;
+    const avgSwitchesPerDay = Math.round((totalSwitches / switchDays) * 10) / 10;
+
+    // --- Non-task tally totals (Interrupted / Helped / Firefighting / etc.) ---
+    const tallyRows = await DailyTally.findAll({ where: { date: eventDateWhere } });
+    const tallyTotals = {};
+    tallyRows.forEach((row) => {
+      let counts = {};
+      try { counts = JSON.parse(row.counts || '{}'); } catch { counts = {}; }
+      Object.entries(counts).forEach(([k, v]) => { tallyTotals[k] = (tallyTotals[k] || 0) + (Number(v) || 0); });
+    });
+
     // Summary stats
     const totalCompleted = completedItems.length;
     const totalMeetings = meetings.length;
@@ -242,7 +282,11 @@ router.get('/', async (req, res) => {
         afterHoursMeetings: afterHoursMeetings.length,
         oooDays,
         oooHours,
+        contextSwitches: totalSwitches,
+        avgSwitchesPerDay,
       },
+      contextTimeline,
+      tallyTotals,
       weeklyCompletions,
       weeklyMeetingMinutes,
       typeBreakdown,

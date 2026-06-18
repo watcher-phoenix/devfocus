@@ -20,6 +20,7 @@ import { useTrends } from '../api/trends';
 import { TYPE_LABELS, TYPE_COLORS } from '../constants/workTypes';
 import { exportTrendsCSV, exportReportHTML } from '../utils/exportReport';
 import { rollupOOO } from '../utils/ooo';
+import { TALLY_LABELS } from '../constants/tallies';
 
 function StatCard({ label, value, subtitle, color }) {
   return (
@@ -197,6 +198,69 @@ function ProjectBreakdown({ data, total, details, colors = {} }) {
   );
 }
 
+function ContextActivity({ tallyTotals = {}, contextTimeline = {} }) {
+  const [open, setOpen] = useState(false);
+  const tallyEntries = Object.entries(tallyTotals).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  // Days with at least one switch, most recent first
+  const days = Object.entries(contextTimeline)
+    .filter(([, v]) => (v.switches || 0) > 0)
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1));
+
+  if (tallyEntries.length === 0 && days.length === 0) return null;
+
+  return (
+    <Card sx={{ mb: 3 }}>
+      <CardContent>
+        <Typography variant="h6" sx={{ fontSize: '0.95rem', mb: 1.5 }}>Context &amp; non-task activity</Typography>
+
+        {tallyEntries.length > 0 && (
+          <Box sx={{ mb: days.length ? 2 : 0 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>Non-task tallies</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
+              {tallyEntries.map(([key, n]) => (
+                <Chip key={key} size="small" color="warning" variant="outlined" label={`${TALLY_LABELS[key] || key} · ${n}`} />
+              ))}
+            </Box>
+          </Box>
+        )}
+
+        {days.length > 0 && (
+          <Box>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                What you switched between ({days.length} day{days.length === 1 ? '' : 's'})
+              </Typography>
+              <IconButton size="small" onClick={() => setOpen((o) => !o)}>
+                {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+              </IconButton>
+            </Stack>
+            <Collapse in={open}>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                {days.map(([date, v]) => (
+                  <Box key={date}>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                      {new Date(date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                      {' · '}{v.switches} switch{v.switches === 1 ? '' : 'es'}
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                      {v.sequence.map((label, i) => (
+                        <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          {i > 0 && <Typography variant="caption" sx={{ color: 'text.disabled' }}>→</Typography>}
+                          <Chip size="small" variant="outlined" label={label} sx={{ height: 20, fontSize: '0.7rem' }} />
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                ))}
+              </Stack>
+            </Collapse>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function daysAgo(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -331,6 +395,7 @@ export default function Trends() {
         <StatCard label="After Hours Work" value={summary.afterHoursItems || 0} subtitle={summary.afterHoursItems >= 3 ? 'boundaries are a thing' : summary.afterHoursItems > 0 ? 'overtime vibes' : 'healthy work-life balance'} color="#EF5350" />
         <StatCard label="After Hours Mtgs" value={summary.afterHoursMeetings || 0} subtitle={summary.afterHoursMeetings >= 2 ? 'who scheduled these?!' : summary.afterHoursMeetings > 0 ? 'someone owes you dinner' : 'as it should be'} color="#EF5350" />
         <StatCard label="Out of Office" value={`${ooo.days}d · ${ooo.hours}h`} subtitle={ooo.days >= 3 ? 'enjoy the recharge' : ooo.days > 0 || ooo.hours > 0 ? 'stepped away' : 'all hands on deck'} color="#4DB6AC" />
+        <StatCard label="Context Switches" value={`${summary.avgSwitchesPerDay || 0}/day`} subtitle={(summary.avgSwitchesPerDay || 0) >= 8 ? 'whiplash territory' : (summary.avgSwitchesPerDay || 0) >= 4 ? 'fragmented' : (summary.contextSwitches || 0) > 0 ? 'mostly heads-down' : 'pure focus'} color="#FFB74D" />
       </Stack>
 
       <Divider sx={{ my: 3 }} />
@@ -364,6 +429,9 @@ export default function Trends() {
           <ProjectBreakdown data={data.projectBreakdown} total={summary.totalCompleted} details={data.projectDetails} colors={data.projectColors || {}} />
         </CardContent>
       </Card>
+
+      {/* Context switches — the "what" + non-task tallies */}
+      <ContextActivity tallyTotals={data.tallyTotals} contextTimeline={data.contextTimeline} />
     </Box>
   );
 }

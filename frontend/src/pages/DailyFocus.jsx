@@ -35,6 +35,7 @@ import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import NotesIcon from '@mui/icons-material/Notes';
+import TouchAppIcon from '@mui/icons-material/TouchApp';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloseIcon from '@mui/icons-material/Close';
@@ -43,6 +44,8 @@ import { useUpdateWorkItemStatus, useQuickCapture } from '../api/workItems';
 import { useActivity } from '../api/activity';
 import { useSnapshots, useDeactivateSnapshot } from '../api/snapshots';
 import { useDailyNote, useSaveDailyNote } from '../api/notes';
+import { useTally, useSaveTally } from '../api/tallies';
+import { TALLY_CATEGORIES } from '../constants/tallies';
 import WorkItemDialog from '../components/WorkItemDialog';
 import SnapshotDialog from '../components/SnapshotDialog';
 import LogWorkDialog from '../components/LogWorkDialog';
@@ -135,6 +138,36 @@ export default function DailyFocus() {
       noteLastSaved.current = noteData.content || '';
     }
   }, [noteData]);
+
+  // Non-task tally state (tap-to-increment counters + optional note)
+  const { data: tallyData } = useTally('today');
+  const saveTally = useSaveTally('today');
+  const [tallyCounts, setTallyCounts] = useState({});
+  const [tallyNote, setTallyNote] = useState('');
+  const tallyNoteSaved = useRef('');
+
+  useEffect(() => {
+    if (tallyData) {
+      setTallyCounts(tallyData.counts || {});
+      setTallyNote(tallyData.note || '');
+      tallyNoteSaved.current = tallyData.note || '';
+    }
+  }, [tallyData]);
+
+  const bumpTally = (key, delta) => {
+    const next = { ...tallyCounts };
+    next[key] = Math.max(0, (next[key] || 0) + delta);
+    if (next[key] === 0) delete next[key];
+    setTallyCounts(next);
+    saveTally.mutate({ counts: next, note: tallyNote });
+  };
+
+  const handleTallyNoteBlur = () => {
+    if (tallyNote !== tallyNoteSaved.current) {
+      tallyNoteSaved.current = tallyNote;
+      saveTally.mutate({ counts: tallyCounts, note: tallyNote });
+    }
+  };
 
   const handleNoteChange = useCallback((html) => {
     setNoteContent(html);
@@ -576,8 +609,43 @@ export default function DailyFocus() {
       <SnapshotDialog open={snapshotDialogOpen} onClose={() => setSnapshotDialogOpen(false)} editSnapshot={editSnapshot} />
     </Box>
 
-    {/* Right column — Notes */}
+    {/* Right column — Non-task tally + Notes */}
     <Box sx={{ flex: 1, minWidth: 0, width: { xs: '100%', md: 'auto' } }}>
+      <Card sx={{ mb: 2 }}>
+        <CardContent sx={{ pb: '12px !important' }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+            <TouchAppIcon sx={{ color: 'warning.main', fontSize: 18 }} />
+            <Typography variant="h6" sx={{ fontSize: '0.9rem' }}>Non-task tally</Typography>
+          </Stack>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+            {TALLY_CATEGORIES.map((c) => {
+              const n = tallyCounts[c.key] || 0;
+              return (
+                <Chip
+                  key={c.key}
+                  size="small"
+                  label={`${c.emoji} ${c.label}${n ? ` · ${n}` : ''}`}
+                  color={n ? 'warning' : 'default'}
+                  variant={n ? 'filled' : 'outlined'}
+                  onClick={() => bumpTally(c.key, 1)}
+                  onDelete={n ? () => bumpTally(c.key, -1) : undefined}
+                />
+              );
+            })}
+          </Box>
+          <TextField
+            value={tallyNote}
+            onChange={(e) => setTallyNote(e.target.value)}
+            onBlur={handleTallyNoteBlur}
+            placeholder="What pulled you away? (optional)"
+            fullWidth
+            multiline
+            rows={2}
+            size="small"
+            sx={{ mt: 1.5 }}
+          />
+        </CardContent>
+      </Card>
       <Card>
         <CardContent sx={{ pb: '12px !important' }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
