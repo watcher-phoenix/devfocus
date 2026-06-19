@@ -227,10 +227,24 @@ router.get('/', async (req, res) => {
     // --- Non-task tally totals (Interrupted / Helped / Firefighting / etc.) ---
     const tallyRows = await DailyTally.findAll({ where: { date: eventDateWhere } });
     const tallyTotals = {};
+    // Per-entry detail (timestamp + note) so the dashboard can surface the
+    // qualitative "why" behind each category, not just the count.
+    const tallyDetails = {};
     tallyRows.forEach((row) => {
       let counts = {};
       try { counts = JSON.parse(row.counts || '{}'); } catch { counts = {}; }
       Object.entries(counts).forEach(([k, v]) => { tallyTotals[k] = (tallyTotals[k] || 0) + (Number(v) || 0); });
+      let entries = {};
+      try { entries = JSON.parse(row.entries || '{}'); } catch { entries = {}; }
+      Object.entries(entries).forEach(([k, list]) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((e) => {
+          if (e && typeof e === 'object' && (e.note || e.ts)) {
+            if (!tallyDetails[k]) tallyDetails[k] = [];
+            tallyDetails[k].push({ date: row.date, ts: e.ts || '', note: e.note || '' });
+          }
+        });
+      });
     });
 
     // Summary stats
@@ -301,6 +315,7 @@ router.get('/', async (req, res) => {
       },
       contextTimeline,
       tallyTotals,
+      tallyDetails,
       items,
       weeklyCompletions,
       weeklyMeetingMinutes,

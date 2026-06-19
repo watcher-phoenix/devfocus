@@ -82,6 +82,16 @@
     .chip { padding: 10px 12px; border-radius: 14px; background: var(--artifact-background); border: 1px solid var(--artifact-border-light); font-size: 13px; color: var(--artifact-text-secondary); }
     .callout { padding: 16px; border-radius: 18px; background: var(--artifact-danger-bg); color: var(--artifact-danger-text); border: 1px solid var(--artifact-border-light); font-size: 14px; line-height: 1.55; }
     .good { background: var(--artifact-good-bg); color: var(--artifact-good-text); }
+    .warn { background: rgba(255, 214, 0, 0.12); color: #FFE08A; }
+    .headline { display: block; margin-bottom: 14px; }
+    .headline .headline-eyebrow { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.75; margin-bottom: 6px; }
+    .headline .headline-title { display: block; font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .insight .insight-action { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--artifact-border-light); font-size: 13px; color: var(--artifact-text-secondary); }
+    .insight .insight-action::before { content: '→ '; color: var(--artifact-primary-brand); font-weight: 700; }
+    .stat .delta { font-size: 12px; font-weight: 600; margin-left: 6px; }
+    .delta.up { color: var(--artifact-chart-b); }
+    .delta.down { color: var(--artifact-chart-c); }
+    .delta.flat { color: var(--artifact-text-secondary); }
     .detail-modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
     .detail-modal.is-open { display: flex; }
     .detail-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.42); }
@@ -192,7 +202,8 @@
 
     <section class="grid-equal">
       <div class="panel section">
-        <div class="section-head"><div><h2>Insights</h2><p>Short read on the strongest patterns in the current slice.</p></div></div>
+        <div class="section-head"><div><h2>Insights</h2><p>Ranked read on the strongest patterns in the current slice — the headline is the single most notable signal.</p></div></div>
+        <div id="headlineInsight" class="callout headline"></div>
         <div id="insightCards" class="insights"></div>
       </div>
       <div class="panel section">
@@ -263,6 +274,40 @@
       support: 'Weekend Support', urgent: 'Urgent',
     };
     const typeLabel = (t) => TYPE_LABELS[t] || t;
+    // Non-task tally categories (mirrors frontend/src/constants/tallies.js).
+    const TALLY_LABELS = {
+      interrupted: 'Interruptions', helped: 'Helping others', firefighting: 'Firefighting',
+      admin: 'Admin', reading: 'Reading / learning', adhoc_meeting: 'Ad-hoc meetings',
+      context_switch: 'Context switches', blocked: 'Blocked / waiting', planning: 'Planning',
+      docs: 'Documentation',
+    };
+    const TALLY_EMOJI = {
+      interrupted: '✋', helped: '🤝', firefighting: '🔥', admin: '🗂️', reading: '📖',
+      adhoc_meeting: '📞', context_switch: '🔀', blocked: '⏳', planning: '🗓️', docs: '📝',
+    };
+    // Join a list of names into readable prose: "A", "A and B", "A, B, and C".
+    function formatList(names) {
+      const xs = names.filter(Boolean);
+      if (xs.length === 0) return '—';
+      if (xs.length === 1) return xs[0];
+      if (xs.length === 2) return xs[0] + ' and ' + xs[1];
+      return xs.slice(0, -1).join(', ') + ', and ' + xs[xs.length - 1];
+    }
+    // Turn a raw figure into a verdict + tone so a number reads as good/watch/concern.
+    function band(value, watchAt, concernAt) {
+      if (value >= concernAt) return { label: 'high', tone: 'concern' };
+      if (value >= watchAt) return { label: 'elevated', tone: 'watch' };
+      return { label: 'healthy', tone: 'good' };
+    }
+    // Percent-change string between two values, with arrow + direction.
+    function deltaInfo(curr, prev) {
+      if (prev === null || prev === undefined) return null;
+      if (prev === 0) return curr > 0 ? { text: 'new vs prior period', dir: 'up' } : null;
+      const pct = Math.round(((curr - prev) / prev) * 100);
+      if (pct === 0) return { text: 'flat vs prior period', dir: 'flat' };
+      const arrow = pct > 0 ? '▲' : '▼';
+      return { text: arrow + ' ' + Math.abs(pct) + '% vs prior period', dir: pct > 0 ? 'up' : 'down' };
+    }
     // Release cadence (mirrors frontend/src/utils/exportReport.js). /api/trends omits
     // releaseWeek/releaseDay by design and expects the client to derive them.
     const RELEASE_ANCHOR = '2026-05-12';
@@ -368,7 +413,7 @@
         weekStartUS: weekStart ? toUS(weekStart) : '—'
       };
     }
-    function computeCards(rawItems, weekly, apiSummary, rangeLabel, status) {
+    function computeCards(rawItems, weekly, apiSummary, rangeLabel, status, tally) {
       const itemsTotal = rawItems.length;
       const afterHoursTotal = rawItems.filter(r => r.afterHours).length;
       const afterHoursPct = itemsTotal ? afterHoursTotal / itemsTotal * 100 : 0;
@@ -454,41 +499,168 @@
       const primaryProject = projectEntries[0] ? projectEntries[0][0] : '—';
       const primaryProjectCount = projectEntries[0] ? projectEntries[0][1] : 0;
       const primaryProjectPct = itemsTotal ? primaryProjectCount / itemsTotal * 100 : 0;
-      const topProjectsTotal = rawItems.filter(r => ['CRM','Builder Scraper','SalesAsk','Land CRM'].includes(r.project)).length;
+      // Top projects are derived from the slice, not hardcoded, so the copy is always true.
+      const topProjectNames = projectEntries.slice(0, 4).map(e => e[0]);
+      const topProjectsTotal = projectEntries.slice(0, 4).reduce((s, e) => s + e[1], 0);
       const topProjectsPct = itemsTotal ? topProjectsTotal / itemsTotal * 100 : 0;
+      const topProjectsLabel = formatList(topProjectNames);
       const strategicTotal = rawItems.filter(r => ['Strategic','Reviews','Follow-ups'].includes(r.type)).length;
       const strategicPct = itemsTotal ? strategicTotal / itemsTotal * 100 : 0;
-      const salesaskRows = rawItems.filter(r => r.project === 'SalesAsk');
-      const salesaskSupport = salesaskRows.filter(r => ['Tickets','Tasks'].includes(r.type)).length;
-      const salesaskSupportPct = salesaskRows.length ? salesaskSupport / salesaskRows.length * 100 : 0;
-      const builderRows = rawItems.filter(r => r.project === 'Builder Scraper');
-      const builderAfter = builderRows.filter(r => r.afterHours).length;
-      const builderAfterPct = builderRows.length ? builderAfter / builderRows.length * 100 : 0;
+      // Most support-heavy project in the slice (was hardcoded to SalesAsk).
+      const supportByProject = {};
+      rawItems.forEach(r => { if (['Tickets','Tasks','Weekend Support','Urgent'].includes(r.type)) supportByProject[r.project] = (supportByProject[r.project] || 0) + 1; });
+      const topSupportEntry = Object.entries(supportByProject).sort((a,b)=>b[1]-a[1])[0] || ['—', 0];
+      const supportProject = topSupportEntry[0];
+      const supportProjectCount = topSupportEntry[1];
+      const supportProjectRows = rawItems.filter(r => r.project === supportProject).length;
+      const supportProjectPct = supportProjectRows ? supportProjectCount / supportProjectRows * 100 : 0;
+      // Project carrying the most after-hours load (was hardcoded to Builder Scraper).
+      const afterByProject = {};
+      rawItems.forEach(r => { if (r.afterHours) afterByProject[r.project] = (afterByProject[r.project] || 0) + 1; });
+      const topAfterEntry = Object.entries(afterByProject).sort((a,b)=>b[1]-a[1])[0] || ['—', 0];
+      const afterProject = topAfterEntry[0];
+      const afterProjectCount = topAfterEntry[1];
+      const afterProjectRows = rawItems.filter(r => r.project === afterProject).length;
+      const afterProjectPct = afterProjectRows ? afterProjectCount / afterProjectRows * 100 : 0;
       const releaseAfterHours = rawItems.filter(r => r.releaseWeek && r.afterHours).length;
+      const releaseItemsPct = itemsTotal ? releaseItems / itemsTotal * 100 : 0;
       const avgItemsPerWeek = weekly.length ? itemsTotal / weekly.length : 0;
       const avgMeetingHoursPerWeek = weekly.length ? Number(meetingHours) / weekly.length : 0;
+      const fragPct = activeDayCount ? multiProjectDays / activeDayCount * 100 : 0;
+      const spikeRatio = avgItemsPerActiveDay ? peakDayCount / avgItemsPerActiveDay : 0;
+      const peakDayIsRelease = peakDayISO ? releaseFlags(peakDayISO).isWeek : false;
+
+      // --- Verdict bands turn raw figures into good / watch / concern ---
+      const afterBand = band(afterHoursPct, 10, 25);
+      const supportBand = band(supportPct, 30, 50);
+      const fragBand = band(fragPct, 45, 70);
+      const meetingBand = band(avgMeetingHoursPerWeek, 8, 15);
+      const streakStr = longestAfterHoursStreakCount > 1
+        ? ' (' + longestAfterHoursStartUS + ' → ' + longestAfterHoursEndUS + ')' : '';
+
+      // --- Tally signal (the "why" behind fragmented days) ---
+      const tallyTotals = (tally && tally.totals) || {};
+      const tallyDetails = (tally && tally.details) || {};
+      const tallyRanked = Object.entries(tallyTotals)
+        .filter(([, n]) => Number(n) > 0)
+        .sort((a, b) => b[1] - a[1]);
+      const sampleNote = (key) => {
+        const list = (tallyDetails[key] || []).filter(d => d.note);
+        return list.length ? list[list.length - 1].note : '';
+      };
+      const reactiveTally = new Set(['firefighting', 'interrupted', 'blocked', 'context_switch', 'adhoc_meeting']);
+
+      // --- One scored candidate pool feeds both the short and detailed cards ---
+      // (no more two near-identical lists). Each: { title, short, body, action, score, tone }.
+      const pool = [];
+      if (itemsTotal > 0) {
+        pool.push({
+          title: 'After-hours load is ' + afterBand.label,
+          short: afterHoursTotal + ' of ' + itemsTotal + ' items (' + formatPct(afterHoursPct) + ') landed after hours.',
+          body: afterHoursTotal + ' of ' + itemsTotal + ' completed items (' + formatPct(afterHoursPct) + ') landed outside work hours — ' + afterBand.label + '. The heaviest after-hours project was ' + afterProject + ' with ' + afterProjectCount + ' items, and the longest consecutive after-hours run lasted ' + longestAfterHoursStreakCount + ' day' + (longestAfterHoursStreakCount === 1 ? '' : 's') + streakStr + '.',
+          action: afterBand.tone !== 'good' ? 'Spillover concentrates in ' + afterProject + ' and on ' + topAfterHoursWeekdayName + 's — worth protecting those evenings.' : null,
+          score: afterHoursPct, tone: afterBand.tone,
+        });
+        pool.push({
+          title: fragBand.tone === 'good' ? 'Days stayed reasonably focused' : 'Most days were fragmented',
+          short: multiProjectDays + ' of ' + activeDayCount + ' active days touched more than one project.',
+          body: multiProjectDays + ' of ' + activeDayCount + ' active days spanned multiple projects versus ' + singleProjectDays + ' single-project days. The average active day touched ' + Number(avgProjectsPerActiveDay).toFixed(1) + ' projects and ' + Number(avgTypesPerActiveDay).toFixed(1) + ' work types, peaking at ' + maxProjectsOnDay + ' projects on ' + maxProjectDayUS + '.',
+          action: fragBand.tone !== 'good' ? 'Batching same-project work into blocks would cut the daily switching tax.' : null,
+          score: fragPct, tone: fragBand.tone,
+        });
+        pool.push({
+          title: 'Reactive support was ' + supportBand.label,
+          short: supportTotal + ' of ' + itemsTotal + ' items (' + formatPct(supportPct) + ') were support-type work.',
+          body: supportTotal + ' of ' + itemsTotal + ' items (' + formatPct(supportPct) + ') were Tickets, Tasks, Weekend Support, or Urgent work. ' + (supportProject !== '—' ? supportProject + ' carried the most, with ' + supportProjectCount + ' support items (' + formatPct(supportProjectPct) + ' of its activity).' : ''),
+          action: supportBand.tone === 'concern' ? 'A large reactive share squeezes planned delivery — worth flagging if it persists.' : null,
+          score: supportPct, tone: supportBand.tone,
+        });
+        if (peakDayCount > 0) {
+          pool.push({
+            title: 'Throughput was bursty, not steady',
+            short: peakDayUS + ' was the biggest burst at ' + peakDayCount + ' items.',
+            body: peakDayUS + ' hit ' + peakDayCount + ' completed items — about ' + spikeRatio.toFixed(1) + '× a typical active day (' + avgItemsPerActiveDay.toFixed(1) + ' items).' + (peakDayIsRelease ? ' It falls in a release week, so volume is partly release/backmerge mechanics rather than steady feature work.' : ''),
+            action: null,
+            score: spikeRatio * 12, tone: spikeRatio >= 2 ? 'watch' : 'good',
+          });
+        }
+        pool.push({
+          title: 'Execution and review led the work',
+          short: execReviewTotal + ' of ' + itemsTotal + ' items (' + formatPct(execReviewPct) + ') were PR merges or reviews.',
+          body: execReviewTotal + ' of ' + itemsTotal + ' items (' + formatPct(execReviewPct) + ') were PR merges or PR reviews, against ' + strategicTotal + ' items (' + formatPct(strategicPct) + ') logged as Strategic, Reviews, or Follow-ups — hands-on throughput dominated the slice.',
+          action: null, score: 22, tone: 'good',
+        });
+        pool.push({
+          title: 'Breadth across domains',
+          short: uniqueProjects + ' projects · ' + uniqueTypes + ' work types across ' + activeDayCount + ' active days.',
+          body: 'Work spanned ' + uniqueProjects + ' projects and ' + uniqueTypes + ' work types across ' + activeDayCount + ' active days, averaging ' + Number(avgItemsPerActiveDay).toFixed(1) + ' completed items per active day. ' + topProjectsLabel + ' accounted for the bulk (' + formatPct(topProjectsPct) + ').',
+          action: null, score: 12, tone: 'good',
+        });
+        if (totalMeetings > 0) {
+          pool.push({
+            title: 'Meeting load was ' + meetingBand.label,
+            short: totalMeetings + ' meetings · ' + Number(meetingHours).toFixed(0) + 'h (~' + avgMeetingHoursPerWeek.toFixed(1) + 'h/week).',
+            body: totalMeetings + ' meetings consumed ' + Number(meetingHours).toFixed(0) + ' hours (about ' + avgMeetingHoursPerWeek.toFixed(1) + 'h/week) while you averaged ' + avgItemsPerWeek.toFixed(1) + ' completed items per week. Weekly meeting-vs-output correlation was ' + cor + '.',
+            action: null, score: avgMeetingHoursPerWeek * 2, tone: meetingBand.tone,
+          });
+        }
+        if (releaseItems > 0) {
+          pool.push({
+            title: 'Release weeks added bursty overhead',
+            short: releaseItems + ' items (' + formatPct(releaseItemsPct) + ') were release-week work.',
+            body: releaseItems + ' items (' + formatPct(releaseItemsPct) + ') fell in release weeks, ' + releaseDayItems + ' on release days, and ' + releaseAfterHours + ' release-tagged items were after hours.',
+            action: releaseAfterHours > 0 ? 'Release weeks pull work into evenings — buffering release days could help.' : null,
+            score: releaseItemsPct * 0.6 + releaseAfterHours * 3, tone: releaseAfterHours > 0 ? 'watch' : 'good',
+          });
+        }
+      }
+      // Tally-driven insights — surface the top reactive categories with a real note.
+      tallyRanked.slice(0, 2).forEach(([key, n]) => {
+        const label = TALLY_LABELS[key] || key;
+        const emoji = TALLY_EMOJI[key] || '•';
+        const note = sampleNote(key);
+        const reactive = reactiveTally.has(key);
+        pool.push({
+          title: emoji + ' ' + label + ' logged ' + n + '×',
+          short: emoji + ' ' + label + ' logged ' + n + ' time' + (n === 1 ? '' : 's') + (note ? ' — e.g. “' + note + '”' : '') + '.',
+          body: 'You logged ' + label.toLowerCase() + ' ' + n + ' time' + (n === 1 ? '' : 's') + ' this period' + (note ? ', most recently noting “' + note + '”' : '') + '. This is the kind of non-task load that fragments days without ever showing up as a completed item.',
+          action: reactive && n >= 5 ? 'A recurring ' + label.toLowerCase() + ' pattern is worth naming in a 1:1 or retro.' : null,
+          score: n * 5 + (reactive ? 10 : 0), tone: reactive ? 'watch' : 'good',
+        });
+      });
+
+      pool.sort((a, b) => b.score - a.score);
+      const headline = pool.length ? pool[0] : null;
+      // Short cards skip the headline (shown separately) to avoid repetition.
+      const insightCards = pool.slice(1, 7).map(c => ({ title: c.title, body: c.short, action: c.action, tone: c.tone }));
+      const managerCards = pool.map(c => ({ title: c.title, body: c.body, action: c.action, tone: c.tone }));
+
       return {
         rangeLabel,
         status,
+        headline,
         summary: {
           itemsTotal,
           meetingHours,
           totalMeetings,
           afterHoursTotal,
           afterHoursPct,
+          afterHoursBandLabel: afterBand.label,
           execReviewTotal,
           execReviewPct,
           releaseItems,
-          releaseItemsPct: itemsTotal ? releaseItems / itemsTotal * 100 : 0,
+          releaseItemsPct,
           releaseDayItems,
           correlation: cor,
           peakDayUS,
           peakDayCount,
+          peakSpikeRatio: spikeRatio,
+          peakDayIsRelease,
           lowMeetingWeek: lowMeeting.weekUS,
           lowMeetingHours: Number(lowMeeting.meetingHours || 0).toFixed(1),
-          salesaskSupport,
-          salesaskTotal: salesaskRows.length,
-          salesaskSupportPct,
+          supportProject,
+          supportProjectCount,
+          supportProjectPct,
           supportTotal,
           supportPct,
           uniqueProjects,
@@ -515,30 +687,15 @@
           primaryProjectPct,
           strategicTotal,
           strategicPct,
-          builderAfter,
-          builderAfterPct,
+          afterProject,
+          afterProjectCount,
+          afterProjectPct,
           topProjectsTotal,
-          topProjectsPct
+          topProjectsPct,
+          topProjectsLabel
         },
-        managerCards: [
-          { title: 'Breadth across domains was real, not cosmetic', body: 'This slice spans ' + uniqueProjects + ' projects and ' + uniqueTypes + ' work types across ' + activeDayCount + ' active days, averaging ' + Number(avgItemsPerActiveDay).toFixed(1) + ' completed items per active day. That reads like a role with both depth and real cross-domain coverage, not a single-lane backlog.' },
-          { title: 'Delivery and review were the core of the work', body: execReviewTotal + ' of ' + itemsTotal + ' tracked items (' + formatPct(execReviewPct) + ') were PR merges or PR reviews, while only ' + strategicTotal + ' items (' + formatPct(strategicPct) + ') were logged as Strategic, Reviews, or Follow-ups. The strongest visible pattern is hands-on execution and review throughput.' },
-          { title: 'The work mixed feature delivery with live support pressure', body: supportTotal + ' of ' + itemsTotal + ' items (' + formatPct(supportPct) + ') were Tickets, Tasks, Weekend Support, or Urgent work. Inside SalesAsk specifically, ' + salesaskSupport + ' of ' + salesaskRows.length + ' items (' + formatPct(salesaskSupportPct) + ') were Tickets or Tasks, so that project shows up mostly as reactive support and cleanup in this window.' },
-          { title: 'Attention was concentrated enough to imply real ownership', body: primaryProject + ' alone accounted for ' + primaryProjectCount + ' items (' + formatPct(primaryProjectPct) + '), and CRM, Builder Scraper, SalesAsk, and Land CRM together accounted for ' + topProjectsTotal + ' items (' + formatPct(topProjectsPct) + '). That is not random spread; it looks like sustained ownership in a few high-touch domains.' },
-          { title: 'Context switching was the norm on most active days', body: multiProjectDays + ' of ' + activeDayCount + ' active days involved more than one project, versus only ' + singleProjectDays + ' single-project days. The average active day touched ' + Number(avgProjectsPerActiveDay).toFixed(1) + ' projects and ' + Number(avgTypesPerActiveDay).toFixed(1) + ' work types, with the widest project spread hitting ' + maxProjectsOnDay + ' projects on ' + maxProjectDayUS + '.' },
-          { title: 'Meetings stayed material alongside output', body: totalMeetings + ' meetings consumed ' + Number(meetingHours).toFixed(1) + ' hours across the slice, which works out to about ' + Number(avgMeetingHoursPerWeek).toFixed(1) + ' meeting hours per week while still averaging ' + Number(avgItemsPerWeek).toFixed(1) + ' completed items per week. The work pattern is not “heads-down only”; it coexists with heavy coordination overhead.' },
-          { title: 'After-hours work was concentrated, not just occasional', body: afterHoursTotal + ' items (' + formatPct(afterHoursPct) + ') were marked after hours. Builder Scraper alone had ' + builderAfter + ' after-hours items, or ' + formatPct(builderAfterPct) + ' of Builder Scraper activity, and the longest consecutive after-hours run lasted ' + longestAfterHoursStreakCount + ' days from ' + longestAfterHoursStartUS + ' to ' + longestAfterHoursEndUS + '.' },
-          { title: 'The weekly cadence had visible shape', body: topWeekdayName + ' carried the most completed work with ' + topWeekdayCount + ' items, while after-hours work peaked on ' + topAfterHoursWeekdayName + ' with ' + topAfterHoursWeekdayCount + ' after-hours items. The widest type spread hit ' + maxTypesOnDay + ' work types on ' + maxTypeDayUS + ', which is another sign the role is mixing build, support, and review responsibilities.' },
-          { title: 'Release mechanics created bursty overhead', body: releaseItems + ' items (' + formatPct(itemsTotal ? releaseItems / itemsTotal * 100 : 0) + ') were tagged as release-week work, ' + releaseDayItems + ' were release-day items, and ' + releaseAfterHours + ' of the release-tagged items were after hours. The busiest day, ' + peakDayUS + ', hit ' + peakDayCount + ' completed items and looks more like coordinated release/backmerge activity than a normal steady-state day.' }
-        ],
-        insightCards: [
-          { title: 'You touched a lot of surface area', body: uniqueProjects + ' projects and ' + uniqueTypes + ' work types showed up across ' + activeDayCount + ' active days.' },
-          { title: 'Execution and review dominated the slice', body: execReviewTotal + ' of ' + itemsTotal + ' items (' + formatPct(execReviewPct) + ') were PR merges or PR reviews.' },
-          { title: 'Support work was not a side channel', body: supportTotal + ' items (' + formatPct(supportPct) + ') were Tickets, Tasks, Weekend Support, or Urgent work.' },
-          { title: 'Most days were fragmented', body: multiProjectDays + ' of ' + activeDayCount + ' active days involved more than one project, averaging ' + Number(avgProjectsPerActiveDay).toFixed(1) + ' projects per active day.' },
-          { title: 'After-hours load had a clear hotspot', body: afterHoursTotal + ' items (' + formatPct(afterHoursPct) + ') were after hours, with Builder Scraper contributing ' + builderAfter + ' of them.' },
-          { title: 'The busiest cadence was not evenly spread', body: topWeekdayName + ' carried the most completed work, and ' + peakDayUS + ' was the single biggest spike at ' + peakDayCount + ' items.' }
-        ]
+        managerCards,
+        insightCards
       };
     }
     function correlation(xs, ys) {
@@ -551,7 +708,7 @@
       if (!dx || !dy) return 0;
       return Math.round((num / Math.sqrt(dx*dy)) * 100) / 100;
     }
-    function deriveAggregates(rawItems, apiSummary, rangeLabel, status, weeklyHint) {
+    function deriveAggregates(rawItems, apiSummary, rangeLabel, status, weeklyHint, tally) {
       const weekMap = {};
       rawItems.forEach(item => {
         if (!item.weekStart) return;
@@ -586,7 +743,7 @@
         acc[key].count += 1;
         return acc;
       }, {}) : {};
-      const base = computeCards(rawItems, weekly, apiSummary, rangeLabel, status);
+      const base = computeCards(rawItems, weekly, apiSummary, rangeLabel, status, tally);
       return {
         ...base,
         weekly,
@@ -614,7 +771,8 @@
         };
       }).filter(r => r.week) : [];
       const rangeLabel = (fromISO && toISO) ? (toUS(fromISO) + ' to ' + toUS(toISO) + ' live') : 'Live data';
-      const base = deriveAggregates(rows, pick(api, ['summary', 'tallyTotals', 'totals'], {}), rangeLabel, 'Live data loaded from DevFocus.', weeklyHint);
+      const tally = { totals: api?.tallyTotals || {}, details: api?.tallyDetails || {} };
+      const base = deriveAggregates(rows, pick(api, ['summary', 'tallyTotals', 'totals'], {}), rangeLabel, 'Live data loaded from DevFocus.', weeklyHint, tally);
       const summaryObj = pick(api, ['summary', 'tallyTotals', 'totals'], {});
       if (!rows.length) base.status = 'No completed items in this date range.';
       return {
@@ -652,7 +810,16 @@
     }
     function renderCardGrid(targetId, cards) {
       const target = document.getElementById(targetId); target.innerHTML = '';
-      cards.forEach(item => { const card = document.createElement('div'); card.className = 'insight'; const h = document.createElement('h3'); h.textContent = item.title; const p = document.createElement('p'); p.textContent = item.body; card.append(h,p); target.appendChild(card); });
+      const toneColor = { good: colors.green, watch: colors.amber, concern: colors.magenta };
+      cards.forEach(item => {
+        const card = document.createElement('div'); card.className = 'insight';
+        if (item.tone && toneColor[item.tone]) card.style.borderLeft = '3px solid ' + toneColor[item.tone];
+        const h = document.createElement('h3'); h.textContent = item.title;
+        const p = document.createElement('p'); p.textContent = item.body;
+        card.append(h, p);
+        if (item.action) { const a = document.createElement('div'); a.className = 'insight-action'; a.textContent = item.action; card.appendChild(a); }
+        target.appendChild(card);
+      });
     }
     function renderClickableBars(targetId, data, valueKey, labelFormatter, barColor, onClick) {
       const target = document.getElementById(targetId); const max = Math.max(...data.map(d => d[valueKey] || 0), 1); target.innerHTML = '';
@@ -684,16 +851,48 @@
       document.getElementById('statMeetingHours').textContent = state.summary.meetingHours;
       document.getElementById('statMeetings').textContent = state.summary.totalMeetings;
       document.getElementById('statAfterHours').textContent = state.summary.afterHoursTotal;
-      document.getElementById('statAfterHoursSub').textContent = formatPct(state.summary.afterHoursPct) + ' of all completed items were marked after hours';
+      document.getElementById('statAfterHoursSub').textContent = formatPct(state.summary.afterHoursPct) + ' of completed items — ' + state.summary.afterHoursBandLabel;
       document.getElementById('statExecReview').textContent = formatPct(state.summary.execReviewPct);
       document.getElementById('statExecReviewSub').textContent = state.summary.execReviewTotal + ' PR merges or PR reviews out of ' + state.summary.itemsTotal + ' total items';
+      // Period-over-period deltas (attached by loadLiveData after a second fetch).
+      const deltas = state.summary.deltas || {};
+      const setDelta = (statId, info) => {
+        const valueEl = document.getElementById(statId);
+        const existing = valueEl.parentElement.querySelector('.delta');
+        if (existing) existing.remove();
+        if (!info) return;
+        const span = document.createElement('span');
+        span.className = 'delta ' + info.dir;
+        span.textContent = info.text;
+        valueEl.insertAdjacentElement('afterend', span);
+      };
+      setDelta('statItems', deltas.items);
+      setDelta('statMeetingHours', deltas.meetingHours);
+      setDelta('statAfterHours', deltas.afterHours);
+      // Headline — the single highest-scoring insight, with a good/watch/concern tone.
+      const toneClass = { good: 'good', watch: 'warn', concern: '' };
+      const headlineEl = document.getElementById('headlineInsight');
+      if (state.headline) {
+        headlineEl.className = 'callout headline ' + (toneClass[state.headline.tone] || '');
+        headlineEl.innerHTML = '';
+        const eyebrow = document.createElement('span'); eyebrow.className = 'headline-eyebrow'; eyebrow.textContent = 'Headline signal';
+        const title = document.createElement('span'); title.className = 'headline-title'; title.textContent = state.headline.title;
+        const body = document.createElement('span'); body.textContent = state.headline.body;
+        headlineEl.append(eyebrow, title, body);
+        if (state.headline.action) { const a = document.createElement('div'); a.className = 'insight-action'; a.style.marginTop = '8px'; a.textContent = state.headline.action; headlineEl.appendChild(a); }
+        headlineEl.style.display = 'block';
+      } else {
+        headlineEl.style.display = 'none';
+      }
       document.getElementById('peakBurst').innerHTML = '<strong>Biggest burst:</strong> ' + state.summary.peakDayUS + ' with ' + state.summary.peakDayCount + ' completed items.';
       document.getElementById('releaseNote').innerHTML = '<strong>Release-tagged work:</strong> ' + state.summary.releaseItems + ' items (' + formatPct(state.summary.releaseItemsPct) + ') were flagged as release-week work, and ' + state.summary.releaseDayItems + ' were release-day items.';
       document.getElementById('meetingCorr').innerHTML = '<strong>Meetings vs output:</strong> weekly correlation came out to ' + state.summary.correlation + ', which suggests higher meeting weeks generally coincided with lower completed-item counts in this slice.';
       document.getElementById('heroCallout').textContent = state.status.startsWith('Live') ? 'Live trends are loaded from DevFocus. The snapshot remains available as a fallback and for cases where the API returns aggregates without full row detail.' : 'The dashboard is currently showing the uploaded CSV snapshot as a fallback.';
       document.getElementById('lowMeetingChip').innerHTML = '<strong>Low-meeting dip:</strong> ' + state.summary.lowMeetingWeek + ' shows only ' + state.summary.lowMeetingHours + 'h of meetings';
       document.getElementById('peakDayCopy').textContent = state.summary.peakDayUS + ' was the single busiest day; click a row to inspect that slice.';
-      document.getElementById('peakCallout').textContent = 'The spike on ' + state.summary.peakDayUS + ' looks like a coordinated release/backmerge cluster, not a normal steady-state day. That matters because raw volume is inflated by release mechanics, not just feature throughput.';
+      document.getElementById('peakCallout').textContent = state.summary.peakDayCount
+        ? state.summary.peakDayUS + ' hit ' + state.summary.peakDayCount + ' completed items — about ' + Number(state.summary.peakSpikeRatio).toFixed(1) + '× a typical active day' + (state.summary.peakDayIsRelease ? ', and it falls in a release week, so the volume is partly release/backmerge mechanics rather than steady feature throughput.' : '. No release-week tag, so this looks like a genuine high-output day.')
+        : 'No completed items in this slice yet.';
       document.getElementById('breadthChip').innerHTML = '<strong>Breadth:</strong> ' + state.summary.activeDayCount + ' active days · ' + state.summary.uniqueProjects + ' projects · ' + state.summary.uniqueTypes + ' work types';
       document.getElementById('focusChip').innerHTML = '<strong>Focus vs fragmentation:</strong> ' + state.summary.singleProjectDays + ' single-project days, ' + state.summary.multiProjectDays + ' multi-project days';
       document.getElementById('weekdayChip').innerHTML = '<strong>Cadence:</strong> ' + state.summary.topWeekdayName + ' carried the most completed work; after-hours peaked on ' + state.summary.topAfterHoursWeekdayName;
@@ -727,6 +926,33 @@
         const next = normalizeApiData(json, fromISO, toISO);
         next.status = 'Live data loaded successfully.';
         next.lastAttemptLabel = 'Last live refresh: ' + stamp();
+        // Second fetch: the immediately-preceding equal-length window, for deltas.
+        if (fromISO && toISO) {
+          try {
+            const d0 = new Date(fromISO + 'T00:00:00');
+            const d1 = new Date(toISO + 'T00:00:00');
+            const lenDays = Math.round((d1 - d0) / 86400000) + 1;
+            const priorTo = new Date(d0.getTime() - 86400000);
+            const priorFrom = new Date(priorTo.getTime() - (lenDays - 1) * 86400000);
+            const priorParams = new URLSearchParams({ from: isoDate(priorFrom), to: isoDate(priorTo) });
+            if (READER_TOKEN) priorParams.set('token', READER_TOKEN);
+            const priorResp = await fetch(LIVE_CONFIG.apiBase + '?' + priorParams.toString(), { cache: 'no-store' });
+            if (priorResp.ok) {
+              const prior = normalizeApiData(await priorResp.json(), isoDate(priorFrom), isoDate(priorTo));
+              next.summary.deltas = {
+                items: deltaInfo(Number(next.summary.itemsTotal), Number(prior.summary.itemsTotal)),
+                meetingHours: deltaInfo(Number(next.summary.meetingHours), Number(prior.summary.meetingHours)),
+                // Fewer after-hours is an improvement, so flip the arrow direction.
+                afterHours: (() => {
+                  const info = deltaInfo(Number(next.summary.afterHoursTotal), Number(prior.summary.afterHoursTotal));
+                  if (info && info.dir === 'up') info.dir = 'down';
+                  else if (info && info.dir === 'down') info.dir = 'up';
+                  return info;
+                })(),
+              };
+            }
+          } catch (priorErr) { /* deltas are best-effort; ignore prior-window failures */ }
+        }
         renderState(next);
       } catch (err) {
         const msg = 'Could not load data from DevFocus (' + err.message + '). Open this dashboard from inside the app while logged in, or use /report?token=YOUR_READER_TOKEN.';

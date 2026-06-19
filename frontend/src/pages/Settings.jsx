@@ -488,23 +488,6 @@ function GeneralTab() {
 
       <Divider sx={{ my: 3 }} />
 
-      <Typography variant="h6" sx={{ fontSize: '1rem', mb: 1 }}>AI Assistant</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Add an Anthropic API key to power the AI chat assistant. Get one from console.anthropic.com.
-        Without a key, the chat bot answers common questions from the built-in FAQ.
-      </Typography>
-      <TextField
-        label="Anthropic API Key"
-        type="password"
-        value={settings.anthropicApiKey || ''}
-        onChange={(e) => updateSettings.mutate({ anthropicApiKey: e.target.value })}
-        fullWidth
-        placeholder="sk-ant-..."
-        sx={{ mb: 2 }}
-      />
-
-      <Divider sx={{ my: 3 }} />
-
       <Typography variant="h6" sx={{ fontSize: '1rem', mb: 1 }}>Help</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         New to DevFocus? Check out the guide for how everything works.
