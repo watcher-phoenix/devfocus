@@ -764,17 +764,33 @@
       const fallbackSource = pick(api, ['activity', 'rows', 'contextTimeline'], []);
       const rowSource = itemSource || fallbackSource;
       const rows = Array.isArray(rowSource) ? rowSource.map(normalizeRow).filter(r => r.completedISO) : [];
-      const weeklySource = pick(api, ['weeklySeries', 'weekly', 'series'], []);
-      const weeklyHint = Array.isArray(weeklySource) ? weeklySource.map(entry => {
-        const week = toISO(pick(entry, ['week', 'weekOf', 'date', 'x'], ''));
-        return {
-          week: week || '',
+      // Per-week meeting hours for the weekly chart's line. /api/trends returns
+      // weeklyMeetingMinutes as a { weekStart: minutes } map (week keys match the
+      // client's startOfWeek), so convert that to hours. Fall back to the older
+      // weeklySeries array shape if present.
+      let weeklyHint = [];
+      const wmm = api && api.weeklyMeetingMinutes;
+      if (wmm && typeof wmm === 'object' && !Array.isArray(wmm)) {
+        weeklyHint = Object.entries(wmm).map(([week, mins]) => ({
+          week,
           weekUS: week ? toUS(week) : '—',
-          items: Number(pick(entry, ['items', 'count', 'value', 'completed'], 0)) || 0,
-          afterHours: Number(pick(entry, ['afterHours', 'after_hours'], 0)) || 0,
-          meetingHours: Number(pick(entry, ['meetingHours', 'meeting_hours', 'hours'], 0)) || 0
-        };
-      }).filter(r => r.week) : [];
+          items: 0,
+          afterHours: 0,
+          meetingHours: Math.round((Number(mins) || 0) / 60 * 10) / 10,
+        })).filter(r => r.week);
+      } else {
+        const weeklySource = pick(api, ['weeklySeries', 'weekly', 'series'], []);
+        weeklyHint = Array.isArray(weeklySource) ? weeklySource.map(entry => {
+          const week = toISO(pick(entry, ['week', 'weekOf', 'date', 'x'], ''));
+          return {
+            week: week || '',
+            weekUS: week ? toUS(week) : '—',
+            items: Number(pick(entry, ['items', 'count', 'value', 'completed'], 0)) || 0,
+            afterHours: Number(pick(entry, ['afterHours', 'after_hours'], 0)) || 0,
+            meetingHours: Number(pick(entry, ['meetingHours', 'meeting_hours', 'hours'], 0)) || 0
+          };
+        }).filter(r => r.week) : [];
+      }
       const rangeLabel = (fromISO && toISO) ? (toUS(fromISO) + ' to ' + toUS(toISO)) : 'Live data';
       const tally = { totals: api?.tallyTotals || {}, details: api?.tallyDetails || {} };
       const base = deriveAggregates(rows, pick(api, ['summary', 'tallyTotals', 'totals'], {}), rangeLabel, 'Live data loaded from DevFocus.', weeklyHint, tally);
