@@ -35,12 +35,11 @@
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--artifact-background); color: var(--artifact-text-primary); font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .shell { max-width: 1180px; margin: 0 auto; padding: 28px; }
-    .hero { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; margin-bottom: 18px; }
     .panel { background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); border-radius: 22px; box-shadow: var(--artifact-card-shadow); }
-    .hero-main { padding: 24px; }
-    .hero { align-items: start; }
-    .hero-side { padding: 20px; display: flex; flex-direction: column; justify-content: flex-start; gap: 12px; }
-    .hero-side-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--artifact-text-secondary); font-weight: 600; }
+    .topbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px 24px; flex-wrap: wrap; margin-bottom: 18px; }
+    .topbar-head { min-width: 280px; flex: 1 1 360px; }
+    .topbar .filters { margin-top: 0; }
+    .mini-note + .mini-note { margin-top: 4px; }
     .eyebrow { display: inline-flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 999px; background: var(--artifact-selected); color: var(--artifact-text-secondary); font-size: 13px; font-weight: 500; }
     h1 { margin: 14px 0 10px; font-size: 34px; line-height: 1.05; }
     .lede, .mini-note, .detail-summary, .section p, .hint, .footer-note, .chart-note { color: var(--artifact-text-secondary); line-height: 1.5; }
@@ -62,7 +61,6 @@
     .stat .value { font-size: 30px; font-weight: 700; line-height: 1; margin-bottom: 8px; }
     .stat .sub { color: var(--artifact-text-secondary); font-size: 13px; line-height: 1.45; }
     .status-chip { display: inline-flex; padding: 8px 12px; border-radius: 999px; background: var(--artifact-background); border: 1px solid var(--artifact-border-light); font-size: 12px; color: var(--artifact-text-secondary); }
-    .grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; margin-bottom: 18px; }
     .grid-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
     .section { padding: 20px; }
     .section-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 14px; }
@@ -113,7 +111,7 @@
     tr:last-child td { border-bottom: none; }
     .empty-state { padding: 20px; color: var(--artifact-text-secondary); font-size: 14px; }
     @media screen and (max-width: 980px) {
-      .hero, .grid, .grid-equal, .cards, .insights { grid-template-columns: 1fr; }
+      .grid-equal, .cards, .insights { grid-template-columns: 1fr; }
       .shell { padding: 16px; }
       h1 { font-size: 28px; }
       .filters { grid-template-columns: 1fr 1fr; }
@@ -141,40 +139,41 @@
 </head>
 <body>
   <main class="shell">
-    <section class="hero">
-      <div class="panel hero-main">
+    <section class="topbar">
+      <div class="topbar-head">
         <div class="eyebrow">Live dashboard · <span id="rangeLabel"></span></div>
         <h1>Workload readout</h1>
         <p class="lede">Reads straight from the database on every load — click any chart, bar, or row to drill into the underlying items.</p>
-        <div class="filters interactive-only">
-          <div class="presets" id="presetRow">
-            <button class="btn" data-preset="14" type="button">14d</button>
-            <button class="btn" data-preset="30" type="button">30d</button>
-            <button class="btn" data-preset="60" type="button">60d</button>
-            <button class="btn" data-preset="90" type="button">90d</button>
-            <button class="btn" data-preset="all" type="button">All</button>
-          </div>
-          <div class="field"><label for="fromDate">From</label><input id="fromDate" type="date" /></div>
-          <div class="field"><label for="toDate">To</label><input id="toDate" type="date" /></div>
-          <div class="field"><label>&nbsp;</label><button id="applyRange" class="btn" type="button">Apply</button></div>
-          <span id="dataStatus" class="status-chip"></span>
-        </div>
-        <div class="cards">
-          <div class="panel stat"><div class="label">Completed items</div><div id="statItems" class="value"></div><div class="sub">Across work items, tickets, reviews, and strategic/admin entries</div></div>
-          <div class="panel stat"><div class="label">Meeting hours</div><div id="statMeetingHours" class="value"></div><div class="sub"><span id="statMeetings"></span> meetings in the selected range</div></div>
-          <div class="panel stat"><div class="label">After-hours items</div><div id="statAfterHours" class="value"></div><div id="statAfterHoursSub" class="sub"></div></div>
-          <div class="panel stat"><div class="label">Execution + review share</div><div id="statExecReview" class="value"></div><div id="statExecReviewSub" class="sub"></div></div>
-        </div>
       </div>
-      <div class="panel hero-side">
-        <div class="hero-side-title">At a glance</div>
-        <div id="peakBurst" class="mini-note"></div>
-        <div id="releaseNote" class="mini-note"></div>
-        <div id="meetingCorr" class="mini-note"></div>
+      <div class="filters interactive-only">
+        <div class="presets" id="presetRow">
+          <button class="btn" data-preset="14" type="button">14d</button>
+          <button class="btn" data-preset="30" type="button">30d</button>
+          <button class="btn" data-preset="60" type="button">60d</button>
+          <button class="btn" data-preset="90" type="button">90d</button>
+          <button class="btn" data-preset="all" type="button">All</button>
+        </div>
+        <div class="field"><label for="fromDate">From</label><input id="fromDate" type="date" /></div>
+        <div class="field"><label for="toDate">To</label><input id="toDate" type="date" /></div>
+        <div class="field"><label>&nbsp;</label><button id="applyRange" class="btn" type="button">Apply</button></div>
+        <span id="dataStatus" class="status-chip"></span>
       </div>
     </section>
 
-    <section class="grid">
+    <section class="cards">
+      <div class="panel stat"><div class="label">Completed items</div><div id="statItems" class="value"></div><div class="sub">Across work items, tickets, reviews, and strategic/admin entries</div></div>
+      <div class="panel stat"><div class="label">Meeting hours</div><div id="statMeetingHours" class="value"></div><div class="sub"><span id="statMeetings"></span> meetings in the selected range</div></div>
+      <div class="panel stat"><div class="label">After-hours items</div><div id="statAfterHours" class="value"></div><div id="statAfterHoursSub" class="sub"></div></div>
+      <div class="panel stat"><div class="label">Execution + review share</div><div id="statExecReview" class="value"></div><div id="statExecReviewSub" class="sub"></div></div>
+    </section>
+
+    <section class="panel section">
+      <div class="section-head"><div><h2>Insights</h2><p>Ranked read on the strongest patterns in the current slice — the headline is the single most notable signal.</p></div></div>
+      <div id="headlineInsight" class="callout headline"></div>
+      <div id="insightCards" class="insights"></div>
+    </section>
+
+    <section class="grid-equal">
       <div class="panel section">
         <div class="section-head"><div><h2>Weekly throughput vs meeting load</h2><p>Bars show completed items by week. The line shows meeting hours for the same week.</p></div></div>
         <svg id="weeklyChart" class="chart" viewBox="0 0 760 340"></svg>
@@ -205,14 +204,15 @@
 
     <section class="grid-equal">
       <div class="panel section">
-        <div class="section-head"><div><h2>Insights</h2><p>Ranked read on the strongest patterns in the current slice — the headline is the single most notable signal.</p></div></div>
-        <div id="headlineInsight" class="callout headline"></div>
-        <div id="insightCards" class="insights"></div>
-      </div>
-      <div class="panel section">
         <div class="section-head"><div><h2>Peak-day composition</h2><p id="peakDayCopy"></p></div></div>
         <div id="peakBreakdown" class="list"></div>
         <div id="peakCallout" class="callout" style="margin-top:14px;"></div>
+      </div>
+      <div class="panel section">
+        <div class="section-head"><div><h2>At a glance</h2><p>Quick signals for the selected range.</p></div></div>
+        <div id="peakBurst" class="mini-note"></div>
+        <div id="releaseNote" class="mini-note"></div>
+        <div id="meetingCorr" class="mini-note"></div>
       </div>
     </section>
 
