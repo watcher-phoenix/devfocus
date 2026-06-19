@@ -2,8 +2,6 @@
 
 A personal productivity dashboard for developers — capture work, plan your week, and track where your time actually goes. DevFocus pulls in your meetings, pull requests, and tickets, then gives you a single place to triage, schedule, and review your work.
 
-**Live:** https://devfocus.fly.dev
-
 ## What it does
 
 DevFocus follows a simple loop: **Capture → Organize → Plan → Execute → Review.**
