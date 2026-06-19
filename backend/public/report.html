@@ -38,7 +38,9 @@
     .hero { display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; margin-bottom: 18px; }
     .panel { background: var(--artifact-background-light); border: 1px solid var(--artifact-border-light); border-radius: 22px; box-shadow: var(--artifact-card-shadow); }
     .hero-main { padding: 24px; }
-    .hero-side { padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
+    .hero { align-items: start; }
+    .hero-side { padding: 20px; display: flex; flex-direction: column; justify-content: flex-start; gap: 12px; }
+    .hero-side-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--artifact-text-secondary); font-weight: 600; }
     .eyebrow { display: inline-flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 999px; background: var(--artifact-selected); color: var(--artifact-text-secondary); font-size: 13px; font-weight: 500; }
     h1 { margin: 14px 0 10px; font-size: 34px; line-height: 1.05; }
     .lede, .mini-note, .detail-summary, .section p, .hint, .footer-note, .chart-note { color: var(--artifact-text-secondary); line-height: 1.5; }
@@ -72,7 +74,8 @@
     .insight h3 { margin: 0 0 8px; font-size: 16px; }
     .insight p { margin: 0; font-size: 14px; color: var(--artifact-text-secondary); line-height: 1.55; }
     .list, .type-legend { display: grid; gap: 10px; }
-    .type-legend { margin-top: 14px; }
+    .type-legend { margin-top: 14px; grid-template-columns: 1fr 1fr; }
+    @media screen and (max-width: 560px) { .type-legend { grid-template-columns: 1fr; } }
     .row-grid { display: grid; grid-template-columns: minmax(110px, 1fr) 3fr auto; align-items: center; gap: 10px; font-size: 14px; }
     .list-button { width: 100%; border-radius: 16px; padding: 12px 14px; text-align: left; }
     .type-button { width: 100%; display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; text-align: left; }
@@ -140,9 +143,9 @@
   <main class="shell">
     <section class="hero">
       <div class="panel hero-main">
-        <div class="eyebrow">DevFocus live dashboard · <span id="rangeLabel"></span></div>
-        <h1>Live workload readout for DevFocus</h1>
-        <p class="lede">Live workload readout served from the DevFocus app — it reads straight from the database on every load. Click a visual to open details in-place.</p>
+        <div class="eyebrow">Live dashboard · <span id="rangeLabel"></span></div>
+        <h1>Workload readout</h1>
+        <p class="lede">Reads straight from the database on every load — click any chart, bar, or row to drill into the underlying items.</p>
         <div class="filters interactive-only">
           <div class="presets" id="presetRow">
             <button class="btn" data-preset="14" type="button">14d</button>
@@ -164,12 +167,10 @@
         </div>
       </div>
       <div class="panel hero-side">
-        <div>
-          <div id="peakBurst" class="mini-note"></div>
-          <div id="releaseNote" class="mini-note"></div>
-          <div id="meetingCorr" class="mini-note"></div>
-        </div>
-        <div id="heroCallout" class="callout good"></div>
+        <div class="hero-side-title">At a glance</div>
+        <div id="peakBurst" class="mini-note"></div>
+        <div id="releaseNote" class="mini-note"></div>
+        <div id="meetingCorr" class="mini-note"></div>
       </div>
     </section>
 
@@ -772,7 +773,7 @@
           meetingHours: Number(pick(entry, ['meetingHours', 'meeting_hours', 'hours'], 0)) || 0
         };
       }).filter(r => r.week) : [];
-      const rangeLabel = (fromISO && toISO) ? (toUS(fromISO) + ' to ' + toUS(toISO) + ' live') : 'Live data';
+      const rangeLabel = (fromISO && toISO) ? (toUS(fromISO) + ' to ' + toUS(toISO)) : 'Live data';
       const tally = { totals: api?.tallyTotals || {}, details: api?.tallyDetails || {} };
       const base = deriveAggregates(rows, pick(api, ['summary', 'tallyTotals', 'totals'], {}), rangeLabel, 'Live data loaded from DevFocus.', weeklyHint, tally);
       const summaryObj = pick(api, ['summary', 'tallyTotals', 'totals'], {});
@@ -829,9 +830,9 @@
     }
     function renderTypeChart(typeData) {
       const svg = document.getElementById('typeChart'); const width = 520, height = 300; svg.innerHTML = ''; svg.appendChild(svgEl('rect', { x: 0, y: 0, width, height, fill: colors.bg }));
-      const cx = 150, cy = 148, r = 86; const total = typeData.reduce((s, d) => s + d.value, 0); let angle = -Math.PI / 2;
+      const cx = width / 2, cy = height / 2, r = 128; const total = typeData.reduce((s, d) => s + d.value, 0); let angle = -Math.PI / 2;
       typeData.forEach((d, idx) => { const frac = total ? d.value / total : 0; const next = angle + frac * Math.PI * 2; const x1 = cx + Math.cos(angle) * r; const y1 = cy + Math.sin(angle) * r; const x2 = cx + Math.cos(next) * r; const y2 = cy + Math.sin(next) * r; const large = next - angle > Math.PI ? 1 : 0; svg.appendChild(svgEl('path', { d: 'M ' + cx + ' ' + cy + ' L ' + x1 + ' ' + y1 + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x2 + ' ' + y2 + ' Z', fill: palette[idx % palette.length] })); angle = next; });
-      svg.appendChild(svgEl('circle', { cx, cy, r: 46, fill: colors.bg })); const mid = svgEl('text', { x: cx, y: cy - 4, 'text-anchor': 'middle', fill: colors.text, 'font-size': 28, 'font-weight': 700 }); mid.textContent = total; svg.appendChild(mid); const mid2 = svgEl('text', { x: cx, y: cy + 18, 'text-anchor': 'middle', fill: colors.sub, 'font-size': 12 }); mid2.textContent = 'items'; svg.appendChild(mid2);
+      svg.appendChild(svgEl('circle', { cx, cy, r: 74, fill: colors.bg })); const mid = svgEl('text', { x: cx, y: cy - 4, 'text-anchor': 'middle', fill: colors.text, 'font-size': 38, 'font-weight': 700 }); mid.textContent = total; svg.appendChild(mid); const mid2 = svgEl('text', { x: cx, y: cy + 20, 'text-anchor': 'middle', fill: colors.sub, 'font-size': 14 }); mid2.textContent = 'items'; svg.appendChild(mid2);
       const legend = document.getElementById('typeLegend'); legend.innerHTML = '';
       typeData.forEach((d, idx) => { const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'type-button'; const swatch = document.createElement('span'); swatch.className = 'swatch'; swatch.style.background = palette[idx % palette.length]; const label = document.createElement('span'); label.textContent = d.label; const meta = document.createElement('span'); meta.style.color = colors.sub; meta.style.fontSize = '12px'; meta.textContent = d.value + ' · ' + (total ? Math.round((d.value / total) * 100) : 0) + '%'; btn.append(swatch, label, meta); btn.addEventListener('click', () => { const rows = currentState.rawItems.filter(item => item.type === d.label); showDetails(d.label, rows.length + ' matching rows from the current dataset.', rows, [btn]); }); legend.appendChild(btn); });
     }
@@ -894,7 +895,6 @@
         : cor >= 0.3 ? 'heavier meeting weeks tended to coincide with higher throughput'
         : 'meeting load and throughput moved largely independently';
       document.getElementById('meetingCorr').innerHTML = '<strong>Meetings vs output:</strong> weekly correlation ' + cor + ' — ' + corText + '.';
-      document.getElementById('heroCallout').textContent = 'Live from DevFocus — reads straight from the database on every load. Click any chart, bar, or list row to drill into the underlying items.';
       document.getElementById('corrChip').innerHTML = '<strong>Signal:</strong> ' + corText + ' (r=' + cor + ')';
       document.getElementById('lowMeetingChip').innerHTML = '<strong>Low-meeting dip:</strong> ' + state.summary.lowMeetingWeek + ' shows only ' + state.summary.lowMeetingHours + 'h of meetings';
       document.getElementById('peakDayCopy').textContent = state.summary.peakDayUS + ' was the single busiest day; click a row to inspect that slice.';
