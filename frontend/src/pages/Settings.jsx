@@ -136,8 +136,8 @@ function ProjectsTab() {
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editId ? 'Edit Project' : 'New Project'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-          <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth autoFocus placeholder="e.g. CRM Backend, Builder Scraper" />
-          <TextField label="Repo slugs (optional)" value={form.repoSlug} onChange={(e) => setForm({ ...form, repoSlug: e.target.value })} fullWidth placeholder="e.g. crm-backend-services, land-crm" helperText="Comma-separated if multiple repos belong to this project" />
+          <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth autoFocus placeholder="e.g. API Service, Web App" />
+          <TextField label="Repo slugs (optional)" value={form.repoSlug} onChange={(e) => setForm({ ...form, repoSlug: e.target.value })} fullWidth placeholder="e.g. api-service, web-app" helperText="Comma-separated if multiple repos belong to this project" />
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Color (optional)</Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -386,10 +386,10 @@ function IntegrationsTab() {
         fields={[
           { key: 'workspace', label: 'Workspace', placeholder: 'your-workspace' },
           { key: 'accessToken', label: 'Workspace Access Token (preferred)', placeholder: 'Your workspace access token', secret: true, helper: 'Workspace Settings > Access Tokens. Needs Repositories:Read and Pull Requests:Read.' },
-          { key: 'displayName', label: 'Your display name in Bitbucket', placeholder: 'Amanda Henderson', helper: 'Must match exactly how your name appears on PRs' },
+          { key: 'displayName', label: 'Your display name in Bitbucket', placeholder: 'Your Name', helper: 'Must match exactly how your name appears on PRs' },
           { key: 'username', label: 'Username (for app password auth)', placeholder: 'your-bb-username', helper: 'Only needed if using app password instead of access token' },
           { key: 'appPassword', label: 'App Password (alternative)', placeholder: 'Your Bitbucket app password', secret: true },
-          { key: 'repos', label: 'Repos to track (optional)', placeholder: 'crm-backend-services,land-crm', helper: 'Leave empty to track ALL repos in the workspace' },
+          { key: 'repos', label: 'Repos to track (optional)', placeholder: 'api-service,web-app', helper: 'Leave empty to track ALL repos in the workspace' },
         ]}
       />
 

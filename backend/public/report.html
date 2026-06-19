@@ -519,7 +519,7 @@
       const supportProjectCount = topSupportEntry[1];
       const supportProjectRows = rawItems.filter(r => r.project === supportProject).length;
       const supportProjectPct = supportProjectRows ? supportProjectCount / supportProjectRows * 100 : 0;
-      // Project carrying the most after-hours load (was hardcoded to Builder Scraper).
+      // Project carrying the most after-hours load (computed dynamically).
       const afterByProject = {};
       rawItems.forEach(r => { if (r.afterHours) afterByProject[r.project] = (afterByProject[r.project] || 0) + 1; });
       const topAfterEntry = Object.entries(afterByProject).sort((a,b)=>b[1]-a[1])[0] || ['—', 0];
