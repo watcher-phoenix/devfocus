@@ -15,7 +15,7 @@ export function useTally(date = 'today') {
 export function useSaveTally(date = 'today') {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ counts, note }) => api.put(`/tallies/${date}`, { counts, note }),
+    mutationFn: ({ entries }) => api.put(`/tallies/${date}`, { entries }),
     onSuccess: (data) => {
       qc.setQueryData(KEYS.date(date), data);
     },

@@ -139,35 +139,59 @@ export default function DailyFocus() {
     }
   }, [noteData]);
 
-  // Non-task tally state (tap-to-increment counters + optional note)
+  // Non-task tally state — one timestamped entry per tap, each with its own note.
+  // Shape: { [categoryKey]: [{ id, ts, note }] }
   const { data: tallyData } = useTally('today');
   const saveTally = useSaveTally('today');
-  const [tallyCounts, setTallyCounts] = useState({});
-  const [tallyNote, setTallyNote] = useState('');
-  const tallyNoteSaved = useRef('');
+  const [tallyEntries, setTallyEntries] = useState({});
+  const tallyEntriesSaved = useRef('');
 
   useEffect(() => {
     if (tallyData) {
-      setTallyCounts(tallyData.counts || {});
-      setTallyNote(tallyData.note || '');
-      tallyNoteSaved.current = tallyData.note || '';
+      const entries = tallyData.entries || {};
+      setTallyEntries(entries);
+      tallyEntriesSaved.current = JSON.stringify(entries);
     }
   }, [tallyData]);
 
-  const bumpTally = (key, delta) => {
-    const next = { ...tallyCounts };
-    next[key] = Math.max(0, (next[key] || 0) + delta);
-    if (next[key] === 0) delete next[key];
-    setTallyCounts(next);
-    saveTally.mutate({ counts: next, note: tallyNote });
+  // Persist entries, but skip the write if nothing actually changed (note-blur guard).
+  const persistTallyEntries = (next) => {
+    const serialized = JSON.stringify(next);
+    if (serialized === tallyEntriesSaved.current) return;
+    tallyEntriesSaved.current = serialized;
+    saveTally.mutate({ entries: next });
   };
 
-  const handleTallyNoteBlur = () => {
-    if (tallyNote !== tallyNoteSaved.current) {
-      tallyNoteSaved.current = tallyNote;
-      saveTally.mutate({ counts: tallyCounts, note: tallyNote });
-    }
+  const makeEntryId = () =>
+    (typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+  const addTallyEntry = (key) => {
+    const entry = { id: makeEntryId(), ts: new Date().toISOString(), note: '' };
+    const next = { ...tallyEntries, [key]: [...(tallyEntries[key] || []), entry] };
+    setTallyEntries(next);
+    persistTallyEntries(next);
   };
+
+  const deleteTallyEntry = (key, id) => {
+    const remaining = (tallyEntries[key] || []).filter((e) => e.id !== id);
+    const next = { ...tallyEntries };
+    if (remaining.length) next[key] = remaining;
+    else delete next[key];
+    setTallyEntries(next);
+    persistTallyEntries(next);
+  };
+
+  // Update a note in local state on each keystroke; persist on blur.
+  const updateTallyNote = (key, id, note) => {
+    setTallyEntries((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).map((e) => (e.id === id ? { ...e, note } : e)),
+    }));
+  };
+
+  const handleTallyNoteBlur = () => persistTallyEntries(tallyEntries);
 
   const handleNoteChange = useCallback((html) => {
     setNoteContent(html);
@@ -619,7 +643,7 @@ export default function DailyFocus() {
           </Stack>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
             {TALLY_CATEGORIES.map((c) => {
-              const n = tallyCounts[c.key] || 0;
+              const n = (tallyEntries[c.key] || []).length;
               return (
                 <Chip
                   key={c.key}
@@ -627,23 +651,48 @@ export default function DailyFocus() {
                   label={`${c.emoji} ${c.label}${n ? ` · ${n}` : ''}`}
                   color={n ? 'warning' : 'default'}
                   variant={n ? 'filled' : 'outlined'}
-                  onClick={() => bumpTally(c.key, 1)}
-                  onDelete={n ? () => bumpTally(c.key, -1) : undefined}
+                  onClick={() => addTallyEntry(c.key)}
                 />
               );
             })}
           </Box>
-          <TextField
-            value={tallyNote}
-            onChange={(e) => setTallyNote(e.target.value)}
-            onBlur={handleTallyNoteBlur}
-            placeholder="What pulled you away? (optional)"
-            fullWidth
-            multiline
-            rows={2}
-            size="small"
-            sx={{ mt: 1.5 }}
-          />
+          {TALLY_CATEGORIES.filter((c) => (tallyEntries[c.key] || []).length > 0).map((c) => (
+            <Box key={c.key} sx={{ mt: 1.5 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                {c.emoji} {c.label}
+              </Typography>
+              <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                {(tallyEntries[c.key] || []).map((entry) => (
+                  <Stack key={entry.id} direction="row" alignItems="center" spacing={0.75}>
+                    {entry.ts && (
+                      <Typography
+                        variant="caption"
+                        sx={{ color: 'text.secondary', minWidth: 48, flexShrink: 0 }}
+                      >
+                        {new Date(entry.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                      </Typography>
+                    )}
+                    <TextField
+                      value={entry.note}
+                      onChange={(e) => updateTallyNote(c.key, entry.id, e.target.value)}
+                      onBlur={handleTallyNoteBlur}
+                      placeholder="Add a note (optional)"
+                      fullWidth
+                      size="small"
+                      variant="standard"
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => deleteTallyEntry(c.key, entry.id)}
+                      aria-label="Remove entry"
+                    >
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          ))}
         </CardContent>
       </Card>
       <Card>
