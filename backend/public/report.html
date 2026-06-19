@@ -45,7 +45,9 @@
     .lede { margin: 0; font-size: 15px; max-width: 72ch; }
     .mini-note { font-size: 13px; }
     .mini-note strong, .chip strong { color: var(--artifact-text-primary); }
-    .filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 10px; margin-top: 18px; align-items: end; }
+    .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; align-items: flex-end; }
+    .presets { display: flex; gap: 6px; }
+    .presets .btn { padding: 8px 12px; }
     .field label { display: block; font-size: 12px; color: var(--artifact-text-secondary); margin-bottom: 6px; }
     .field input { width: 100%; padding: 10px 12px; border: 1px solid var(--artifact-border-light); border-radius: 12px; background: var(--artifact-background); color: var(--artifact-text-primary); }
     .btn, .ghost-button, .list-button, .type-button { border: 1px solid var(--artifact-border-light); background: var(--artifact-background); color: inherit; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease; }
@@ -63,8 +65,8 @@
     .section { padding: 20px; }
     .section-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 14px; }
     .section h2 { margin: 0; font-size: 20px; }
-    .chart { width: 100%; height: 340px; border-radius: 18px; background: var(--artifact-background); border: 1px solid var(--artifact-border-light); }
-    .chart.medium { height: 300px; }
+    .chart { width: 100%; height: auto; aspect-ratio: 760 / 340; border-radius: 18px; background: var(--artifact-background); border: 1px solid var(--artifact-border-light); }
+    .chart.medium { aspect-ratio: 520 / 300; }
     .insights { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .insight { padding: 16px; border-radius: 18px; background: var(--artifact-background); border: 1px solid var(--artifact-border-light); }
     .insight h3 { margin: 0 0 8px; font-size: 16px; }
@@ -142,16 +144,17 @@
         <h1>Live workload readout for DevFocus</h1>
         <p class="lede">Live workload readout served from the DevFocus app — it reads straight from the database on every load. Click a visual to open details in-place.</p>
         <div class="filters interactive-only">
+          <div class="presets" id="presetRow">
+            <button class="btn" data-preset="14" type="button">14d</button>
+            <button class="btn" data-preset="30" type="button">30d</button>
+            <button class="btn" data-preset="60" type="button">60d</button>
+            <button class="btn" data-preset="90" type="button">90d</button>
+            <button class="btn" data-preset="all" type="button">All</button>
+          </div>
           <div class="field"><label for="fromDate">From</label><input id="fromDate" type="date" /></div>
           <div class="field"><label for="toDate">To</label><input id="toDate" type="date" /></div>
-          <div class="field"><label>&nbsp;</label><button id="applyRange" class="btn" type="button">Apply range</button></div>
-          <div class="field"><label>&nbsp;</label><button id="reloadLive" class="btn" type="button">Reload live</button></div>
-          <div class="field"><label>&nbsp;</label><span id="dataStatus" class="status-chip"></span></div>
-          <div class="field"><label>&nbsp;</label><span id="lastLiveAttempt" class="muted"></span></div>
-        </div>
-        <div class="quick-filters interactive-only">
-          <button class="btn" data-preset="all" type="button">All data</button>
-          <button class="btn" data-preset="30" type="button">Last 30 days</button>
+          <div class="field"><label>&nbsp;</label><button id="applyRange" class="btn" type="button">Apply</button></div>
+          <span id="dataStatus" class="status-chip"></span>
         </div>
         <div class="cards">
           <div class="panel stat"><div class="label">Completed items</div><div id="statItems" class="value"></div><div class="sub">Across work items, tickets, reviews, and strategic/admin entries</div></div>
@@ -173,17 +176,16 @@
     <section class="grid">
       <div class="panel section">
         <div class="section-head"><div><h2>Weekly throughput vs meeting load</h2><p>Bars show completed items by week. The line shows meeting hours for the same week.</p></div></div>
-        <svg id="weeklyChart" class="chart" viewBox="0 0 760 340" preserveAspectRatio="none"></svg>
+        <svg id="weeklyChart" class="chart" viewBox="0 0 760 340"></svg>
         <div class="chart-note">Click a bar or orange point to inspect that week.</div>
         <div class="chip-row">
-          <div class="chip"><strong>Signal:</strong> the busiest weeks were not the heaviest meeting weeks</div>
+          <div id="corrChip" class="chip"></div>
           <div id="lowMeetingChip" class="chip"></div>
-          <div class="chip"><strong>Pattern:</strong> meeting-heavy weeks tended to compress throughput</div>
         </div>
       </div>
       <div class="panel section">
         <div class="section-head"><div><h2>Type mix</h2><p>The period is usually dominated by shipping and review work.</p></div></div>
-        <svg id="typeChart" class="chart medium" viewBox="0 0 520 300" preserveAspectRatio="none"></svg>
+        <svg id="typeChart" class="chart medium" viewBox="0 0 520 300"></svg>
         <div id="typeLegend" class="type-legend"></div>
         <div class="footer-note">Click a type row to open matching source items.</div>
       </div>
@@ -845,8 +847,9 @@
     function renderState(state) {
       currentState = state;
       document.getElementById('rangeLabel').textContent = state.rangeLabel;
-      document.getElementById('dataStatus').textContent = state.status;
-      document.getElementById('lastLiveAttempt').textContent = state.lastAttemptLabel || '';
+      const statusEl = document.getElementById('dataStatus');
+      statusEl.textContent = state.status || '';
+      statusEl.style.display = state.status ? 'inline-flex' : 'none';
       document.getElementById('statItems').textContent = state.summary.itemsTotal;
       document.getElementById('statMeetingHours').textContent = state.summary.meetingHours;
       document.getElementById('statMeetings').textContent = state.summary.totalMeetings;
@@ -886,8 +889,13 @@
       }
       document.getElementById('peakBurst').innerHTML = '<strong>Biggest burst:</strong> ' + state.summary.peakDayUS + ' with ' + state.summary.peakDayCount + ' completed items.';
       document.getElementById('releaseNote').innerHTML = '<strong>Release-tagged work:</strong> ' + state.summary.releaseItems + ' items (' + formatPct(state.summary.releaseItemsPct) + ') were flagged as release-week work, and ' + state.summary.releaseDayItems + ' were release-day items.';
-      document.getElementById('meetingCorr').innerHTML = '<strong>Meetings vs output:</strong> weekly correlation came out to ' + state.summary.correlation + ', which suggests higher meeting weeks generally coincided with lower completed-item counts in this slice.';
-      document.getElementById('heroCallout').textContent = state.status.startsWith('Live') ? 'Live trends are loaded from DevFocus. The snapshot remains available as a fallback and for cases where the API returns aggregates without full row detail.' : 'The dashboard is currently showing the uploaded CSV snapshot as a fallback.';
+      const cor = Number(state.summary.correlation);
+      const corText = cor <= -0.3 ? 'heavier meeting weeks tended to coincide with lower throughput'
+        : cor >= 0.3 ? 'heavier meeting weeks tended to coincide with higher throughput'
+        : 'meeting load and throughput moved largely independently';
+      document.getElementById('meetingCorr').innerHTML = '<strong>Meetings vs output:</strong> weekly correlation ' + cor + ' — ' + corText + '.';
+      document.getElementById('heroCallout').textContent = 'Live from DevFocus — reads straight from the database on every load. Click any chart, bar, or list row to drill into the underlying items.';
+      document.getElementById('corrChip').innerHTML = '<strong>Signal:</strong> ' + corText + ' (r=' + cor + ')';
       document.getElementById('lowMeetingChip').innerHTML = '<strong>Low-meeting dip:</strong> ' + state.summary.lowMeetingWeek + ' shows only ' + state.summary.lowMeetingHours + 'h of meetings';
       document.getElementById('peakDayCopy').textContent = state.summary.peakDayUS + ' was the single busiest day; click a row to inspect that slice.';
       document.getElementById('peakCallout').textContent = state.summary.peakDayCount
@@ -908,12 +916,9 @@
     }
     async function loadLiveData(fromISO, toISO) {
       const status = document.getElementById('dataStatus');
-      const reloadBtn = document.getElementById('reloadLive');
-      const stamp = () => new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
-      status.textContent = 'Loading live data…';
-      reloadBtn.disabled = true;
-      reloadBtn.textContent = 'Reloading…';
-      document.getElementById('lastLiveAttempt').textContent = 'Attempt started ' + stamp();
+      const applyBtn = document.getElementById('applyRange');
+      status.textContent = 'Loading…';
+      applyBtn.disabled = true;
       await new Promise(resolve => setTimeout(resolve, 75));
       try {
         const params = new URLSearchParams();
@@ -924,8 +929,7 @@
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const json = await resp.json();
         const next = normalizeApiData(json, fromISO, toISO);
-        next.status = 'Live data loaded successfully.';
-        next.lastAttemptLabel = 'Last live refresh: ' + stamp();
+        next.status = '';
         // Second fetch: the immediately-preceding equal-length window, for deltas.
         if (fromISO && toISO) {
           try {
@@ -955,27 +959,31 @@
         }
         renderState(next);
       } catch (err) {
-        const msg = 'Could not load data from DevFocus (' + err.message + '). Open this dashboard from inside the app while logged in, or use /report?token=YOUR_READER_TOKEN.';
         const empty = normalizeApiData({}, fromISO, toISO);
-        empty.status = msg;
-        empty.lastAttemptLabel = 'Last attempt: ' + stamp();
+        empty.status = 'Could not load data — open from inside DevFocus while logged in, or use /report?token=YOUR_READER_TOKEN.';
         renderState(empty);
       } finally {
-        reloadBtn.disabled = false;
-        reloadBtn.textContent = 'Reload live';
+        document.getElementById('applyRange').disabled = false;
       }
     }
-    document.getElementById('applyRange').addEventListener('click', () => loadLiveData(document.getElementById('fromDate').value, document.getElementById('toDate').value));
-    document.getElementById('reloadLive').addEventListener('click', () => loadLiveData(document.getElementById('fromDate').value, document.getElementById('toDate').value));
+    function setActivePreset(preset) {
+      document.querySelectorAll('#presetRow .btn').forEach(b => b.classList.toggle('is-active', b.getAttribute('data-preset') === preset));
+    }
+    document.getElementById('applyRange').addEventListener('click', () => {
+      setActivePreset(null); // a manual range clears the preset highlight
+      loadLiveData(document.getElementById('fromDate').value, document.getElementById('toDate').value);
+    });
     document.querySelectorAll('[data-preset]').forEach(btn => btn.addEventListener('click', () => {
       const preset = btn.getAttribute('data-preset');
-      if (preset === '30') {
-        document.getElementById('fromDate').value = isoDate(THIRTY_AGO);
-        document.getElementById('toDate').value = isoDate(TODAY);
-      } else {
+      if (preset === 'all') {
         document.getElementById('fromDate').value = LIVE_CONFIG.allDataFrom;
         document.getElementById('toDate').value = LIVE_CONFIG.allDataTo;
+      } else {
+        const from = new Date(TODAY.getTime() - Number(preset) * 24 * 60 * 60 * 1000);
+        document.getElementById('fromDate').value = isoDate(from);
+        document.getElementById('toDate').value = isoDate(TODAY);
       }
+      setActivePreset(preset);
       loadLiveData(document.getElementById('fromDate').value, document.getElementById('toDate').value);
     }));
     document.getElementById('detailReset').addEventListener('click', () => { setActiveButtons([]); document.getElementById('detailTitle').textContent = 'Drill-down details'; document.getElementById('detailSummary').textContent = 'Click a chart element or list row above to see the matching records.'; document.getElementById('detailTableWrap').innerHTML = '<div class="empty-state">No slice selected yet.</div>'; closeDetailModal(); });
@@ -985,6 +993,8 @@
 
     document.getElementById('fromDate').value = LIVE_CONFIG.defaultFrom;
     document.getElementById('toDate').value = LIVE_CONFIG.defaultTo;
+    // Default range is the last 30 days unless ?from/?to overrode it.
+    setActivePreset(URL_PARAMS.get('from') || URL_PARAMS.get('to') ? null : '30');
     loadLiveData(LIVE_CONFIG.defaultFrom, LIVE_CONFIG.defaultTo);
   </script>
 </body>
