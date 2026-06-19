@@ -266,7 +266,9 @@
       apiBase: '/api/trends',
       defaultFrom: URL_PARAMS.get('from') || isoDate(THIRTY_AGO),
       defaultTo: URL_PARAMS.get('to') || isoDate(TODAY),
-      allDataFrom: isoDate(ONE_YEAR_AGO),
+      // "All" queries from well before any data exists; the From field then
+      // snaps to the earliest day that actually has data once it loads.
+      allDataFrom: '2015-01-01',
       allDataTo: isoDate(TODAY),
     };
     // Raw API `type` codes -> display labels (mirrors frontend/src/constants/workTypes.js).
@@ -914,7 +916,7 @@
       renderClickableBars('afterHoursBars', state.afterProjectData, 'afterHours', d => d.afterHours + ' after-hours · ' + d.pct + '%', colors.magenta, (d, btn) => { const rows = currentState.rawItems.filter(item => item.project === d.label && item.afterHours); showDetails(d.label + ' · after-hours only', rows.length + ' matching after-hours rows from the current dataset.', rows, [btn]); });
       renderClickableBars('peakBreakdown', state.peakData, 'count', d => d.count + ' items', colors.orange, (d, btn) => { const rows = currentState.rawItems.filter(item => item.completedISO === d.date && item.project === d.project && item.type === d.type); showDetails(d.label + ' · ' + state.summary.peakDayUS, rows.length + ' matching rows from the peak day.', rows, [btn]); });
     }
-    async function loadLiveData(fromISO, toISO) {
+    async function loadLiveData(fromISO, toISO, skipDeltas) {
       const status = document.getElementById('dataStatus');
       const applyBtn = document.getElementById('applyRange');
       status.textContent = 'Loading…';
@@ -931,7 +933,8 @@
         const next = normalizeApiData(json, fromISO, toISO);
         next.status = '';
         // Second fetch: the immediately-preceding equal-length window, for deltas.
-        if (fromISO && toISO) {
+        // Skipped for "All" (an all-time view has no meaningful prior period).
+        if (!skipDeltas && fromISO && toISO) {
           try {
             const d0 = new Date(fromISO + 'T00:00:00');
             const d1 = new Date(toISO + 'T00:00:00');
@@ -973,18 +976,23 @@
       setActivePreset(null); // a manual range clears the preset highlight
       loadLiveData(document.getElementById('fromDate').value, document.getElementById('toDate').value);
     });
-    document.querySelectorAll('[data-preset]').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-preset]').forEach(btn => btn.addEventListener('click', async () => {
       const preset = btn.getAttribute('data-preset');
-      if (preset === 'all') {
-        document.getElementById('fromDate').value = LIVE_CONFIG.allDataFrom;
-        document.getElementById('toDate').value = LIVE_CONFIG.allDataTo;
-      } else {
-        const from = new Date(TODAY.getTime() - Number(preset) * 24 * 60 * 60 * 1000);
-        document.getElementById('fromDate').value = isoDate(from);
-        document.getElementById('toDate').value = isoDate(TODAY);
-      }
       setActivePreset(preset);
-      loadLiveData(document.getElementById('fromDate').value, document.getElementById('toDate').value);
+      const to = isoDate(TODAY);
+      if (preset === 'all') {
+        // Load everything, then set "From" to the first day that actually has data.
+        document.getElementById('toDate').value = to;
+        await loadLiveData(LIVE_CONFIG.allDataFrom, to, true);
+        const dates = (currentState && currentState.rawItems ? currentState.rawItems : [])
+          .map(r => r.completedISO).filter(Boolean).sort();
+        document.getElementById('fromDate').value = dates.length ? dates[0] : to;
+        return;
+      }
+      const from = new Date(TODAY.getTime() - Number(preset) * 24 * 60 * 60 * 1000);
+      document.getElementById('fromDate').value = isoDate(from);
+      document.getElementById('toDate').value = to;
+      loadLiveData(isoDate(from), to);
     }));
     document.getElementById('detailReset').addEventListener('click', () => { setActiveButtons([]); document.getElementById('detailTitle').textContent = 'Drill-down details'; document.getElementById('detailSummary').textContent = 'Click a chart element or list row above to see the matching records.'; document.getElementById('detailTableWrap').innerHTML = '<div class="empty-state">No slice selected yet.</div>'; closeDetailModal(); });
     document.getElementById('detailClose').addEventListener('click', closeDetailModal);
