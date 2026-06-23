@@ -581,24 +581,28 @@
         });
         if (peakDayCount > 0) {
           pool.push({
-            title: 'Throughput was bursty, not steady',
+            title: spikeRatio >= 2 ? 'Throughput was bursty, not steady' : 'Throughput stayed fairly steady',
             short: peakDayUS + ' was the biggest burst at ' + peakDayCount + ' items.',
             body: peakDayUS + ' hit ' + peakDayCount + ' completed items — about ' + spikeRatio.toFixed(1) + '× a typical active day (' + avgItemsPerActiveDay.toFixed(1) + ' items).' + (peakDayIsRelease ? ' It falls in a release week, so volume is partly release/backmerge mechanics rather than steady feature work.' : ''),
             action: null,
             score: spikeRatio * 12, tone: spikeRatio >= 2 ? 'watch' : 'good',
           });
         }
+        const execVerb = execReviewPct >= 50 ? 'dominated' : execReviewPct >= strategicPct ? 'led' : 'trailed';
         pool.push({
-          title: 'Execution and review led the work',
+          title: execVerb === 'dominated' ? 'Execution and review dominated the work'
+            : execVerb === 'led' ? 'Execution and review led the work'
+            : 'Strategic and review work outweighed PR delivery',
           short: execReviewTotal + ' of ' + itemsTotal + ' items (' + formatPct(execReviewPct) + ') were PR merges or reviews.',
-          body: execReviewTotal + ' of ' + itemsTotal + ' items (' + formatPct(execReviewPct) + ') were PR merges or PR reviews, against ' + strategicTotal + ' items (' + formatPct(strategicPct) + ') logged as Strategic, Reviews, or Follow-ups — hands-on throughput dominated the slice.',
-          action: null, score: 22, tone: 'good',
+          body: execReviewTotal + ' of ' + itemsTotal + ' items (' + formatPct(execReviewPct) + ') were PR merges or PR reviews, against ' + strategicTotal + ' items (' + formatPct(strategicPct) + ') logged as Strategic, Reviews, or Follow-ups — ' + (execVerb === 'dominated' ? 'hands-on throughput dominated the slice.' : execVerb === 'led' ? 'hands-on throughput led the slice.' : 'planning and review work outweighed hands-on delivery.'),
+          action: null, score: Math.max(execReviewPct, strategicPct), tone: 'good',
         });
+        const concentrated = topProjectsPct >= 75;
         pool.push({
-          title: 'Breadth across domains',
+          title: concentrated ? 'Work concentrated in a few projects' : 'Breadth across many domains',
           short: uniqueProjects + ' projects · ' + uniqueTypes + ' work types across ' + activeDayCount + ' active days.',
-          body: 'Work spanned ' + uniqueProjects + ' projects and ' + uniqueTypes + ' work types across ' + activeDayCount + ' active days, averaging ' + Number(avgItemsPerActiveDay).toFixed(1) + ' completed items per active day. ' + topProjectsLabel + ' accounted for the bulk (' + formatPct(topProjectsPct) + ').',
-          action: null, score: 12, tone: 'good',
+          body: 'Work spanned ' + uniqueProjects + ' projects and ' + uniqueTypes + ' work types across ' + activeDayCount + ' active days, averaging ' + Number(avgItemsPerActiveDay).toFixed(1) + ' completed items per active day. ' + topProjectsLabel + (concentrated ? ' carried almost all of it (' : ' accounted for the bulk (') + formatPct(topProjectsPct) + ').',
+          action: null, score: concentrated ? topProjectsPct * 0.3 : uniqueProjects * 3 + uniqueTypes, tone: 'good',
         });
         if (totalMeetings > 0) {
           pool.push({
