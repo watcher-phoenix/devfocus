@@ -50,6 +50,11 @@ app.get('/report', verify, (req, res) => {
 // Auth routes (unauthenticated)
 app.use('/api/auth', require('./routes/auth'));
 
+// Microsoft calendar OAuth. Mounted before the global guard: /auth is
+// authenticated per-route, /callback is open (validated by its `state` token)
+// so Microsoft's cross-site redirect back doesn't depend on a session cookie.
+app.use('/api/integrations/calendar', require('./routes/calendarAuth'));
+
 // All other API routes require authentication
 app.use('/api', verify);
 app.use('/api/daily', require('./routes/daily'));

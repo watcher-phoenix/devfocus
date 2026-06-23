@@ -3,6 +3,7 @@ const ical = require('node-ical');
 const { CachedEvent, IntegrationConfig } = require('../database/models');
 const { Op } = require('sequelize');
 const { TZ } = require('../utilities/timezone');
+const { fetchCalendarView } = require('./msGraph');
 
 // Convert a Date to YYYY-MM-DD in the app's timezone (America/New_York)
 function toDateInTZ(date) {
@@ -181,18 +182,24 @@ async function syncCalendar(startDate, endDate) {
   }
 
   const config = JSON.parse(integrationConfig.config);
-  const { icsUrl } = config;
+  const useGraph = config.authMethod === 'graph' || Boolean(config.homeAccountId);
 
-  if (!icsUrl) {
-    return { success: false, error: 'No ICS URL configured' };
+  if (!useGraph && !config.icsUrl) {
+    return { success: false, error: 'No calendar source configured' };
   }
 
   try {
-    const rawEvents = await ical.async.fromURL(icsUrl, {
-      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-    });
-
-    const events = expandRecurring(rawEvents, startDate, endDate);
+    // Graph calendarView expands recurrence server-side; the ICS path expands
+    // it locally with expandRecurring(). Both return the same event shape.
+    const events = useGraph
+      ? await fetchCalendarView(startDate, endDate)
+      : expandRecurring(
+        await ical.async.fromURL(config.icsUrl, {
+          headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+        }),
+        startDate,
+        endDate
+      );
 
     let created = 0;
     let updated = 0;

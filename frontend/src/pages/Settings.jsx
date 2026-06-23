@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -187,7 +187,7 @@ function ProjectsTab() {
 
 // ── Integration Config Card ───────────────────────────────────────────────
 
-function IntegrationCard({ provider, label, description, fields, configHint }) {
+function IntegrationCard({ provider, label, description, fields, configHint, oauth, oauthHint }) {
   const { data: integrations = [] } = useIntegrations();
   const updateIntegration = useUpdateIntegration();
   const syncIntegration = useSyncIntegration();
@@ -202,6 +202,12 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
   const isEnabled = integration?.enabled;
   const lastSync = integration?.lastSyncAt;
   const lastStatus = integration?.lastSyncStatus;
+  const account = integration?.config?.account;
+
+  // OAuth connect: full-page navigation so the server can 302 to Microsoft.
+  const connectOAuth = () => {
+    window.location.assign(`/api/integrations/${provider}/auth`);
+  };
 
   const openConfig = () => {
     const existing = integration?.config || {};
@@ -216,8 +222,9 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
   const handleSaveConfig = async () => {
     await updateIntegration.mutateAsync({
       provider,
-      config: form,
-      enabled: true,
+      // OAuth stores its config (tokens) server-side via the callback — don't
+      // overwrite it with the empty dialog form.
+      ...(oauth ? {} : { config: form, enabled: true }),
       tokenExpiresAt: tokenExpiresAt || null,
       tokenLabel: tokenLabel || null,
     });
@@ -273,11 +280,23 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
                   Sync
                 </Button>
               )}
-              <Button size="small" variant="contained" onClick={openConfig}>
-                {isConfigured ? 'Edit' : 'Configure'}
-              </Button>
+              {oauth && !isConfigured ? (
+                <Button size="small" variant="contained" onClick={connectOAuth}>
+                  Connect Microsoft
+                </Button>
+              ) : (
+                <Button size="small" variant="contained" onClick={openConfig}>
+                  {isConfigured ? (oauth ? 'Manage' : 'Edit') : 'Configure'}
+                </Button>
+              )}
             </Stack>
           </Box>
+
+          {oauth && isConfigured && account && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              Connected as {account}
+            </Typography>
+          )}
 
           {lastSync && (
             <Typography variant="caption" color="text.secondary">
@@ -308,21 +327,37 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
       <Dialog open={configOpen} onClose={() => setConfigOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Configure {label}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-          {configHint && (
-            <Alert severity="info" sx={{ mb: 1 }}>{configHint}</Alert>
+          {oauth ? (
+            <>
+              {oauthHint && <Alert severity="info" sx={{ mb: 1 }}>{oauthHint}</Alert>}
+              {account && (
+                <Typography variant="body2">
+                  Connected as <strong>{account}</strong>
+                </Typography>
+              )}
+              <Button variant="outlined" onClick={connectOAuth} sx={{ alignSelf: 'flex-start' }}>
+                {isConfigured ? 'Reconnect Microsoft' : 'Connect Microsoft'}
+              </Button>
+            </>
+          ) : (
+            <>
+              {configHint && (
+                <Alert severity="info" sx={{ mb: 1 }}>{configHint}</Alert>
+              )}
+              {fields.map((field) => (
+                <TextField
+                  key={field.key}
+                  label={field.label}
+                  value={form[field.key] || ''}
+                  onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                  fullWidth
+                  placeholder={field.placeholder}
+                  type={field.secret ? 'password' : 'text'}
+                  helperText={field.helper}
+                />
+              ))}
+            </>
           )}
-          {fields.map((field) => (
-            <TextField
-              key={field.key}
-              label={field.label}
-              value={form[field.key] || ''}
-              onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-              fullWidth
-              placeholder={field.placeholder}
-              type={field.secret ? 'password' : 'text'}
-              helperText={field.helper}
-            />
-          ))}
           <Stack direction="row" spacing={2}>
             <TextField
               label="Token expiry date"
@@ -361,9 +396,30 @@ function IntegrationCard({ provider, label, description, fields, configHint }) {
 // ── Integrations Tab ──────────────────────────────────────────────────────
 
 function IntegrationsTab() {
+  // Surface the result of the Microsoft OAuth redirect (?calendar=connected|error).
+  const [oauthResult, setOauthResult] = useState(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('calendar');
+    if (!status) return;
+    if (status === 'connected') {
+      setOauthResult({ severity: 'success', message: `Outlook calendar connected${params.get('account') ? ` as ${params.get('account')}` : ''}.` });
+    } else if (status === 'error') {
+      setOauthResult({ severity: 'error', message: `Calendar connection failed: ${params.get('msg') || 'unknown error'}` });
+    }
+    // Strip the query params so a refresh doesn't re-show the banner.
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
   return (
     <Box>
       <Typography variant="h6" sx={{ fontSize: '1rem', mb: 2 }}>Integrations</Typography>
+
+      {oauthResult && (
+        <Alert severity={oauthResult.severity} sx={{ mb: 2 }} onClose={() => setOauthResult(null)}>
+          {oauthResult.message}
+        </Alert>
+      )}
 
       <IntegrationCard
         provider="jira"
@@ -397,10 +453,9 @@ function IntegrationsTab() {
         provider="calendar"
         label="Outlook Calendar"
         description="Pull Outlook/Teams meetings to calculate your available focus time"
-        configHint="In Outlook: Settings > Calendar > Shared calendars > Publish a calendar. Select your calendar and choose 'Can view all details'. Copy the ICS link."
-        fields={[
-          { key: 'icsUrl', label: 'ICS Calendar URL', placeholder: 'https://outlook.office365.com/owa/calendar/...', helper: 'The published ICS link from Outlook. No Azure setup needed.' },
-        ]}
+        oauth
+        oauthHint="Sign in with your Microsoft work account to grant read-only calendar access (Calendars.Read). You'll be redirected to Microsoft and back. Reconnect here if syncing ever stops working."
+        fields={[]}
       />
     </Box>
   );

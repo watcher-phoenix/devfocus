@@ -238,7 +238,7 @@ export default function Guide() {
         <B>Statuses</B>
         <P>Rename, recolor, or add custom work statuses. System statuses (Brain Dump, Active, Waiting, Later, Scheduled, Done, Cancelled) can be renamed and recolored but not deleted. Custom statuses can be added for your workflow.</P>
         <B>Integrations</B>
-        <P>Connect Jira (API token), Bitbucket (access token or app password), and Outlook Calendar (ICS link). Each syncs automatically every 30 minutes during work hours, or sync on-demand with the Sync button. Set token expiry dates to get reminders before they expire.</P>
+        <P>Connect Jira (API token), Bitbucket (access token or app password), and Outlook Calendar (sign in with your Microsoft work account — read-only calendar access via Azure/Entra). Each syncs automatically every 30 minutes during work hours, or sync on-demand with the Sync button. If calendar syncing ever stops, use Reconnect Microsoft. Set token expiry dates to get reminders before they expire.</P>
       </Section>
     </Box>
   );

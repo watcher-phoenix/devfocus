@@ -86,7 +86,10 @@ function safeConfigSummary(provider, configStr) {
       case 'bitbucket':
         return { workspace: parsed.workspace, username: parsed.username, repos: parsed.repos, hasAccessToken: !!parsed.accessToken };
       case 'calendar':
-        return { icsUrl: parsed.icsUrl ? '(configured)' : null };
+        if (parsed.authMethod === 'graph' || parsed.homeAccountId) {
+          return { authMethod: 'graph', account: parsed.account || null };
+        }
+        return { authMethod: parsed.icsUrl ? 'ics' : null, icsUrl: parsed.icsUrl ? '(configured)' : null };
       default:
         return {};
     }
