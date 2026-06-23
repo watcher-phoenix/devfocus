@@ -54,7 +54,6 @@
     .btn, .ghost-button, .list-button, .type-button { border: 1px solid var(--artifact-border-light); background: var(--artifact-background); color: inherit; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease; }
     .btn:hover, .btn:focus-visible, .ghost-button:hover, .ghost-button:focus-visible, .list-button:hover, .list-button:focus-visible, .type-button:hover, .type-button:focus-visible { transform: translateY(-1px); border-color: var(--artifact-border-dark); background: var(--artifact-selected); outline: none; }
     .btn { padding: 10px 14px; border-radius: 12px; }
-    .quick-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 18px 0 24px; }
     .stat { padding: 18px; }
     .stat .label { color: var(--artifact-text-secondary); font-size: 13px; margin-bottom: 10px; }
@@ -192,7 +191,7 @@
         </div>
       </div>
       <div class="panel section">
-        <div class="section-head"><div><h2>Type mix</h2><p>The period is usually dominated by shipping and review work.</p></div></div>
+        <div class="section-head"><div><h2>Type mix</h2><p id="typeMixCopy"></p></div></div>
         <svg id="typeChart" class="chart medium" viewBox="0 0 520 300"></svg>
         <div id="typeLegend" class="type-legend"></div>
         <div class="footer-note">Click a type row to open matching source items.</div>
@@ -851,6 +850,19 @@
       const cx = width / 2, cy = height / 2, r = 128; const total = typeData.reduce((s, d) => s + d.value, 0); let angle = -Math.PI / 2;
       typeData.forEach((d, idx) => { const frac = total ? d.value / total : 0; const next = angle + frac * Math.PI * 2; const x1 = cx + Math.cos(angle) * r; const y1 = cy + Math.sin(angle) * r; const x2 = cx + Math.cos(next) * r; const y2 = cy + Math.sin(next) * r; const large = next - angle > Math.PI ? 1 : 0; svg.appendChild(svgEl('path', { d: 'M ' + cx + ' ' + cy + ' L ' + x1 + ' ' + y1 + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x2 + ' ' + y2 + ' Z', fill: palette[idx % palette.length] })); angle = next; });
       svg.appendChild(svgEl('circle', { cx, cy, r: 74, fill: colors.bg })); const mid = svgEl('text', { x: cx, y: cy - 4, 'text-anchor': 'middle', fill: colors.text, 'font-size': 38, 'font-weight': 700 }); mid.textContent = total; svg.appendChild(mid); const mid2 = svgEl('text', { x: cx, y: cy + 20, 'text-anchor': 'middle', fill: colors.sub, 'font-size': 14 }); mid2.textContent = 'items'; svg.appendChild(mid2);
+      const copyEl = document.getElementById('typeMixCopy');
+      if (copyEl) {
+        const top = typeData[0];
+        if (!total || !top) {
+          copyEl.textContent = 'No completed items in the selected range.';
+        } else {
+          const pct = Math.round((top.value / total) * 100);
+          const second = typeData[1];
+          copyEl.textContent = second && second.value
+            ? top.label + ' leads at ' + pct + '% of items, followed by ' + second.label + ' at ' + Math.round((second.value / total) * 100) + '%.'
+            : top.label + ' accounts for ' + pct + '% of items in this range.';
+        }
+      }
       const legend = document.getElementById('typeLegend'); legend.innerHTML = '';
       typeData.forEach((d, idx) => { const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'type-button'; const swatch = document.createElement('span'); swatch.className = 'swatch'; swatch.style.background = palette[idx % palette.length]; const label = document.createElement('span'); label.textContent = d.label; const meta = document.createElement('span'); meta.style.color = colors.sub; meta.style.fontSize = '12px'; meta.textContent = d.value + ' · ' + (total ? Math.round((d.value / total) * 100) : 0) + '%'; btn.append(swatch, label, meta); btn.addEventListener('click', () => { const rows = currentState.rawItems.filter(item => item.type === d.label); showDetails(d.label, rows.length + ' matching rows from the current dataset.', rows, [btn]); }); legend.appendChild(btn); });
     }
