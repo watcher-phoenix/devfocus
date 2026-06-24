@@ -157,7 +157,7 @@ export default function Guide() {
         <B>Non-task tally</B>
         <P>On Today, the "Non-task tally" card has tap-to-increment chips for the things that eat your day but never become tasks — Interrupted, Helped someone, Firefighting, Admin, Reading, Ad-hoc meeting, Context switch, Blocked / waiting, Planning, and Documentation. Tap a chip to log one — each tap becomes its own timestamped entry below, with its own optional note so you can record what happened that specific time. Use the × next to an entry to remove it. Totals roll up on Trends.</P>
         <B>Context switches</B>
-        <P>Trends shows a "Context Switches" stat — derived automatically (no logging) from the order of your completed work and meetings each day. A switch is counted whenever the context (project, or a meeting) changes. The "Context &amp; non-task activity" section lists what you actually switched between, day by day.</P>
+        <P>Trends shows a "Context Switches" stat — derived automatically from the order of your completed work and meetings each day, plus your non-task tallies. A switch is counted whenever the context (project, or a meeting) changes, and every non-task tally counts as one switch too — each is a distinct yank off task (no deduping). The "Context &amp; non-task activity" section still lists what you actually switched between and where the day went, day by day.</P>
       </Section>
 
       <Section title="Keyboard Shortcuts">

@@ -179,10 +179,43 @@ router.get('/', async (req, res) => {
       };
     });
 
+    // --- Non-task tally totals (Interrupted / Helped / Firefighting / etc.) ---
+    // Parsed before context switches because every tally is itself a context
+    // switch (a "yank" off whatever you were doing), so they feed the count below.
+    const tallyRows = await DailyTally.findAll({ where: { date: eventDateWhere } });
+    const tallyTotals = {};
+    // Per-entry detail (timestamp + note) so the dashboard can surface the
+    // qualitative "why" behind each category, not just the count.
+    const tallyDetails = {};
+    // Per-day total tally count — each tally is one distinct switch (no dedup).
+    const tallyCountByDate = {};
+    tallyRows.forEach((row) => {
+      let counts = {};
+      try { counts = JSON.parse(row.counts || '{}'); } catch { counts = {}; }
+      Object.entries(counts).forEach(([k, v]) => {
+        const n = Number(v) || 0;
+        tallyTotals[k] = (tallyTotals[k] || 0) + n;
+        tallyCountByDate[row.date] = (tallyCountByDate[row.date] || 0) + n;
+      });
+      let entries = {};
+      try { entries = JSON.parse(row.entries || '{}'); } catch { entries = {}; }
+      Object.entries(entries).forEach(([k, list]) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((e) => {
+          if (e && typeof e === 'object' && (e.note || e.ts)) {
+            if (!tallyDetails[k]) tallyDetails[k] = [];
+            tallyDetails[k].push({ date: row.date, ts: e.ts || '', note: e.note || '' });
+          }
+        });
+      });
+    });
+
     // --- Context switches (derived, zero-overhead) ---
     // Build a per-day timeline of "contexts" from completed work (labeled by project)
     // and meetings, ordered by time, then count how many times the context changes.
-    // Consecutive items in the same context don't count as a switch.
+    // Consecutive items in the same context don't count as a switch. On top of that,
+    // every non-task tally counts as one switch — each is a distinct "yank" off task
+    // (no dedup) — so a day's total = work/meeting context changes + tally count.
     const dateStrET = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
     const ctxEventsByDate = {};
     const pushCtx = (date, time, label) => {
@@ -197,17 +230,22 @@ router.get('/', async (req, res) => {
 
     const contextTimeline = {};
     let totalSwitches = 0;
-    Object.entries(ctxEventsByDate).forEach(([date, evs]) => {
+    // Union of every date with work/meeting activity or tallies, so tally-only
+    // days still register their switches.
+    const switchDates = new Set([...Object.keys(ctxEventsByDate), ...Object.keys(tallyCountByDate)]);
+    switchDates.forEach((date) => {
+      const evs = ctxEventsByDate[date] || [];
       evs.sort((a, b) => a.time - b.time);
       const sequence = [];
       evs.forEach((e) => {
         if (sequence.length === 0 || sequence[sequence.length - 1] !== e.label) sequence.push(e.label);
       });
-      const switches = Math.max(0, sequence.length - 1);
+      const tallySwitches = tallyCountByDate[date] || 0;
+      const switches = Math.max(0, sequence.length - 1) + tallySwitches;
       totalSwitches += switches;
-      contextTimeline[date] = { sequence, switches };
+      contextTimeline[date] = { sequence, switches, tallySwitches };
     });
-    const switchDays = Object.keys(contextTimeline).length || 1;
+    const switchDays = switchDates.size || 1;
     const avgSwitchesPerDay = Math.round((totalSwitches / switchDays) * 10) / 10;
 
     // Flat item-level rows for external dashboards (live drill-down, charts).
@@ -223,29 +261,6 @@ router.get('/', async (req, res) => {
       externalUrl: i.externalUrl || null,
       afterHours: isAfterHours(i.completedAt),
     }));
-
-    // --- Non-task tally totals (Interrupted / Helped / Firefighting / etc.) ---
-    const tallyRows = await DailyTally.findAll({ where: { date: eventDateWhere } });
-    const tallyTotals = {};
-    // Per-entry detail (timestamp + note) so the dashboard can surface the
-    // qualitative "why" behind each category, not just the count.
-    const tallyDetails = {};
-    tallyRows.forEach((row) => {
-      let counts = {};
-      try { counts = JSON.parse(row.counts || '{}'); } catch { counts = {}; }
-      Object.entries(counts).forEach(([k, v]) => { tallyTotals[k] = (tallyTotals[k] || 0) + (Number(v) || 0); });
-      let entries = {};
-      try { entries = JSON.parse(row.entries || '{}'); } catch { entries = {}; }
-      Object.entries(entries).forEach(([k, list]) => {
-        if (!Array.isArray(list)) return;
-        list.forEach((e) => {
-          if (e && typeof e === 'object' && (e.note || e.ts)) {
-            if (!tallyDetails[k]) tallyDetails[k] = [];
-            tallyDetails[k].push({ date: row.date, ts: e.ts || '', note: e.note || '' });
-          }
-        });
-      });
-    });
 
     // Summary stats
     const totalCompleted = completedItems.length;
