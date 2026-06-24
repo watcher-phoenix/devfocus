@@ -326,20 +326,19 @@ router.get('/', async (req, res) => {
     const totalFocusHours = Math.round(totalFocusMinutes / 6) / 10;
     const avgFocusHoursPerWeek = Math.round((totalFocusMinutes / focusWeeks / 60) * 10) / 10;
 
-    // Earliest data point (ET) across all sources — when your history actually
-    // begins. Used as a hard floor so the range picker / presets don't reach
-    // before any data exists. Uses item *creation* (not completion), plus the
-    // earliest meeting and tally dates, so it reflects when you started, not
-    // when the first item happened to be finished.
-    const [earliestItem, earliestEvent, earliestTally] = await Promise.all([
+    // Earliest data point (ET) — when you actually started tracking work here.
+    // Used as a hard floor so the range picker / presets don't reach before
+    // data exists. Based on item *creation* and tally dates only. Calendar
+    // events are intentionally excluded: the calendar sync backfills historical
+    // meetings (well before you began using the app), so including them would
+    // push the floor back to dates with no real work history.
+    const [earliestItem, earliestTally] = await Promise.all([
       WorkItem.min('createdAt'),
-      CachedEvent.min('date'),
       DailyTally.min('date'),
     ]);
     const startCandidates = [
       earliestItem ? dateStrET(new Date(earliestItem)) : null,
-      earliestEvent || null, // CachedEvent.date is already a YYYY-MM-DD (ET) string
-      earliestTally || null, // DailyTally.date likewise
+      earliestTally || null, // DailyTally.date is already a YYYY-MM-DD (ET) string
     ].filter(Boolean);
     const dataStart = startCandidates.length ? startCandidates.sort()[0] : null;
 

@@ -143,7 +143,7 @@ function Panel({ title, subtitle, children, span }) {
 const HEAT_CELL = 32;
 const HEAT_GAP = 6;
 const HEAT_LABEL_W = 40;
-const WEEKDAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function Heatmap({ items, from, to, ooo, onSelectDay }) {
   const oooSet = useMemo(() => new Set(ooo || []), [ooo]);
@@ -190,7 +190,7 @@ function Heatmap({ items, from, to, ooo, onSelectDay }) {
     <Box sx={{ overflowX: 'auto', pb: 1 }}>
       <Box sx={{ display: 'flex', gap: `${HEAT_GAP}px`, ml: `${HEAT_LABEL_W}px`, mb: 0.5 }}>
         {weeks.map((w) => (
-          <Typography key={w.key} variant="caption" color="text.secondary" sx={{ width: HEAT_CELL, fontSize: 11 }}>{w.monthLabel}</Typography>
+          <Typography key={w.key} variant="caption" color="text.secondary" sx={{ width: HEAT_CELL, fontSize: 11, whiteSpace: 'nowrap', overflow: 'visible' }}>{w.monthLabel}</Typography>
         ))}
       </Box>
       <Box sx={{ display: 'flex', gap: `${HEAT_GAP}px` }}>
@@ -666,7 +666,7 @@ export default function LiveDashboard() {
             ) : <Typography variant="body2" color="text.secondary">No project data for this range.</Typography>}
           </Panel>
 
-          <Panel title="Top projects" subtitle="Completed items by project. Click a bar to see the items." span>
+          <Panel title="Top projects" subtitle="Completed items by project. Click a bar to see the items.">
             {projects.names.length ? (
               <BarChart height={Math.max(180, projects.names.length * 38)} layout="horizontal"
                 yAxis={[{ scaleType: 'band', data: projects.names }]}
