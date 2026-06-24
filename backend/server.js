@@ -15,8 +15,12 @@ app.set('trust proxy', 1);
 
 const frontendUrl = process.env.DEVFOCUS_FRONTEND_URL || 'http://localhost:5173';
 const corsOrigins = [frontendUrl];
-if (process.env.NODE_ENV === 'production') {
-  corsOrigins.push('https://devfocus.fly.dev');
+// Optionally trust an extra public origin for credentialed CORS. Only needed if
+// the SPA is served from a different host than the API — a standard same-origin
+// production deploy (SPA + API on one host) doesn't need this, since same-origin
+// requests aren't subject to CORS.
+if (process.env.DEVFOCUS_PUBLIC_URL) {
+  corsOrigins.push(process.env.DEVFOCUS_PUBLIC_URL);
 }
 // Trusted origins (the app itself + dev frontend) get credentialed CORS so the
 // cookie-based login works. Any other origin — e.g. an external read-only

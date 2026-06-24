@@ -12,7 +12,7 @@ Stage all modified tracked files, generate an appropriate commit message based o
 fly deploy
 ```
 
-Always deploy after pushing. The app is live at https://devfocus.fly.dev.
+Always deploy after pushing. The deployed URL is the Fly app's `.fly.dev` host (see `app` in `fly.toml`).
 
 **Before every commit**, verify the frontend builds cleanly:
 
