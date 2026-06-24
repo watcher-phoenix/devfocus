@@ -28,6 +28,7 @@ import { toPng } from 'html-to-image';
 import { BarChart, BarPlot } from '@mui/x-charts/BarChart';
 import { LineChart, LinePlot, MarkPlot } from '@mui/x-charts/LineChart';
 import { PieChart } from '@mui/x-charts/PieChart';
+import { SparkLineChart } from '@mui/x-charts/SparkLineChart';
 import { ResponsiveChartContainer } from '@mui/x-charts/ResponsiveChartContainer';
 import { ChartsXAxis } from '@mui/x-charts/ChartsXAxis';
 import { ChartsYAxis } from '@mui/x-charts/ChartsYAxis';
@@ -46,6 +47,34 @@ const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a
 const weekStartOf = (iso) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - d.getDay()); return fmtISO(d); };
 const fmtDay = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 const round1 = (n) => Math.round(n * 10) / 10;
+
+// Calendar-period starts (this week / month / quarter / year), as ISO strings.
+const startOfMonthStr = () => { const d = new Date(); return fmtISO(new Date(d.getFullYear(), d.getMonth(), 1)); };
+const startOfQuarterStr = () => { const d = new Date(); return fmtISO(new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1)); };
+const startOfYearStr = () => { const d = new Date(); return fmtISO(new Date(d.getFullYear(), 0, 1)); };
+// Each preset maps to the `from` date it selects; `to` is always today.
+const PRESETS = [
+  { value: 7, label: '7d', title: 'Last 7 days', from: () => daysAgo(7) },
+  { value: 30, label: '30d', title: 'Last 30 days', from: () => daysAgo(30) },
+  { value: 90, label: '90d', title: 'Last 90 days', from: () => daysAgo(90) },
+  { value: 'wtd', label: 'WTD', title: 'This week', from: () => weekStartOf(todayStr()) },
+  { value: 'mtd', label: 'MTD', title: 'This month', from: startOfMonthStr },
+  { value: 'qtd', label: 'QTD', title: 'This quarter', from: startOfQuarterStr },
+  { value: 'ytd', label: 'YTD', title: 'This year', from: startOfYearStr },
+];
+const PRESET_FROM = Object.fromEntries(PRESETS.map((p) => [p.value, p.from]));
+
+// Parts of the day for the "when work happens" breakdown (local clock hour).
+const PARTS_OF_DAY = [
+  { label: 'Early', test: (h) => h >= 5 && h < 8 },
+  { label: 'Morning', test: (h) => h >= 8 && h < 12 },
+  { label: 'Midday', test: (h) => h >= 12 && h < 14 },
+  { label: 'Afternoon', test: (h) => h >= 14 && h < 17 },
+  { label: 'Evening', test: (h) => h >= 17 && h < 21 },
+  { label: 'Night', test: (h) => h >= 21 || h < 5 },
+];
+const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const DOW_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const STRATEGIC_COLOR = '#7C4DFF';
 const EXEC_COLOR = '#00C853';
@@ -68,11 +97,20 @@ function Delta({ curr, prev, invert }) {
   );
 }
 
-function StatCard({ label, value, sub, color, curr, prev, invert }) {
+function StatCard({ label, value, sub, color, curr, prev, invert, trend }) {
+  const showTrend = Array.isArray(trend) && trend.filter((n) => n > 0).length > 1;
   return (
     <Card sx={{ flex: 1, minWidth: { xs: 'calc(50% - 8px)', sm: 150 } }}>
       <CardContent sx={{ py: '12px !important', '&:last-child': { pb: '12px !important' } }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, color: color || 'text.primary', fontSize: '1.8rem' }}>{value}</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: color || 'text.primary', fontSize: '1.8rem' }}>{value}</Typography>
+          {showTrend && (
+            <Box sx={{ width: 64, height: 28, flexShrink: 0, mt: 0.5 }} title="Weekly trend">
+              <SparkLineChart data={trend} height={28} curve="monotoneX" color={color || STRATEGIC_COLOR} area
+                margin={{ top: 2, bottom: 2, left: 0, right: 0 }} />
+            </Box>
+          )}
+        </Box>
         <Typography variant="body2" sx={{ fontWeight: 500 }}>{label}</Typography>
         {sub && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{sub}</Typography>}
         <Box sx={{ mt: 0.5 }}><Delta curr={curr} prev={prev} invert={invert} /></Box>
@@ -102,12 +140,13 @@ function Panel({ title, subtitle, children, span }) {
   );
 }
 
-const HEAT_CELL = 22;
-const HEAT_GAP = 5;
-const HEAT_LABEL_W = 34;
+const HEAT_CELL = 32;
+const HEAT_GAP = 6;
+const HEAT_LABEL_W = 40;
 const WEEKDAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 
-function Heatmap({ items, from, to }) {
+function Heatmap({ items, from, to, ooo, onSelectDay }) {
+  const oooSet = useMemo(() => new Set(ooo || []), [ooo]);
   const { weeks, max } = useMemo(() => {
     const counts = {};
     const ah = {};
@@ -126,7 +165,7 @@ function Heatmap({ items, from, to }) {
         const day = addDays(cursor, d);
         const c = counts[day] || 0;
         if (c > highest) highest = c;
-        col.push({ day, count: c, ah: ah[day] || 0, inRange: day >= from && day <= to });
+        col.push({ day, count: c, ah: ah[day] || 0, inRange: day >= from && day <= to, ooo: oooSet.has(day) });
       }
       const monthDate = new Date(cursor + 'T12:00:00');
       const month = monthDate.getMonth();
@@ -137,10 +176,11 @@ function Heatmap({ items, from, to }) {
       if (cols.length > 70) break;
     }
     return { weeks: cols, max: highest };
-  }, [items, from, to]);
+  }, [items, from, to, oooSet]);
 
   const cell = (c) => {
     if (!c.inRange) return 'transparent';
+    if (c.ooo) return 'rgba(0,200,150,0.18)';
     if (c.count === 0) return 'rgba(255,255,255,0.06)';
     const ratio = max > 0 ? c.count / max : 0;
     return `rgba(124,77,255,${0.3 + 0.6 * ratio})`;
@@ -163,8 +203,9 @@ function Heatmap({ items, from, to }) {
           <Box key={w.key} sx={{ display: 'flex', flexDirection: 'column', gap: `${HEAT_GAP}px` }}>
             {w.days.map((c) => (
               <Box key={c.day}
-                title={`${c.day}: ${c.count} completed${c.ah ? ` (${c.ah} after-hours)` : ''}`}
-                sx={{ width: HEAT_CELL, height: HEAT_CELL, borderRadius: '4px', bgcolor: cell(c), outline: c.ah ? '2px solid rgba(255,214,0,0.9)' : 'none', outlineOffset: '-2px' }} />
+                onClick={() => c.inRange && c.count > 0 && onSelectDay?.(c.day)}
+                title={c.inRange ? `${c.day}: ${c.count} completed${c.ah ? ` (${c.ah} after-hours)` : ''}${c.ooo ? ' · out of office' : ''}` : undefined}
+                sx={{ width: HEAT_CELL, height: HEAT_CELL, borderRadius: '4px', bgcolor: cell(c), cursor: c.inRange && c.count > 0 ? 'pointer' : 'default', pointerEvents: c.inRange ? 'auto' : 'none', border: c.inRange && c.ooo ? '1px dashed rgba(0,200,150,0.8)' : 'none', outline: c.inRange && c.ah ? '2px solid rgba(255,214,0,0.9)' : 'none', outlineOffset: '-2px', transition: 'transform 0.08s', '&:hover': c.inRange && c.count > 0 ? { transform: 'scale(1.15)' } : {} }} />
             ))}
           </Box>
         ))}
@@ -177,6 +218,8 @@ function Heatmap({ items, from, to }) {
         <Typography variant="caption" color="text.secondary">More</Typography>
         <Box sx={{ width: 13, height: 13, borderRadius: '3px', ml: 1.5, outline: '2px solid rgba(255,214,0,0.9)', outlineOffset: '-2px' }} />
         <Typography variant="caption" color="text.secondary">after-hours</Typography>
+        <Box sx={{ width: 13, height: 13, borderRadius: '3px', ml: 1.5, bgcolor: 'rgba(0,200,150,0.18)', border: '1px dashed rgba(0,200,150,0.8)' }} />
+        <Typography variant="caption" color="text.secondary">out of office</Typography>
       </Box>
     </Box>
   );
@@ -243,7 +286,12 @@ export default function LiveDashboard() {
 
   // Hard floor: never let the range reach before the earliest task data.
   const clampFrom = (iso) => (dataStart && iso < dataStart ? dataStart : iso);
-  const applyPreset = (e, v) => { if (!v) return; setPreset(v); setFromDate(clampFrom(daysAgo(v))); setToDate(todayStr()); };
+  const applyPreset = (e, v) => {
+    if (!v || !PRESET_FROM[v]) return;
+    setPreset(v);
+    setFromDate(clampFrom(PRESET_FROM[v]()));
+    setToDate(todayStr());
+  };
   const onDate = (field, value) => { setPreset(null); if (field === 'from') setFromDate(clampFrom(value)); else setToDate(value); };
 
   const weekly = useMemo(() => {
@@ -255,11 +303,13 @@ export default function LiveDashboard() {
     ])).sort();
     const stratByWeek = {};
     const totalByWeek = {};
+    const ahByWeek = {};
     (data.items || []).forEach((i) => {
       if (!i.completedISO) return;
       const w = weekStartOf(i.completedISO);
       totalByWeek[w] = (totalByWeek[w] || 0) + 1;
       if (i.type === 'strategic') stratByWeek[w] = (stratByWeek[w] || 0) + 1;
+      if (i.afterHours) ahByWeek[w] = (ahByWeek[w] || 0) + 1;
     });
     return {
       labels: keys.map(fmtDay),
@@ -267,6 +317,7 @@ export default function LiveDashboard() {
       meetingHrs: keys.map((k) => round1((data.weeklyMeetingMinutes?.[k] || 0) / 60)),
       focusHrs: keys.map((k) => round1((data.weeklyFocusMinutes?.[k] || 0) / 60)),
       stratPct: keys.map((k) => (totalByWeek[k] ? Math.round(((stratByWeek[k] || 0) / totalByWeek[k]) * 100) : 0)),
+      afterHours: keys.map((k) => ahByWeek[k] || 0),
     };
   }, [data]);
 
@@ -298,6 +349,46 @@ export default function LiveDashboard() {
       .filter((c) => c.count > 0).sort((a, b) => b.count - a.count);
   }, [data]);
 
+  // When work actually gets done — completions by weekday and by part of day.
+  const rhythm = useMemo(() => {
+    const byDow = {};
+    const byPart = PARTS_OF_DAY.map(() => 0);
+    (data?.items || []).forEach((i) => {
+      if (i.completedISO) {
+        const wd = new Date(`${i.completedISO}T12:00:00`).getDay();
+        byDow[wd] = (byDow[wd] || 0) + 1;
+      }
+      if (i.completedAt) {
+        const h = new Date(i.completedAt).getHours();
+        const idx = PARTS_OF_DAY.findIndex((p) => p.test(h));
+        if (idx >= 0) byPart[idx] += 1;
+      }
+    });
+    const dowCounts = DOW_ORDER.map((d) => byDow[d] || 0);
+    return {
+      dowCounts,
+      partCounts: byPart,
+      hasData: dowCounts.some((n) => n > 0),
+    };
+  }, [data]);
+
+  // Which projects rose or fell vs the prior equal-length window.
+  const momentum = useMemo(() => {
+    if (!data) return { hasPrior: false, rows: [] };
+    const curr = data.projectBreakdown || {};
+    const prev = prior?.projectBreakdown || null;
+    const names = Array.from(new Set([...Object.keys(curr), ...(prev ? Object.keys(prev) : [])]));
+    const rows = names
+      .map((name) => {
+        const c = curr[name] || 0;
+        const p = prev ? prev[name] || 0 : null;
+        return { name, curr: c, prev: p, delta: prev ? c - p : null };
+      })
+      .sort((a, b) => (prior ? Math.abs(b.delta) - Math.abs(a.delta) : b.curr - a.curr))
+      .slice(0, 8);
+    return { hasPrior: !!prev, rows };
+  }, [data, prior]);
+
   const openType = (e, item) => {
     const d = pieData[item?.dataIndex];
     if (d) setDrill({ title: `${d.label} — ${d.value} items`, items: data.typeDetails?.[d.id] || [] });
@@ -305,6 +396,12 @@ export default function LiveDashboard() {
   const openProject = (e, item) => {
     const name = projects.names[item?.dataIndex];
     if (name) setDrill({ title: `${name} — ${data.projectBreakdown[name]} items`, items: data.projectDetails?.[name] || [] });
+  };
+  const openDay = (day) => {
+    const dayItems = (data.items || [])
+      .filter((i) => i.completedISO === day)
+      .map((i, idx) => ({ ...i, id: `${day}-${idx}` }));
+    setDrill({ title: `${fmtDay(day)} — ${dayItems.length} completed`, items: dayItems });
   };
   const openTally = (c) => {
     const notes = (data.tallyDetails?.[c.key] || []).filter((e) => e.note);
@@ -345,6 +442,33 @@ export default function LiveDashboard() {
   const s = data.summary;
   const ps = prior?.summary;
   const narrative = buildNarrative(s, weekly);
+  const activePreset = PRESETS.find((p) => p.value === preset) || null;
+  const rangeCapped = !!(activePreset && clampFrom(activePreset.from()) !== activePreset.from());
+
+  // Meeting load as a share of actual working time. focus + meeting ≈ the
+  // workday capacity (focus is already workday minus meetings/OOO), so this
+  // reads as "how much of your available time went to meetings."
+  const workHours = round1(s.totalMeetingHours + s.totalFocusHours);
+  const meetingPct = workHours > 0 ? Math.round((s.totalMeetingHours / workHours) * 100) : 0;
+  const focusPct = workHours > 0 ? 100 - meetingPct : 0;
+
+  // Auto-detected, skimmable facts about the slice.
+  const callouts = [];
+  if (rhythm.hasData) {
+    const maxDow = Math.max(...rhythm.dowCounts);
+    if (maxDow > 0) callouts.push(`${DOW_LABELS[rhythm.dowCounts.indexOf(maxDow)]} is your most productive day`);
+    const maxPart = Math.max(...rhythm.partCounts);
+    if (maxPart > 0) callouts.push(`Most work happens in the ${PARTS_OF_DAY[rhythm.partCounts.indexOf(maxPart)].label.toLowerCase()}`);
+  }
+  if (weekly?.items?.length) {
+    const maxWk = Math.max(...weekly.items);
+    if (maxWk > 0) callouts.push(`Busiest week: ${weekly.labels[weekly.items.indexOf(maxWk)]} (${maxWk} items)`);
+  }
+  if (s.totalCompleted > 0 && s.afterHoursItems > 0) {
+    callouts.push(`${Math.round((s.afterHoursItems / s.totalCompleted) * 100)}% of items finished after-hours`);
+  }
+  if (workHours > 0) callouts.push(`Meetings = ${meetingPct}% of working hours`);
+  if (s.oooDays > 0) callouts.push(`${s.oooDays} day${s.oooDays === 1 ? '' : 's'} out of office`);
 
   return (
     <Box sx={{ maxWidth: 1200 }}>
@@ -354,15 +478,25 @@ export default function LiveDashboard() {
           <Typography variant="body2" color="text.secondary">
             Workload readout — completed work, meeting load, focus time, and where effort goes.
           </Typography>
+          <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.25 }}>Showing</Typography>
+            <Chip size="small" label={`${fmtDay(fromDate)} → ${fmtDay(toDate)}`}
+              sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', bgcolor: 'action.selected' }} />
+            <Chip size="small" variant="outlined" label={`${len} ${len === 1 ? 'day' : 'days'}`} />
+            {activePreset && <Chip size="small" variant="outlined" color="primary" label={activePreset.title} />}
+            {rangeCapped && (
+              <Chip size="small" variant="outlined" color="warning" label="capped at history start"
+                title={`Your task history begins ${fmtDay(dataStart)}, so the range can't reach earlier.`} />
+            )}
+          </Stack>
         </Box>
         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
           <Button size="small" variant="outlined" startIcon={<ContentCopyIcon />} onClick={copySummary}>Copy summary</Button>
           <Button size="small" variant="outlined" startIcon={<ImageIcon />} onClick={exportPng}>PNG</Button>
           <ToggleButtonGroup value={preset} exclusive onChange={applyPreset} size="small">
-            <ToggleButton value={7}>7d</ToggleButton>
-            <ToggleButton value={30}>30d</ToggleButton>
-            <ToggleButton value={90}>90d</ToggleButton>
-            <ToggleButton value={180}>180d</ToggleButton>
+            {PRESETS.map((p) => (
+              <ToggleButton key={p.value} value={p.value} title={p.title}>{p.label}</ToggleButton>
+            ))}
           </ToggleButtonGroup>
           <TextField type="date" size="small" label="From" value={fromDate}
             onChange={(e) => onDate('from', e.target.value)}
@@ -378,14 +512,21 @@ export default function LiveDashboard() {
         <Card sx={{ mb: 2, borderLeft: '3px solid', borderColor: 'primary.main' }}>
           <CardContent sx={{ py: '12px !important', '&:last-child': { pb: '12px !important' } }}>
             <Typography variant="body2">{narrative}</Typography>
+            {callouts.length > 0 && (
+              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                {callouts.map((c) => (
+                  <Chip key={c} size="small" variant="outlined" label={c} sx={{ fontWeight: 500 }} />
+                ))}
+              </Stack>
+            )}
           </CardContent>
         </Card>
 
         <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-          <StatCard label="Completed items" value={s.totalCompleted} curr={s.totalCompleted} prev={ps?.totalCompleted} sub={`${s.avgItemsPerWeek}/wk avg`} />
-          <StatCard label="Meeting hours" value={`${s.totalMeetingHours}h`} color={MEETING_COLOR} curr={s.totalMeetingHours} prev={ps?.totalMeetingHours} invert sub={`${s.totalMeetings} meetings`} />
-          <StatCard label="Focus hours" value={`${s.totalFocusHours}h`} color={EXEC_COLOR} curr={s.totalFocusHours} prev={ps?.totalFocusHours} sub={`${s.avgFocusHoursPerWeek}h/wk avg`} />
-          <StatCard label="After-hours items" value={s.afterHoursItems} color="#F44336" curr={s.afterHoursItems} prev={ps?.afterHoursItems} invert sub="lower is better" />
+          <StatCard label="Completed items" value={s.totalCompleted} curr={s.totalCompleted} prev={ps?.totalCompleted} sub={`${s.avgItemsPerWeek}/wk avg`} trend={weekly.items} />
+          <StatCard label="Meeting hours" value={`${s.totalMeetingHours}h`} color={MEETING_COLOR} curr={s.totalMeetingHours} prev={ps?.totalMeetingHours} invert sub={`${s.totalMeetings} meetings`} trend={weekly.meetingHrs} />
+          <StatCard label="Focus hours" value={`${s.totalFocusHours}h`} color={EXEC_COLOR} curr={s.totalFocusHours} prev={ps?.totalFocusHours} sub={`${s.avgFocusHoursPerWeek}h/wk avg`} trend={weekly.focusHrs} />
+          <StatCard label="After-hours items" value={s.afterHoursItems} color="#F44336" curr={s.afterHoursItems} prev={ps?.afterHoursItems} invert sub="lower is better" trend={weekly.afterHours} />
         </Stack>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
@@ -413,7 +554,18 @@ export default function LiveDashboard() {
           </Panel>
 
           <Panel title="Meetings vs focus (hours/week)" subtitle="Stacked weekly hours — meeting load against estimated focus time.">
-            <BarChart height={300} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
+            {workHours > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                <Box sx={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden' }}>
+                  <Box sx={{ width: `${meetingPct}%`, bgcolor: MEETING_COLOR }} title={`Meetings · ${s.totalMeetingHours}h`} />
+                  <Box sx={{ width: `${focusPct}%`, bgcolor: EXEC_COLOR }} title={`Focus · ${s.totalFocusHours}h`} />
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  Meetings take <strong>{meetingPct}%</strong> of your working hours · focus {focusPct}%
+                </Typography>
+              </Box>
+            )}
+            <BarChart height={272} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
               series={[
                 { data: weekly.meetingHrs, label: 'Meeting hrs', color: MEETING_COLOR, stack: 'h' },
                 { data: weekly.focusHrs, label: 'Focus hrs', color: EXEC_COLOR, stack: 'h' },
@@ -427,9 +579,19 @@ export default function LiveDashboard() {
               slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
           </Panel>
 
-          <Panel title="Type mix" subtitle="Completed items by work type. Click a slice to see the items.">
-            <PieChart height={300} onItemClick={openType}
+          <Panel title="Type mix" subtitle="Completed items by work type. Click a slice or legend item to see them.">
+            <PieChart height={240} onItemClick={openType}
+              slotProps={{ legend: { hidden: true } }}
+              margin={{ top: 10, bottom: 10, left: 10, right: 10 }}
               series={[{ data: pieData, innerRadius: 55, paddingAngle: 2, cornerRadius: 4, highlightScope: { faded: 'global', highlighted: 'item' } }]} />
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap justifyContent="center" sx={{ mt: 1 }}>
+              {pieData.map((d) => (
+                <Box key={d.id} onClick={() => setDrill({ title: `${d.label} — ${d.value} items`, items: data.typeDetails?.[d.id] || [] })}
+                  sx={{ cursor: 'pointer', '&:hover': { opacity: 0.7 } }}>
+                  <LegendDot color={d.color} label={`${d.label} · ${d.value}`} />
+                </Box>
+              ))}
+            </Stack>
           </Panel>
 
           <Panel title="Context switches" subtitle={`${s.contextSwitches} total · ${s.avgSwitchesPerDay}/day avg. Lower is calmer.`}>
@@ -455,6 +617,55 @@ export default function LiveDashboard() {
             ) : <Typography variant="body2" color="text.secondary">No tallies logged in this range.</Typography>}
           </Panel>
 
+          <Panel title="By day of week" subtitle="Which days you complete the most work, across the range.">
+            {rhythm.hasData ? (
+              <BarChart height={300} xAxis={[{ scaleType: 'band', data: DOW_LABELS }]}
+                series={[{ data: rhythm.dowCounts, label: 'Items', color: STRATEGIC_COLOR }]}
+                slotProps={{ legend: { hidden: true } }} margin={{ left: 40, right: 10, top: 10, bottom: 30 }} />
+            ) : <Typography variant="body2" color="text.secondary">No completed items in this range.</Typography>}
+          </Panel>
+
+          <Panel title="By time of day" subtitle="When work gets done (local clock time).">
+            {rhythm.hasData ? (
+              <BarChart height={300} xAxis={[{ scaleType: 'band', data: PARTS_OF_DAY.map((p) => p.label) }]}
+                series={[{ data: rhythm.partCounts, label: 'Items', color: EXEC_COLOR }]}
+                slotProps={{ legend: { hidden: true } }} margin={{ left: 40, right: 10, top: 10, bottom: 30 }} />
+            ) : <Typography variant="body2" color="text.secondary">No completed items in this range.</Typography>}
+          </Panel>
+
+          <Panel title="Project momentum" subtitle="Biggest movers vs the prior equal-length window.">
+            {!momentum.hasPrior ? (
+              <Typography variant="body2" color="text.secondary">Not enough history before this range to compare.</Typography>
+            ) : momentum.rows.length ? (
+              <Stack spacing={0.25}>
+                {momentum.rows.map((r) => {
+                  const isNew = r.prev === 0 && r.curr > 0;
+                  const gone = r.curr === 0 && r.prev > 0;
+                  const up = r.delta > 0;
+                  const flat = r.delta === 0;
+                  const color = flat ? 'text.secondary' : up ? 'success.main' : 'error.main';
+                  return (
+                    <Box key={r.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 0.5 }}>
+                      <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>{r.prev} → {r.curr}</Typography>
+                      <Box sx={{ width: 64, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', color, fontWeight: 600 }}>
+                        {isNew ? <Chip label="new" size="small" color="success" variant="outlined" />
+                          : gone ? <Chip label="gone" size="small" variant="outlined" />
+                          : flat ? <Typography variant="caption" color="text.secondary">—</Typography>
+                          : (
+                            <Typography component="span" variant="caption" sx={{ display: 'inline-flex', alignItems: 'center', color, fontWeight: 700 }}>
+                              {up ? <ArrowUpwardIcon sx={{ fontSize: 14 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14 }} />}
+                              {Math.abs(r.delta)}
+                            </Typography>
+                          )}
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Stack>
+            ) : <Typography variant="body2" color="text.secondary">No project data for this range.</Typography>}
+          </Panel>
+
           <Panel title="Top projects" subtitle="Completed items by project. Click a bar to see the items." span>
             {projects.names.length ? (
               <BarChart height={Math.max(180, projects.names.length * 38)} layout="horizontal"
@@ -468,8 +679,8 @@ export default function LiveDashboard() {
             ) : <Typography variant="body2" color="text.secondary">No project data for this range.</Typography>}
           </Panel>
 
-          <Panel title="Activity heatmap" subtitle="Completed items per day. Amber ring = after-hours work." span>
-            <Heatmap items={data.items} from={fromDate} to={toDate} />
+          <Panel title="Activity heatmap" subtitle="Completed items per day. Click a day for its items. Amber ring = after-hours; dashed teal = out of office." span>
+            <Heatmap items={data.items} from={fromDate} to={toDate} ooo={data.oooDates} onSelectDay={openDay} />
           </Panel>
         </Box>
       </Box>

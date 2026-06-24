@@ -378,6 +378,7 @@ router.get('/', async (req, res) => {
       projectDetails,
       typeDetails,
       dailyBreakdown,
+      oooDates: [...oooAllDayDates].sort(),
     });
   } catch (err) {
     console.error('Trends error:', err.message);
