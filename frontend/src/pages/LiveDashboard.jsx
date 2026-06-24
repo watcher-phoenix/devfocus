@@ -169,7 +169,7 @@ function Heatmap({ items, from, to, ooo, onSelectDay }) {
       }
       const monthDate = new Date(cursor + 'T12:00:00');
       const month = monthDate.getMonth();
-      const monthLabel = month !== prevMonth ? monthDate.toLocaleDateString(undefined, { month: 'short' }) : '';
+      const monthLabel = month !== prevMonth ? monthDate.toLocaleDateString(undefined, { month: 'long' }) : '';
       prevMonth = month;
       cols.push({ key: cursor, days: col, monthLabel });
       cursor = addDays(cursor, 7);
@@ -284,6 +284,19 @@ export default function LiveDashboard() {
   // deltas near the start of history aren't measured against empty time.
   const { data: prior } = useTrends({ from: priorFrom, to: priorTo, enabled: !!(dataStart && priorFrom >= dataStart) });
 
+  // Project momentum tolerates a partial prior window (clamped to the start of
+  // history) and compares per-week rates, so it still shows before a full
+  // equal-length prior period exists. When the full window fits, this matches
+  // `prior` exactly and react-query dedupes the request.
+  const momPriorTo = priorTo;
+  const momPriorFrom = dataStart && priorFrom < dataStart ? dataStart : priorFrom;
+  const momPriorDays = daysBetween(momPriorFrom, momPriorTo) + 1;
+  const { data: momPrior } = useTrends({
+    from: momPriorFrom,
+    to: momPriorTo,
+    enabled: !!(dataStart && momPriorFrom >= dataStart && momPriorFrom <= momPriorTo && momPriorDays >= 7),
+  });
+
   // Hard floor: never let the range reach before the earliest task data.
   const clampFrom = (iso) => (dataStart && iso < dataStart ? dataStart : iso);
   const applyPreset = (e, v) => {
@@ -372,22 +385,27 @@ export default function LiveDashboard() {
     };
   }, [data]);
 
-  // Which projects rose or fell vs the prior equal-length window.
+  // Which projects sped up or slowed down vs the prior period, compared as
+  // items/week so a shorter prior window (near the start of history) is fair.
   const momentum = useMemo(() => {
     if (!data) return { hasPrior: false, rows: [] };
     const curr = data.projectBreakdown || {};
-    const prev = prior?.projectBreakdown || null;
-    const names = Array.from(new Set([...Object.keys(curr), ...(prev ? Object.keys(prev) : [])]));
+    const prev = momPrior?.projectBreakdown || null;
+    if (!prev) return { hasPrior: false, rows: [] };
+    const currWeeks = Math.max(1, len) / 7;
+    const prevWeeks = Math.max(1, momPriorDays) / 7;
+    const names = Array.from(new Set([...Object.keys(curr), ...Object.keys(prev)]));
     const rows = names
       .map((name) => {
-        const c = curr[name] || 0;
-        const p = prev ? prev[name] || 0 : null;
-        return { name, curr: c, prev: p, delta: prev ? c - p : null };
+        const currRate = (curr[name] || 0) / currWeeks;
+        const prevRate = (prev[name] || 0) / prevWeeks;
+        return { name, curr: curr[name] || 0, currRate, prevRate, delta: currRate - prevRate };
       })
-      .sort((a, b) => (prior ? Math.abs(b.delta) - Math.abs(a.delta) : b.curr - a.curr))
+      .filter((r) => r.currRate > 0 || r.prevRate > 0)
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
       .slice(0, 8);
-    return { hasPrior: !!prev, rows };
-  }, [data, prior]);
+    return { hasPrior: true, rows };
+  }, [data, momPrior, len, momPriorDays]);
 
   const openType = (e, item) => {
     const d = pieData[item?.dataIndex];
@@ -633,29 +651,29 @@ export default function LiveDashboard() {
             ) : <Typography variant="body2" color="text.secondary">No completed items in this range.</Typography>}
           </Panel>
 
-          <Panel title="Project momentum" subtitle="Biggest movers vs the prior equal-length window.">
+          <Panel title="Project momentum" subtitle="Speeding up or slowing down vs the prior period (items/week).">
             {!momentum.hasPrior ? (
-              <Typography variant="body2" color="text.secondary">Not enough history before this range to compare.</Typography>
+              <Typography variant="body2" color="text.secondary">Need at least a week of earlier history to compare. Try a shorter range, or check back as more history builds up.</Typography>
             ) : momentum.rows.length ? (
               <Stack spacing={0.25}>
                 {momentum.rows.map((r) => {
-                  const isNew = r.prev === 0 && r.curr > 0;
-                  const gone = r.curr === 0 && r.prev > 0;
+                  const isNew = r.prevRate === 0 && r.currRate > 0;
+                  const gone = r.currRate === 0 && r.prevRate > 0;
                   const up = r.delta > 0;
-                  const flat = r.delta === 0;
+                  const flat = Math.abs(r.delta) < 0.05;
                   const color = flat ? 'text.secondary' : up ? 'success.main' : 'error.main';
                   return (
                     <Box key={r.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 0.5 }}>
                       <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>{r.prev} → {r.curr}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }} title="items per week: prior → current">{round1(r.prevRate)} → {round1(r.currRate)}/wk</Typography>
                       <Box sx={{ width: 64, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', color, fontWeight: 600 }}>
                         {isNew ? <Chip label="new" size="small" color="success" variant="outlined" />
                           : gone ? <Chip label="gone" size="small" variant="outlined" />
-                          : flat ? <Typography variant="caption" color="text.secondary">—</Typography>
+                          : flat ? <Typography variant="caption" color="text.secondary">flat</Typography>
                           : (
                             <Typography component="span" variant="caption" sx={{ display: 'inline-flex', alignItems: 'center', color, fontWeight: 700 }}>
                               {up ? <ArrowUpwardIcon sx={{ fontSize: 14 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14 }} />}
-                              {Math.abs(r.delta)}
+                              {round1(Math.abs(r.delta))}
                             </Typography>
                           )}
                       </Box>
