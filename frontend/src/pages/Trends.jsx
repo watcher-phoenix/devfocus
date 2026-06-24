@@ -241,6 +241,11 @@ function ContextActivity({ tallyTotals = {}, contextTimeline = {} }) {
                     <Typography variant="caption" sx={{ fontWeight: 600 }}>
                       {new Date(date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                       {' · '}{v.switches} switch{v.switches === 1 ? '' : 'es'}
+                      {(v.tallySwitches || 0) > 0 && (
+                        <Typography component="span" variant="caption" sx={{ fontWeight: 400, color: 'text.secondary' }}>
+                          {' '}({v.tallySwitches} from non-task tallies)
+                        </Typography>
+                      )}
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
                       {v.sequence.map((label, i) => (
@@ -249,6 +254,9 @@ function ContextActivity({ tallyTotals = {}, contextTimeline = {} }) {
                           <Chip size="small" variant="outlined" label={label} sx={{ height: 20, fontSize: '0.7rem' }} />
                         </Box>
                       ))}
+                      {(v.tallySwitches || 0) > 0 && (
+                        <Chip size="small" color="warning" variant="outlined" label={`⚡ ${v.tallySwitches} non-task yank${v.tallySwitches === 1 ? '' : 's'}`} sx={{ height: 20, fontSize: '0.7rem' }} />
+                      )}
                     </Box>
                   </Box>
                 ))}
