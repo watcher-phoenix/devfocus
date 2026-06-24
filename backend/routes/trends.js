@@ -302,7 +302,10 @@ router.get('/', async (req, res) => {
     const workdayMinutes = Math.max(0, workEndMins - workStartMins);
     const weeklyFocusMinutes = {};
     let totalFocusMinutes = 0;
-    const focusRangeEnd = untilDate || getTodayET();
+    // Never credit focus for days that haven't happened yet — cap at today, the
+    // same way meetings/items are bounded.
+    const todayET = getTodayET();
+    const focusRangeEnd = untilDate && untilDate < todayET ? untilDate : todayET;
     for (
       let cur = new Date(sinceDate + 'T12:00:00Z'), end = new Date(focusRangeEnd + 'T12:00:00Z');
       cur <= end;
