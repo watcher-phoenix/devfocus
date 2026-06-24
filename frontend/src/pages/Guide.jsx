@@ -226,7 +226,7 @@ export default function Guide() {
         <B>Export</B>
         <P>CSV downloads a spreadsheet of all items and stats. Report opens a formatted, printable page you can save as PDF or print directly.</P>
         <B>Live Dashboard</B>
-        <P>The <strong>Live Dashboard</strong> link in the sidebar opens a full interactive dashboard (at /report) that reads live straight from the database — click any chart or bar to drill into the underlying items. It uses the same dark theme as the app and opens in a new tab with your logged-in session; to share it outside the app (e.g. embed in Glean), use the tokenized link /report?token=YOUR_READER_TOKEN.</P>
+        <P>The <strong>Live Dashboard</strong> link in the sidebar opens a full interactive dashboard (at /report) that reads live straight from the database — click any chart or bar to drill into the underlying items. It uses the same dark theme as the app and opens in a new tab with your logged-in session.</P>
       </Section>
 
       <Section title="Settings">

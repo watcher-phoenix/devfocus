@@ -98,7 +98,6 @@ In development, authentication is **skipped** when `DEVFOCUS_PASS_HASH` is unset
 ## Authentication
 
 - Password-based login: a SHA-256 hash of the password is stored in `DEVFOCUS_PASS_HASH`. Sessions use a 7-day cookie.
-- Read-only access tokens are supported for embedding dashboards externally (via `Authorization: Bearer` header or a `?token=` query param).
 - Auth is disabled in development when `DEVFOCUS_PASS_HASH` is unset.
 
 ## Environment variables
@@ -110,9 +109,8 @@ Local development needs none. Production sets the following (see `fly.toml` and 
 | `DEVFOCUS_DB_PATH` | Path to the SQLite file (e.g. `/data/devfocus.sqlite3`) |
 | `DEVFOCUS_PORT` | Server port (default `3001`) |
 | `DEVFOCUS_PASS_HASH` | SHA-256 hash of the login password |
-| `DEVFOCUS_API_TOKEN` | Read-only token (Bearer header) for dashboards |
-| `DEVFOCUS_READER_TOKEN` | Read-only token (`?token=` param) for embeds |
 | `DEVFOCUS_FRONTEND_URL` | Allowed CORS origin |
+| `DEVFOCUS_PUBLIC_URL` | Optional extra trusted CORS origin (only if SPA + API are on different hosts) |
 
 Integration credentials (Jira, Bitbucket, Outlook) are **not** environment variables — they're entered in Settings and stored encrypted in the database.
 

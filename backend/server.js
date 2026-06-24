@@ -22,18 +22,15 @@ const corsOrigins = [frontendUrl];
 if (process.env.DEVFOCUS_PUBLIC_URL) {
   corsOrigins.push(process.env.DEVFOCUS_PUBLIC_URL);
 }
-// Trusted origins (the app itself + dev frontend) get credentialed CORS so the
-// cookie-based login works. Any other origin — e.g. an external read-only
-// dashboard like a Glean artifact — is allowed WITHOUT credentials: the bearer
-// token (GET-only) still works, but cookies are never shared cross-origin, so a
-// random site can't ride a logged-in session. Sandboxed iframes send
-// `Origin: null`, which is reflected fine for the token path.
+// Only trusted origins (the app's own host + the dev frontend) get credentialed
+// CORS for the cookie-based login. Requests with no Origin header (same-origin
+// navigations, curl) pass through; any other origin is rejected.
 app.use(cors((req, callback) => {
   const origin = req.header('Origin');
   if (!origin || corsOrigins.includes(origin)) {
     callback(null, { origin: true, credentials: true });
   } else {
-    callback(null, { origin: true, credentials: false });
+    callback(null, { origin: false });
   }
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -42,11 +39,9 @@ app.use(cookieParser());
 // Health check (unauthenticated)
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-// Standalone read-only Trends dashboard (self-contained HTML). `verify` lets it
-// in three ways: a logged-in session cookie (the in-app "Live Dashboard" link),
-// a `?token=<DEVFOCUS_READER_TOKEN>` query param (for sharing into Glean), or the
-// dev auth bypass. The page fetches /api/trends same-origin — carrying whichever
-// of the cookie/token it has — so it pulls live straight from the database.
+// Interactive Trends dashboard. `verify` gates it via the logged-in session
+// cookie (the in-app "Live Dashboard" link) or the dev auth bypass. The page
+// fetches /api/trends same-origin, so it pulls live straight from the database.
 app.get('/report', verify, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'report.html'));
 });

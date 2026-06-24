@@ -252,11 +252,8 @@
 
   <script>
     // Served same-origin from the DevFocus app, so the dashboard pulls straight
-    // from the database via the relative /api/trends endpoint — no cross-origin
-    // fetch, no CSP sandbox, no CSV snapshot fallback. The read token comes from
-    // this page's own URL (?token=...) so it is never baked into the repo.
-    const URL_PARAMS = new URLSearchParams(location.search);
-    const READER_TOKEN = URL_PARAMS.get('token') || '';
+    // from the database via the relative /api/trends endpoint, carrying the
+    // logged-in session cookie — no cross-origin fetch, no token.
     const isoDate = (d) => d.toISOString().slice(0, 10);
     const TODAY = new Date();
     const THIRTY_AGO = new Date(TODAY.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -958,7 +955,6 @@
         const params = new URLSearchParams();
         if (fromISO && toISO) { params.set('from', fromISO); params.set('to', toISO); }
         else params.set('days', '30');
-        if (READER_TOKEN) params.set('token', READER_TOKEN);
         const resp = await fetch(LIVE_CONFIG.apiBase + '?' + params.toString(), { cache: 'no-store' });
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const json = await resp.json();
@@ -974,7 +970,6 @@
             const priorTo = new Date(d0.getTime() - 86400000);
             const priorFrom = new Date(priorTo.getTime() - (lenDays - 1) * 86400000);
             const priorParams = new URLSearchParams({ from: isoDate(priorFrom), to: isoDate(priorTo) });
-            if (READER_TOKEN) priorParams.set('token', READER_TOKEN);
             const priorResp = await fetch(LIVE_CONFIG.apiBase + '?' + priorParams.toString(), { cache: 'no-store' });
             if (priorResp.ok) {
               const prior = normalizeApiData(await priorResp.json(), isoDate(priorFrom), isoDate(priorTo));
@@ -995,7 +990,7 @@
         renderState(next);
       } catch (err) {
         const empty = normalizeApiData({}, fromISO, toISO);
-        empty.status = 'Could not load data — open from inside DevFocus while logged in, or use /report?token=YOUR_READER_TOKEN.';
+        empty.status = 'Could not load data — open the Live Dashboard from inside DevFocus while logged in.';
         renderState(empty);
       } finally {
         document.getElementById('applyRange').disabled = false;
