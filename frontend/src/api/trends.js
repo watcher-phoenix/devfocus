@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from './client';
 
-export function useTrends({ days, from, to } = {}) {
+export function useTrends({ days, from, to, enabled = true } = {}) {
   const params = new URLSearchParams();
   if (from && to) {
     params.set('from', from);
@@ -13,5 +13,6 @@ export function useTrends({ days, from, to } = {}) {
   return useQuery({
     queryKey: ['trends', from, to, days],
     queryFn: () => api.get(`/trends?${qs}`),
+    enabled,
   });
 }

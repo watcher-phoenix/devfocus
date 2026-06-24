@@ -326,7 +326,13 @@ router.get('/', async (req, res) => {
     const totalFocusHours = Math.round(totalFocusMinutes / 6) / 10;
     const avgFocusHoursPerWeek = Math.round((totalFocusMinutes / focusWeeks / 60) * 10) / 10;
 
+    // Earliest completed-item date (ET) — the dashboard uses this as a hard
+    // floor so the range picker / presets don't reach before any data exists.
+    const earliestDone = await WorkItem.min('completedAt', { where: { status: 'done' } });
+    const dataStart = earliestDone ? dateStrET(new Date(earliestDone)) : null;
+
     res.json({
+      dataStart,
       period: { days: parseInt(days), since: sinceDate },
       summary: {
         totalCompleted,

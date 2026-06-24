@@ -28,6 +28,7 @@
     "clippyjs": "^0.1.0",
     "dayjs": "^1.11.13",
     "emoji-picker-react": "^4.19.1",
+    "html-to-image": "^1.11.13",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.0",
