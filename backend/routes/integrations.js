@@ -32,7 +32,11 @@ router.put('/:provider', async (req, res) => {
 
   const updateData = { ...req.body };
   if (updateData.config && typeof updateData.config === 'object') {
-    updateData.config = JSON.stringify(updateData.config);
+    // Merge into the existing config rather than replacing it, so a partial
+    // update (e.g. setting the calendar's fallback ICS URL) doesn't wipe
+    // server-managed secrets like the stored Graph token cache.
+    const existing = config && config.config ? JSON.parse(config.config) : {};
+    updateData.config = JSON.stringify({ ...existing, ...updateData.config });
   }
 
   if (!config) {
@@ -87,7 +91,7 @@ function safeConfigSummary(provider, configStr) {
         return { workspace: parsed.workspace, username: parsed.username, repos: parsed.repos, hasAccessToken: !!parsed.accessToken };
       case 'calendar':
         if (parsed.authMethod === 'graph' || parsed.homeAccountId) {
-          return { authMethod: 'graph', account: parsed.account || null };
+          return { authMethod: 'graph', account: parsed.account || null, icsFallback: parsed.icsUrl || '' };
         }
         return { authMethod: parsed.icsUrl ? 'ics' : null, icsUrl: parsed.icsUrl ? '(configured)' : null };
       default:

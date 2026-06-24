@@ -13,11 +13,6 @@ const { TZ } = require('../utilities/timezone');
 const CLIENT_ID = process.env.GRAPH_CLIENT_ID;
 const TENANT_ID = process.env.GRAPH_TENANT_ID;
 const CLIENT_SECRET = process.env.GRAPH_CLIENT_SECRET;
-// Where Microsoft redirects after consent. Must EXACTLY match a redirect URI
-// registered on the Azure app. Defaults to the Fly.io prod URL.
-const REDIRECT_URI =
-  process.env.GRAPH_REDIRECT_URI ||
-  'https://devfocus.fly.dev/api/integrations/calendar/callback';
 
 // Delegated permission. openid/profile/offline_access are added by MSAL
 // automatically and must NOT be listed here (MSAL throws if they are).
@@ -63,26 +58,29 @@ function getClient() {
   });
 }
 
-// Build the Microsoft consent/login URL to redirect the user to.
-function getAuthCodeUrl(state) {
-  return getClient().getAuthCodeUrl({ scopes: SCOPES, redirectUri: REDIRECT_URI, state });
+// Build the Microsoft consent/login URL to redirect the user to. `redirectUri`
+// must EXACTLY match a redirect URI registered on the Azure app and be the same
+// value passed to handleAuthCallback().
+function getAuthCodeUrl(state, redirectUri) {
+  return getClient().getAuthCodeUrl({ scopes: SCOPES, redirectUri, state });
 }
 
 // Exchange the auth code for tokens. Creates the `calendar` config row first so
 // the cache plugin has somewhere to persist the token cache.
-async function handleAuthCallback(code) {
+async function handleAuthCallback(code, redirectUri) {
   const client = getClient();
   let rec = await IntegrationConfig.findOne({ where: { provider: 'calendar' } });
   if (!rec) rec = await IntegrationConfig.create({ provider: 'calendar' });
 
-  const result = await client.acquireTokenByCode({ code, scopes: SCOPES, redirectUri: REDIRECT_URI });
+  const result = await client.acquireTokenByCode({ code, scopes: SCOPES, redirectUri });
 
   // Re-read: acquireTokenByCode's afterCacheAccess just wrote msalCache to the row.
   const { cfg } = await loadConfig();
   cfg.authMethod = 'graph';
   cfg.homeAccountId = result.account.homeAccountId;
   cfg.account = result.account.username;
-  delete cfg.icsUrl; // migrating off the old ICS feed
+  // Keep any existing icsUrl: it stays as an automatic fallback if a Graph sync
+  // ever fails (see syncCalendar).
   await rec.update({ config: JSON.stringify(cfg), enabled: true });
   return result.account;
 }

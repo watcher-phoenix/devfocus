@@ -20,6 +20,18 @@ function settingsRedirect(res, params) {
   res.redirect(`/settings?${new URLSearchParams(params).toString()}`);
 }
 
+// The OAuth redirect URI. Derived from the incoming request host so the app
+// works on any deployment without a hardcoded URL; `GRAPH_REDIRECT_URI`
+// overrides it. /auth and /callback hit the same host, so both resolve
+// identically (a requirement of the auth-code flow). Whatever this resolves to
+// must be registered as a redirect URI on the Azure app.
+function redirectUriFor(req) {
+  return (
+    process.env.GRAPH_REDIRECT_URI ||
+    `${req.protocol}://${req.get('host')}/api/integrations/calendar/callback`
+  );
+}
+
 router.get('/auth', verify, async (req, res) => {
   if (!graph.isConfigured()) {
     return settingsRedirect(res, { calendar: 'error', msg: 'Graph env vars not set on the server' });
@@ -27,7 +39,7 @@ router.get('/auth', verify, async (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   pendingStates.set(state, Date.now() + STATE_TTL_MS);
   try {
-    const url = await graph.getAuthCodeUrl(state);
+    const url = await graph.getAuthCodeUrl(state, redirectUriFor(req));
     return res.redirect(url);
   } catch (err) {
     return settingsRedirect(res, { calendar: 'error', msg: err.message });
@@ -48,7 +60,7 @@ router.get('/callback', async (req, res) => {
   }
 
   try {
-    const account = await graph.handleAuthCallback(code);
+    const account = await graph.handleAuthCallback(code, redirectUriFor(req));
     return settingsRedirect(res, { calendar: 'connected', account: account.username || '' });
   } catch (err) {
     console.error('[calendar] OAuth callback failed:', err.message);

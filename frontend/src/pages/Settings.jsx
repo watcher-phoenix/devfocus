@@ -196,6 +196,7 @@ function IntegrationCard({ provider, label, description, fields, configHint, oau
   const [syncResult, setSyncResult] = useState(null);
   const [tokenExpiresAt, setTokenExpiresAt] = useState('');
   const [tokenLabel, setTokenLabel] = useState('');
+  const [icsFallback, setIcsFallback] = useState('');
 
   const integration = integrations.find((i) => i.provider === provider);
   const isConfigured = integration?.config?.configured;
@@ -216,15 +217,17 @@ function IntegrationCard({ provider, label, description, fields, configHint, oau
     setForm(initial);
     setTokenExpiresAt(integration?.tokenExpiresAt ? integration.tokenExpiresAt.split('T')[0] : '');
     setTokenLabel(integration?.tokenLabel || '');
+    setIcsFallback(integration?.config?.icsFallback || '');
     setConfigOpen(true);
   };
 
   const handleSaveConfig = async () => {
     await updateIntegration.mutateAsync({
       provider,
-      // OAuth stores its config (tokens) server-side via the callback — don't
-      // overwrite it with the empty dialog form.
-      ...(oauth ? {} : { config: form, enabled: true }),
+      // OAuth keeps its tokens server-side (set via the callback). The config
+      // update merges server-side, so sending just the fallback ICS URL won't
+      // clobber the stored token cache.
+      ...(oauth ? { config: { icsUrl: icsFallback } } : { config: form, enabled: true }),
       tokenExpiresAt: tokenExpiresAt || null,
       tokenLabel: tokenLabel || null,
     });
@@ -313,9 +316,13 @@ function IntegrationCard({ provider, label, description, fields, configHint, oau
           )}
 
           {syncResult && (
-            <Alert severity={syncResult.success ? 'success' : 'error'} sx={{ mt: 1 }} onClose={() => setSyncResult(null)}>
+            <Alert
+              severity={syncResult.success ? (syncResult.source === 'ics-fallback' ? 'warning' : 'success') : 'error'}
+              sx={{ mt: 1 }}
+              onClose={() => setSyncResult(null)}
+            >
               {syncResult.success
-                ? `Synced: ${syncResult.created || 0} new, ${syncResult.updated || 0} updated, ${syncResult.total || 0} total`
+                ? `Synced: ${syncResult.created || 0} new, ${syncResult.updated || 0} updated, ${syncResult.total || 0} total${syncResult.source === 'ics-fallback' ? ' — via ICS fallback (Graph sync failed)' : ''}`
                 : syncResult.error}
             </Alert>
           )}
@@ -338,6 +345,14 @@ function IntegrationCard({ provider, label, description, fields, configHint, oau
               <Button variant="outlined" onClick={connectOAuth} sx={{ alignSelf: 'flex-start' }}>
                 {isConfigured ? 'Reconnect Microsoft' : 'Connect Microsoft'}
               </Button>
+              <TextField
+                label="Fallback ICS URL (optional)"
+                value={icsFallback}
+                onChange={(e) => setIcsFallback(e.target.value)}
+                fullWidth
+                placeholder="https://outlook.office365.com/owa/calendar/..."
+                helperText="Used automatically if a Microsoft Graph sync fails. Leave blank to disable."
+              />
             </>
           ) : (
             <>

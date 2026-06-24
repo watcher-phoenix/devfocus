@@ -188,18 +188,33 @@ async function syncCalendar(startDate, endDate) {
     return { success: false, error: 'No calendar source configured' };
   }
 
+  // Graph calendarView expands recurrence server-side; the ICS path expands it
+  // locally with expandRecurring(). Both return the same event shape.
+  const fetchIcs = async () => {
+    const raw = await ical.async.fromURL(config.icsUrl, {
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
+    return expandRecurring(raw, startDate, endDate);
+  };
+
   try {
-    // Graph calendarView expands recurrence server-side; the ICS path expands
-    // it locally with expandRecurring(). Both return the same event shape.
-    const events = useGraph
-      ? await fetchCalendarView(startDate, endDate)
-      : expandRecurring(
-        await ical.async.fromURL(config.icsUrl, {
-          headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-        }),
-        startDate,
-        endDate
-      );
+    let events;
+    let source = useGraph ? 'graph' : 'ics';
+    if (useGraph) {
+      try {
+        events = await fetchCalendarView(startDate, endDate);
+      } catch (graphErr) {
+        // Graph failed (e.g. refresh token revoked by Conditional Access). Fall
+        // back to the stored ICS feed if one exists, so the calendar doesn't go
+        // stale; otherwise surface the Graph error.
+        if (!config.icsUrl) throw graphErr;
+        console.warn('[calendar] Graph sync failed, falling back to ICS:', graphErr.message);
+        events = await fetchIcs();
+        source = 'ics-fallback';
+      }
+    } else {
+      events = await fetchIcs();
+    }
 
     let created = 0;
     let updated = 0;
@@ -236,10 +251,10 @@ async function syncCalendar(startDate, endDate) {
 
     await integrationConfig.update({
       lastSyncAt: new Date(),
-      lastSyncStatus: 'success',
+      lastSyncStatus: source === 'ics-fallback' ? 'fallback' : 'success',
     });
 
-    return { success: true, created, updated, deleted, total: processedIds.length };
+    return { success: true, created, updated, deleted, total: processedIds.length, source };
   } catch (err) {
     console.error('Calendar sync error:', err.message);
     await integrationConfig.update({
