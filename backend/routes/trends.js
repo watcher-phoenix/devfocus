@@ -326,10 +326,22 @@ router.get('/', async (req, res) => {
     const totalFocusHours = Math.round(totalFocusMinutes / 6) / 10;
     const avgFocusHoursPerWeek = Math.round((totalFocusMinutes / focusWeeks / 60) * 10) / 10;
 
-    // Earliest completed-item date (ET) — the dashboard uses this as a hard
-    // floor so the range picker / presets don't reach before any data exists.
-    const earliestDone = await WorkItem.min('completedAt', { where: { status: 'done' } });
-    const dataStart = earliestDone ? dateStrET(new Date(earliestDone)) : null;
+    // Earliest data point (ET) across all sources — when your history actually
+    // begins. Used as a hard floor so the range picker / presets don't reach
+    // before any data exists. Uses item *creation* (not completion), plus the
+    // earliest meeting and tally dates, so it reflects when you started, not
+    // when the first item happened to be finished.
+    const [earliestItem, earliestEvent, earliestTally] = await Promise.all([
+      WorkItem.min('createdAt'),
+      CachedEvent.min('date'),
+      DailyTally.min('date'),
+    ]);
+    const startCandidates = [
+      earliestItem ? dateStrET(new Date(earliestItem)) : null,
+      earliestEvent || null, // CachedEvent.date is already a YYYY-MM-DD (ET) string
+      earliestTally || null, // DailyTally.date likewise
+    ].filter(Boolean);
+    const dataStart = startCandidates.length ? startCandidates.sort()[0] : null;
 
     res.json({
       dataStart,
