@@ -12,6 +12,7 @@ const Trends = lazy(() => import('./pages/Trends'));
 const Notes = lazy(() => import('./pages/Notes'));
 const WeeklySummary = lazy(() => import('./pages/WeeklySummary'));
 const Guide = lazy(() => import('./pages/Guide'));
+const LiveDashboard = lazy(() => import('./pages/LiveDashboard'));
 const Login = lazy(() => import('./pages/Login'));
 
 function PageLoader() {
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/trends" element={<Trends />} />
             <Route path="/summary" element={<WeeklySummary />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/report" element={<LiveDashboard />} />
             <Route path="/guide" element={<Guide />} />
           </Route>
         </Routes>

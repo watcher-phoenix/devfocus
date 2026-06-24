@@ -46,7 +46,6 @@ const SECONDARY_NAV = [
     label: 'Live Dashboard',
     path: '/report',
     icon: <InsightsIcon />,
-    external: true,
   },
   { label: 'Guide', path: '/guide', icon: <HelpOutlineIcon /> },
 ];

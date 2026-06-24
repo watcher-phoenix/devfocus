@@ -294,6 +294,35 @@ router.get('/', async (req, res) => {
       (Object.values(weeklyMeetingMinutes).reduce((s, m) => s + m, 0) / meetingWeeks / 60) * 10
     ) / 10;
 
+    // --- Focus time ---
+    // Per workday, focus minutes = the work-hours window minus meeting time and
+    // timed OOO that lands in it (clipped at 0). Weekends and all-day-OOO days
+    // contribute no workday. Aggregated by week alongside meeting load so the
+    // dashboard can show a meetings-vs-focus split.
+    const workdayMinutes = Math.max(0, workEndMins - workStartMins);
+    const weeklyFocusMinutes = {};
+    let totalFocusMinutes = 0;
+    const focusRangeEnd = untilDate || getTodayET();
+    for (
+      let cur = new Date(sinceDate + 'T12:00:00Z'), end = new Date(focusRangeEnd + 'T12:00:00Z');
+      cur <= end;
+      cur.setUTCDate(cur.getUTCDate() + 1)
+    ) {
+      const dateStr = cur.toISOString().slice(0, 10);
+      if (isWeekendET(new Date(dateStr + 'T12:00:00'))) continue;
+      if (oooAllDayDates.has(dateStr)) continue;
+      const meetingMin = dailyBreakdown[dateStr]?.meetingMinutes || 0;
+      const oooTimedMin = getMergedMinutes(oooTimedByDate[dateStr] || []);
+      const used = Math.min(workdayMinutes, meetingMin + oooTimedMin);
+      const focusMin = Math.max(0, workdayMinutes - used);
+      const weekStart = getWeekStart(dateStr);
+      weeklyFocusMinutes[weekStart] = (weeklyFocusMinutes[weekStart] || 0) + focusMin;
+      totalFocusMinutes += focusMin;
+    }
+    const focusWeeks = Object.keys(weeklyFocusMinutes).length || 1;
+    const totalFocusHours = Math.round(totalFocusMinutes / 6) / 10;
+    const avgFocusHoursPerWeek = Math.round((totalFocusMinutes / focusWeeks / 60) * 10) / 10;
+
     res.json({
       period: { days: parseInt(days), since: sinceDate },
       summary: {
@@ -312,6 +341,8 @@ router.get('/', async (req, res) => {
         oooHours,
         contextSwitches: totalSwitches,
         avgSwitchesPerDay,
+        totalFocusHours,
+        avgFocusHoursPerWeek,
       },
       contextTimeline,
       tallyTotals,
@@ -319,6 +350,7 @@ router.get('/', async (req, res) => {
       items,
       weeklyCompletions,
       weeklyMeetingMinutes,
+      weeklyFocusMinutes,
       typeBreakdown,
       projectBreakdown,
       projectColors,

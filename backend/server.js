@@ -39,13 +39,6 @@ app.use(cookieParser());
 // Health check (unauthenticated)
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-// Interactive Trends dashboard. `verify` gates it via the logged-in session
-// cookie (the in-app "Live Dashboard" link) or the dev auth bypass. The page
-// fetches /api/trends same-origin, so it pulls live straight from the database.
-app.get('/report', verify, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'report.html'));
-});
-
 // Auth routes (unauthenticated)
 app.use('/api/auth', require('./routes/auth'));
 

@@ -226,7 +226,7 @@ export default function Guide() {
         <B>Export</B>
         <P>CSV downloads a spreadsheet of all items and stats. Report opens a formatted, printable page you can save as PDF or print directly.</P>
         <B>Live Dashboard</B>
-        <P>The <strong>Live Dashboard</strong> link in the sidebar opens a full interactive dashboard (at /report) that reads live straight from the database — click any chart or bar to drill into the underlying items. It uses the same dark theme as the app and opens in a new tab with your logged-in session.</P>
+        <P>The <strong>Live Dashboard</strong> link in the sidebar opens a full interactive dashboard (at /report) that reads live straight from the database. Pick a preset or custom date range; every stat compares against the immediately preceding equal-length window. It shows weekly throughput, a meetings-vs-focus-hours split, your strategic-work share over time, the type mix, and a per-day activity heatmap (amber ring = after-hours).</P>
       </Section>
 
       <Section title="Settings">
