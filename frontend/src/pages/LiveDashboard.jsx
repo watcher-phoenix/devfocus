@@ -233,7 +233,7 @@ function DrillDialog({ drill, onClose }) {
         <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}><CloseIcon /></IconButton>
       </DialogTitle>
       <DialogContent dividers>
-        {drill?.items?.length ? (
+        {drill?.content ? drill.content : drill?.items?.length ? (
           <List dense>
             {drill.items.map((it) => (
               <ListItem key={it.id} disableGutters secondaryAction={it.afterHours ? <Chip label="after-hours" size="small" color="warning" variant="outlined" /> : null}>
@@ -351,9 +351,13 @@ export default function LiveDashboard() {
   }, [data]);
 
   const ctx = useMemo(() => {
-    if (!data) return { labels: [], switches: [] };
+    if (!data) return { labels: [], switches: [], days: [] };
     const entries = Object.entries(data.contextTimeline || {}).sort((a, b) => a[0].localeCompare(b[0]));
-    return { labels: entries.map(([d]) => fmtDay(d)), switches: entries.map(([, v]) => v.switches || 0) };
+    return {
+      labels: entries.map(([d]) => fmtDay(d)),
+      switches: entries.map(([, v]) => v.switches || 0),
+      days: entries,
+    };
   }, [data]);
 
   const tallies = useMemo(() => {
@@ -424,6 +428,44 @@ export default function LiveDashboard() {
   const openTally = (c) => {
     const notes = (data.tallyDetails?.[c.key] || []).filter((e) => e.note);
     setDrill({ title: `${c.emoji} ${c.label} — ${c.count}`, items: notes.map((e, i) => ({ id: c.key + i, title: e.note, completedAt: `${e.date}T12:00:00` })) });
+  };
+  const openSwitches = (e, item) => {
+    const entry = ctx.days[item?.dataIndex];
+    if (!entry) return;
+    const [date, v] = entry;
+    const sequence = v.sequence || [];
+    const content = (
+      <Stack spacing={2}>
+        {sequence.length > 0 ? (
+          <Box>
+            <Typography variant="caption" color="text.secondary">What you switched between</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
+              {sequence.map((label, i) => (
+                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  {i > 0 && <Typography variant="caption" sx={{ color: 'text.disabled' }}>→</Typography>}
+                  <Chip size="small" variant="outlined" label={label} />
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary">No work/meeting sequence recorded this day.</Typography>
+        )}
+        {(v.tallySwitches || 0) > 0 && (
+          <Box>
+            <Typography variant="caption" color="text.secondary">Non-task yanks</Typography>
+            <Box sx={{ mt: 0.75 }}>
+              <Chip size="small" color="warning" variant="outlined"
+                label={`⚡ ${v.tallySwitches} non-task tally${v.tallySwitches === 1 ? '' : 's'}`} />
+            </Box>
+          </Box>
+        )}
+      </Stack>
+    );
+    setDrill({
+      title: `${fmtDay(date)} — ${v.switches} switch${v.switches === 1 ? '' : 'es'}`,
+      content,
+    });
   };
 
   const copySummary = async () => {
@@ -612,10 +654,11 @@ export default function LiveDashboard() {
             </Stack>
           </Panel>
 
-          <Panel title="Context switches" subtitle={`${s.contextSwitches} total · ${s.avgSwitchesPerDay}/day avg. Lower is calmer.`}>
+          <Panel title="Context switches" subtitle={`${s.contextSwitches} total · ${s.avgSwitchesPerDay}/day avg. Lower is calmer. Click a bar to see the switches.`}>
             {ctx.labels.length ? (
               <BarChart height={300} xAxis={[{ scaleType: 'band', data: ctx.labels }]}
                 series={[{ data: ctx.switches, label: 'Switches', color: SWITCH_COLOR }]}
+                onItemClick={openSwitches}
                 slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
             ) : <Typography variant="body2" color="text.secondary">No activity to derive switches.</Typography>}
           </Panel>

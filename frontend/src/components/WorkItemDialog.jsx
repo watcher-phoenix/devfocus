@@ -84,16 +84,20 @@ export default function WorkItemDialog({ item, open, onClose }) {
     };
     delete payload.afterHours;
 
-    // If status is done, always set completedAt based on afterHours toggle
+    // If status is done, set completedAt based on the afterHours toggle. Anchor
+    // to the day the item was ACTUALLY completed so editing an already-completed
+    // item (e.g. changing its project) never bumps the completion date. Only fall
+    // back to scheduledDate/today for items that aren't completed yet.
     if (completionKeys.has(form.status)) {
-      const dateStr = form.scheduledDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const existingDay = item.completedAt
+        ? new Date(item.completedAt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        : null;
+      const dateStr = existingDay || form.scheduledDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
       if (form.afterHours) {
         payload.completedAt = new Date(dateStr + 'T18:00:00');
-      } else {
-        // Use existing time if it was already during hours, otherwise reset to noon
-        if (item.afterHours || !item.completedAt) {
-          payload.completedAt = new Date(dateStr + 'T12:00:00');
-        }
+      } else if (item.afterHours || !item.completedAt) {
+        // Was after-hours (or not yet completed) and is now during-hours: reset to noon on the same day
+        payload.completedAt = new Date(dateStr + 'T12:00:00');
       }
     }
 
