@@ -453,11 +453,44 @@ export default function LiveDashboard() {
         )}
         {(v.tallySwitches || 0) > 0 && (
           <Box>
-            <Typography variant="caption" color="text.secondary">Non-task yanks</Typography>
-            <Box sx={{ mt: 0.75 }}>
-              <Chip size="small" color="warning" variant="outlined"
-                label={`⚡ ${v.tallySwitches} non-task tally${v.tallySwitches === 1 ? '' : 's'}`} />
-            </Box>
+            <Typography variant="caption" color="text.secondary">
+              Non-task yanks · {v.tallySwitches} total
+            </Typography>
+            <Stack spacing={0.75} sx={{ mt: 0.75 }}>
+              {Object.entries(v.tallyBreakdown || {})
+                .sort((a, b) => b[1].count - a[1].count)
+                .map(([key, b]) => {
+                  const meta = TALLY_CATEGORIES.find((c) => c.key === key);
+                  const times = (b.entries || [])
+                    .filter((e) => e.ts)
+                    .map((e) => new Date(e.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+                  return (
+                    <Box key={key} sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                      <Typography variant="body2" sx={{ minWidth: 0 }}>
+                        {meta?.emoji || '⚡'} {meta?.label || key}
+                        <Typography component="span" variant="body2" color="text.secondary"> · {b.count}</Typography>
+                      </Typography>
+                      {times.length > 0 && (
+                        <Typography variant="caption" color="text.secondary">
+                          {times.join(', ')}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })}
+              {/* Notes, when present, add the qualitative "why" under the times. */}
+              {Object.entries(v.tallyBreakdown || {}).flatMap(([key, b]) =>
+                (b.entries || []).filter((e) => e.note).map((e, i) => {
+                  const meta = TALLY_CATEGORIES.find((c) => c.key === key);
+                  return (
+                    <Typography key={`${key}-${i}`} variant="caption" color="text.secondary" sx={{ pl: 1 }}>
+                      “{e.note}” — {meta?.label || key}
+                      {e.ts ? ` (${new Date(e.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})` : ''}
+                    </Typography>
+                  );
+                })
+              )}
+            </Stack>
           </Box>
         )}
       </Stack>

@@ -189,16 +189,26 @@ router.get('/', async (req, res) => {
     const tallyDetails = {};
     // Per-day total tally count — each tally is one distinct switch (no dedup).
     const tallyCountByDate = {};
+    // Per-day category breakdown (key -> { count, entries: [{ts, note}] }) so a
+    // day's context-switch drill-down can show WHICH yanks happened and when.
+    const tallyByDate = {};
     tallyRows.forEach((row) => {
       let counts = {};
       try { counts = JSON.parse(row.counts || '{}'); } catch { counts = {}; }
-      Object.entries(counts).forEach(([k, v]) => {
-        const n = Number(v) || 0;
-        tallyTotals[k] = (tallyTotals[k] || 0) + n;
-        tallyCountByDate[row.date] = (tallyCountByDate[row.date] || 0) + n;
-      });
       let entries = {};
       try { entries = JSON.parse(row.entries || '{}'); } catch { entries = {}; }
+      const dayBreakdown = {};
+      Object.entries(counts).forEach(([k, v]) => {
+        const n = Number(v) || 0;
+        if (n <= 0) return;
+        tallyTotals[k] = (tallyTotals[k] || 0) + n;
+        tallyCountByDate[row.date] = (tallyCountByDate[row.date] || 0) + n;
+        const list = Array.isArray(entries[k])
+          ? entries[k].map((e) => ({ ts: (e && e.ts) || '', note: (e && e.note) || '' }))
+          : [];
+        dayBreakdown[k] = { count: n, entries: list };
+      });
+      if (Object.keys(dayBreakdown).length) tallyByDate[row.date] = dayBreakdown;
       Object.entries(entries).forEach(([k, list]) => {
         if (!Array.isArray(list)) return;
         list.forEach((e) => {
@@ -243,7 +253,7 @@ router.get('/', async (req, res) => {
       const tallySwitches = tallyCountByDate[date] || 0;
       const switches = Math.max(0, sequence.length - 1) + tallySwitches;
       totalSwitches += switches;
-      contextTimeline[date] = { sequence, switches, tallySwitches };
+      contextTimeline[date] = { sequence, switches, tallySwitches, tallyBreakdown: tallyByDate[date] || {} };
     });
     const switchDays = switchDates.size || 1;
     const avgSwitchesPerDay = Math.round((totalSwitches / switchDays) * 10) / 10;
