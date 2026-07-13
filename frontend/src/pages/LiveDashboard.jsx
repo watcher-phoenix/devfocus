@@ -444,7 +444,11 @@ export default function LiveDashboard() {
           timeline.map((row, i) => {
             const meta = row.kind === 'yank' ? TALLY_CATEGORIES.find((c) => c.key === row.key) : null;
             const emoji = row.kind === 'meeting' ? '📅' : row.kind === 'yank' ? (meta?.emoji || '⚡') : '💻';
-            const label = row.kind === 'yank' ? (meta?.label || row.key) : row.label;
+            // Work rows lead with the task that opened the context; the project
+            // (row.label) becomes a secondary tag. Fall back to project if the
+            // task title is missing.
+            const isWork = row.kind === 'work';
+            const label = row.kind === 'yank' ? (meta?.label || row.key) : (isWork ? (row.title || row.label) : row.label);
             return (
               <Box key={i} sx={{ display: 'flex', gap: 1.25, alignItems: 'baseline' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60, textAlign: 'right', flexShrink: 0 }}>
@@ -453,6 +457,9 @@ export default function LiveDashboard() {
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="body2">
                     {emoji} {label}
+                    {isWork && row.title && (
+                      <Typography component="span" variant="caption" color="text.secondary"> · {row.label}</Typography>
+                    )}
                     {row.kind === 'yank' && (
                       <Typography component="span" variant="caption" color="text.secondary"> · yank</Typography>
                     )}

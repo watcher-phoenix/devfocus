@@ -228,15 +228,15 @@ router.get('/', async (req, res) => {
     // (no dedup) — so a day's total = work/meeting context changes + tally count.
     const dateStrET = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
     const ctxEventsByDate = {};
-    const pushCtx = (date, time, label) => {
+    const pushCtx = (date, time, label, title) => {
       if (!ctxEventsByDate[date]) ctxEventsByDate[date] = [];
-      ctxEventsByDate[date].push({ time: new Date(time).getTime(), label });
+      ctxEventsByDate[date].push({ time: new Date(time).getTime(), label, title });
     };
     completedItems.forEach((item) => {
       if (!item.completedAt) return;
-      pushCtx(dateStrET(item.completedAt), item.completedAt, item.project?.name || 'Unassigned');
+      pushCtx(dateStrET(item.completedAt), item.completedAt, item.project?.name || 'Unassigned', item.title);
     });
-    meetings.forEach((event) => pushCtx(event.date, event.startTime, 'Meeting'));
+    meetings.forEach((event) => pushCtx(event.date, event.startTime, 'Meeting', null));
 
     const contextTimeline = {};
     let totalSwitches = 0;
@@ -258,6 +258,9 @@ router.get('/', async (req, res) => {
             ts: new Date(e.time).toISOString(),
             kind: e.label === 'Meeting' ? 'meeting' : 'work',
             label: e.label,
+            // The task that opened this context (project run), so the drill-down
+            // can show the task name alongside its project.
+            title: e.title || null,
           });
         }
       });
