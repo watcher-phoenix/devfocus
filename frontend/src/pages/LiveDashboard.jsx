@@ -464,32 +464,30 @@ export default function LiveDashboard() {
                   const times = (b.entries || [])
                     .filter((e) => e.ts)
                     .map((e) => new Date(e.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+                  const notes = (b.entries || []).filter((e) => e.note);
                   return (
-                    <Box key={key} sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                      <Typography variant="body2" sx={{ minWidth: 0 }}>
-                        {meta?.emoji || '⚡'} {meta?.label || key}
-                        <Typography component="span" variant="body2" color="text.secondary"> · {b.count}</Typography>
-                      </Typography>
-                      {times.length > 0 && (
-                        <Typography variant="caption" color="text.secondary">
-                          {times.join(', ')}
+                    <Box key={key}>
+                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                        <Typography variant="body2" sx={{ minWidth: 0 }}>
+                          {meta?.emoji || '⚡'} {meta?.label || key}
+                          <Typography component="span" variant="body2" color="text.secondary"> · {b.count}</Typography>
                         </Typography>
-                      )}
+                        {times.length > 0 && (
+                          <Typography variant="caption" color="text.secondary">
+                            {times.join(', ')}
+                          </Typography>
+                        )}
+                      </Box>
+                      {/* Notes, when present, add the qualitative "why" under their own tally. */}
+                      {notes.map((e, i) => (
+                        <Typography key={i} variant="caption" color="text.secondary" display="block" sx={{ pl: 2 }}>
+                          “{e.note}”
+                          {e.ts ? ` (${new Date(e.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})` : ''}
+                        </Typography>
+                      ))}
                     </Box>
                   );
                 })}
-              {/* Notes, when present, add the qualitative "why" under the times. */}
-              {Object.entries(v.tallyBreakdown || {}).flatMap(([key, b]) =>
-                (b.entries || []).filter((e) => e.note).map((e, i) => {
-                  const meta = TALLY_CATEGORIES.find((c) => c.key === key);
-                  return (
-                    <Typography key={`${key}-${i}`} variant="caption" color="text.secondary" sx={{ pl: 1 }}>
-                      “{e.note}” — {meta?.label || key}
-                      {e.ts ? ` (${new Date(e.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})` : ''}
-                    </Typography>
-                  );
-                })
-              )}
             </Stack>
           </Box>
         )}
