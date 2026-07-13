@@ -247,13 +247,36 @@ router.get('/', async (req, res) => {
       const evs = ctxEventsByDate[date] || [];
       evs.sort((a, b) => a.time - b.time);
       const sequence = [];
+      // Unified, chronological timeline of every switch this day: each work/meeting
+      // context change and each non-task yank, interleaved by timestamp so the
+      // drill-down can present them in time order regardless of kind.
+      const timeline = [];
       evs.forEach((e) => {
-        if (sequence.length === 0 || sequence[sequence.length - 1] !== e.label) sequence.push(e.label);
+        if (sequence.length === 0 || sequence[sequence.length - 1] !== e.label) {
+          sequence.push(e.label);
+          timeline.push({
+            ts: new Date(e.time).toISOString(),
+            kind: e.label === 'Meeting' ? 'meeting' : 'work',
+            label: e.label,
+          });
+        }
+      });
+      const dayBreakdown = tallyByDate[date] || {};
+      Object.entries(dayBreakdown).forEach(([key, b]) => {
+        (b.entries || []).forEach((entry) => {
+          timeline.push({ ts: entry.ts || '', kind: 'yank', key, note: entry.note || '' });
+        });
+      });
+      // Sort by timestamp; tallies logged without a time sort to the end.
+      timeline.sort((a, b) => {
+        if (!a.ts) return 1;
+        if (!b.ts) return -1;
+        return a.ts.localeCompare(b.ts);
       });
       const tallySwitches = tallyCountByDate[date] || 0;
       const switches = Math.max(0, sequence.length - 1) + tallySwitches;
       totalSwitches += switches;
-      contextTimeline[date] = { sequence, switches, tallySwitches, tallyBreakdown: tallyByDate[date] || {} };
+      contextTimeline[date] = { sequence, timeline, switches, tallySwitches, tallyBreakdown: dayBreakdown };
     });
     const switchDays = switchDates.size || 1;
     const avgSwitchesPerDay = Math.round((totalSwitches / switchDays) * 10) / 10;

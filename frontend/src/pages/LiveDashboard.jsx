@@ -433,63 +433,39 @@ export default function LiveDashboard() {
     const entry = ctx.days[item?.dataIndex];
     if (!entry) return;
     const [date, v] = entry;
-    const sequence = v.sequence || [];
+    // One chronological timeline of everything that pulled your attention that
+    // day — work contexts, meetings, and non-task yanks — interleaved by time,
+    // regardless of kind. Entries the backend couldn't timestamp sort to the end.
+    const timeline = v.timeline || [];
+    const fmtTime = (ts) => (ts ? new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '');
     const content = (
-      <Stack spacing={2}>
-        {sequence.length > 0 ? (
-          <Box>
-            <Typography variant="caption" color="text.secondary">What you switched between</Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
-              {sequence.map((label, i) => (
-                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {i > 0 && <Typography variant="caption" sx={{ color: 'text.disabled' }}>→</Typography>}
-                  <Chip size="small" variant="outlined" label={label} />
+      <Stack spacing={1.25}>
+        {timeline.length > 0 ? (
+          timeline.map((row, i) => {
+            const meta = row.kind === 'yank' ? TALLY_CATEGORIES.find((c) => c.key === row.key) : null;
+            const emoji = row.kind === 'meeting' ? '📅' : row.kind === 'yank' ? (meta?.emoji || '⚡') : '💻';
+            const label = row.kind === 'yank' ? (meta?.label || row.key) : row.label;
+            return (
+              <Box key={i} sx={{ display: 'flex', gap: 1.25, alignItems: 'baseline' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60, textAlign: 'right', flexShrink: 0 }}>
+                  {fmtTime(row.ts) || '—'}
+                </Typography>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2">
+                    {emoji} {label}
+                    {row.kind === 'yank' && (
+                      <Typography component="span" variant="caption" color="text.secondary"> · yank</Typography>
+                    )}
+                  </Typography>
+                  {row.note && (
+                    <Typography variant="caption" color="text.secondary" display="block">“{row.note}”</Typography>
+                  )}
                 </Box>
-              ))}
-            </Box>
-          </Box>
+              </Box>
+            );
+          })
         ) : (
-          <Typography variant="body2" color="text.secondary">No work/meeting sequence recorded this day.</Typography>
-        )}
-        {(v.tallySwitches || 0) > 0 && (
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              Non-task yanks · {v.tallySwitches} total
-            </Typography>
-            <Stack spacing={0.75} sx={{ mt: 0.75 }}>
-              {Object.entries(v.tallyBreakdown || {})
-                .sort((a, b) => b[1].count - a[1].count)
-                .map(([key, b]) => {
-                  const meta = TALLY_CATEGORIES.find((c) => c.key === key);
-                  const times = (b.entries || [])
-                    .filter((e) => e.ts)
-                    .map((e) => new Date(e.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
-                  const notes = (b.entries || []).filter((e) => e.note);
-                  return (
-                    <Box key={key}>
-                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                        <Typography variant="body2" sx={{ minWidth: 0 }}>
-                          {meta?.emoji || '⚡'} {meta?.label || key}
-                          <Typography component="span" variant="body2" color="text.secondary"> · {b.count}</Typography>
-                        </Typography>
-                        {times.length > 0 && (
-                          <Typography variant="caption" color="text.secondary">
-                            {times.join(', ')}
-                          </Typography>
-                        )}
-                      </Box>
-                      {/* Notes, when present, add the qualitative "why" under their own tally. */}
-                      {notes.map((e, i) => (
-                        <Typography key={i} variant="caption" color="text.secondary" display="block" sx={{ pl: 2 }}>
-                          “{e.note}”
-                          {e.ts ? ` (${new Date(e.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})` : ''}
-                        </Typography>
-                      ))}
-                    </Box>
-                  );
-                })}
-            </Stack>
-          </Box>
+          <Typography variant="body2" color="text.secondary">No switches recorded this day.</Typography>
         )}
       </Stack>
     );
