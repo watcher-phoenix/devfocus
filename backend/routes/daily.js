@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
 const { WorkItem, Project, ContextSnapshot, CachedEvent, IntegrationConfig, UserSettings } = require('../database/models');
-const { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart, getTimeInET, isWeekendET } = require('../utilities/timezone');
+const { getTodayET, getYesterdayET, getDateET, getDayOfWeek, getWeekStart, getTimeInET, isWeekendET } = require('../utilities/timezone');
 const { makeIsExcludedMeeting } = require('../utilities/meetings');
 
 const router = Router();
@@ -90,10 +90,10 @@ router.get('/:date', async (req, res) => {
   });
 
   const doneToday = recentlyDone.filter(
-    (i) => i.completedAt && new Date(i.completedAt).toISOString().split('T')[0] === targetDate
+    (i) => i.completedAt && getDateET(i.completedAt) === targetDate
   );
   const doneYesterday = recentlyDone.filter(
-    (i) => i.completedAt && new Date(i.completedAt).toISOString().split('T')[0] === yesterdayStr
+    (i) => i.completedAt && getDateET(i.completedAt) === yesterdayStr
   );
 
   // Calendar events for today

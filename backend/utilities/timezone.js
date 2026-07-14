@@ -12,6 +12,11 @@ function getYesterdayET() {
   return d.toLocaleDateString('en-CA', { timeZone: TZ });
 }
 
+// Get the Eastern-time date string (YYYY-MM-DD) for a given Date/timestamp
+function getDateET(date) {
+  return new Date(date).toLocaleDateString('en-CA', { timeZone: TZ });
+}
+
 // Get day of week name for a date string
 function getDayOfWeek(dateStr) {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -54,4 +59,4 @@ function isWeekendET(date) {
   return dayStr === 'Sat' || dayStr === 'Sun';
 }
 
-module.exports = { getTodayET, getYesterdayET, getDayOfWeek, getWeekStart, getDaysAgoET, getTimeInET, isWeekendET, TZ };
+module.exports = { getTodayET, getYesterdayET, getDateET, getDayOfWeek, getWeekStart, getDaysAgoET, getTimeInET, isWeekendET, TZ };

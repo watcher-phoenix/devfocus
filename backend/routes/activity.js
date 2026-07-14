@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
 const { WorkItem, Project, CachedEvent } = require('../database/models');
-const { getDaysAgoET, getTodayET } = require('../utilities/timezone');
+const { getDaysAgoET, getTodayET, getDateET } = require('../utilities/timezone');
 
 const router = Router();
 
@@ -35,9 +35,7 @@ router.get('/', async (req, res) => {
   const grouped = {};
 
   items.forEach((item) => {
-    const date = item.completedAt
-      ? new Date(item.completedAt).toISOString().split('T')[0]
-      : 'unknown';
+    const date = item.completedAt ? getDateET(item.completedAt) : 'unknown';
     if (!grouped[date]) grouped[date] = [];
     grouped[date].push(item.toJSON());
   });
