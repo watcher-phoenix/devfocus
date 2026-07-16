@@ -236,7 +236,7 @@ router.get('/', async (req, res) => {
       if (!item.completedAt) return;
       pushCtx(dateStrET(item.completedAt), item.completedAt, item.project?.name || 'Unassigned', item.title);
     });
-    meetings.forEach((event) => pushCtx(event.date, event.startTime, 'Meeting', null));
+    meetings.forEach((event) => pushCtx(event.date, event.startTime, 'Meeting', event.title));
 
     const contextTimeline = {};
     let totalSwitches = 0;

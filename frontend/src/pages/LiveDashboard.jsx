@@ -448,7 +448,12 @@ export default function LiveDashboard() {
             // (row.label) becomes a secondary tag. Fall back to project if the
             // task title is missing.
             const isWork = row.kind === 'work';
-            const label = row.kind === 'yank' ? (meta?.label || row.key) : (isWork ? (row.title || row.label) : row.label);
+            const isMeeting = row.kind === 'meeting';
+            // Work rows lead with the task; meetings lead with the meeting name
+            // (falling back to the generic "Meeting" label when untitled).
+            const label = row.kind === 'yank'
+              ? (meta?.label || row.key)
+              : (row.title || row.label);
             return (
               <Box key={i} sx={{ display: 'flex', gap: 1.25, alignItems: 'baseline' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60, textAlign: 'right', flexShrink: 0 }}>
@@ -459,6 +464,9 @@ export default function LiveDashboard() {
                     {emoji} {label}
                     {isWork && row.title && (
                       <Typography component="span" variant="caption" color="text.secondary"> · {row.label}</Typography>
+                    )}
+                    {isMeeting && row.title && (
+                      <Typography component="span" variant="caption" color="text.secondary"> · meeting</Typography>
                     )}
                     {row.kind === 'yank' && (
                       <Typography component="span" variant="caption" color="text.secondary"> · yank</Typography>
