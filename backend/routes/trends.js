@@ -164,10 +164,14 @@ router.get('/', async (req, res) => {
 
     // Meeting hours per week (merged overlaps, OOO time prorated out)
     const weeklyMeetingMinutes = {};
+    // Meeting *count* per week (fragmentation — how chopped-up the weeks are,
+    // independent of total hours: 4h in one block vs eight 30-min meetings).
+    const weeklyMeetingCounts = {};
     Object.entries(meetingsByDate).forEach(([date, dayMeetings]) => {
       const weekStart = getWeekStart(new Date(date + 'T12:00:00'));
       if (!weeklyMeetingMinutes[weekStart]) weeklyMeetingMinutes[weekStart] = 0;
       weeklyMeetingMinutes[weekStart] += getMergedMinutes(dayMeetings, oooTimedIntervalsByDate[date]);
+      weeklyMeetingCounts[weekStart] = (weeklyMeetingCounts[weekStart] || 0) + dayMeetings.length;
     });
 
     // Daily meeting vs focus breakdown (merged overlaps, OOO time prorated out)
@@ -240,6 +244,13 @@ router.get('/', async (req, res) => {
 
     const contextTimeline = {};
     let totalSwitches = 0;
+    // Decompose switches into self-directed (you changed what you were working
+    // on — work/meeting context changes) vs interruptions (non-task yanks logged
+    // as tallies). Same total, but tells you how much churn was your own choice
+    // vs imposed on you. Also tracked per week for a calmer/noisier trend.
+    let selfDirectedSwitches = 0;
+    let interruptionSwitches = 0;
+    const weeklySwitchSplit = {};
     // Union of every date with work/meeting activity or tallies, so tally-only
     // days still register their switches.
     const switchDates = new Set([...Object.keys(ctxEventsByDate), ...Object.keys(tallyCountByDate)]);
@@ -277,8 +288,15 @@ router.get('/', async (req, res) => {
         return a.ts.localeCompare(b.ts);
       });
       const tallySwitches = tallyCountByDate[date] || 0;
-      const switches = Math.max(0, sequence.length - 1) + tallySwitches;
+      const selfSwitches = Math.max(0, sequence.length - 1);
+      const switches = selfSwitches + tallySwitches;
       totalSwitches += switches;
+      selfDirectedSwitches += selfSwitches;
+      interruptionSwitches += tallySwitches;
+      const wk = getWeekStart(date);
+      if (!weeklySwitchSplit[wk]) weeklySwitchSplit[wk] = { self: 0, interruptions: 0 };
+      weeklySwitchSplit[wk].self += selfSwitches;
+      weeklySwitchSplit[wk].interruptions += tallySwitches;
       contextTimeline[date] = { sequence, timeline, switches, tallySwitches, tallyBreakdown: dayBreakdown };
     });
     const switchDays = switchDates.size || 1;
@@ -296,7 +314,23 @@ router.get('/', async (req, res) => {
       externalId: i.externalId || '',
       externalUrl: i.externalUrl || null,
       afterHours: isAfterHours(i.completedAt),
+      // Turnaround from creation to completion, in days (null when it can't be
+      // computed — e.g. backfilled items whose logged completion predates their
+      // creation timestamp). See avgCycleDays/medianCycleDays in summary.
+      cycleDays: (i.completedAt && i.createdAt && new Date(i.completedAt) >= new Date(i.createdAt))
+        ? Math.round(((new Date(i.completedAt) - new Date(i.createdAt)) / 86400000) * 10) / 10
+        : null,
     }));
+
+    // --- Cycle time (created → done) ---
+    // Median is the headline (robust to the odd months-old task that finally got
+    // closed); average is provided alongside. Only positive cycles count, so
+    // backfilled work logged with an earlier completion date doesn't skew it.
+    const cycleSamples = items.map((i) => i.cycleDays).filter((d) => d !== null);
+    const avgCycleDays = cycleSamples.length
+      ? Math.round((cycleSamples.reduce((a, b) => a + b, 0) / cycleSamples.length) * 10) / 10
+      : null;
+    const medianCycleDays = cycleSamples.length ? Math.round(median(cycleSamples) * 10) / 10 : null;
 
     // Summary stats
     const totalCompleted = completedItems.length;
@@ -353,6 +387,16 @@ router.get('/', async (req, res) => {
     const workdayMinutes = Math.max(0, workEndMins - workStartMins);
     const weeklyFocusMinutes = {};
     let totalFocusMinutes = 0;
+    // Protected-time counters (workdays only, weekends/all-day-OOO excluded):
+    //  - workdays: denominator for "X of N workdays"
+    //  - meetingFreeDays: zero meetings — true deep-work days
+    //  - heavyMeetingDays: 4+ meetings — chopped-up days
+    let workdays = 0;
+    let meetingFreeDays = 0;
+    let heavyMeetingDays = 0;
+    // Longest uninterrupted focus block: the biggest stretch of the work-hours
+    // window with no meeting on the calendar, across all workdays in range.
+    let longestFocusBlock = null; // { date, minutes, fromMin, toMin }
     // Never credit focus for days that haven't happened yet — cap at today, the
     // same way meetings/items are bounded.
     const todayET = getTodayET();
@@ -372,10 +416,97 @@ router.get('/', async (req, res) => {
       const weekStart = getWeekStart(dateStr);
       weeklyFocusMinutes[weekStart] = (weeklyFocusMinutes[weekStart] || 0) + focusMin;
       totalFocusMinutes += focusMin;
+
+      // Protected-time tallies for this workday.
+      workdays += 1;
+      const dayMeetingCount = dailyBreakdown[dateStr]?.meetingCount || 0;
+      if (dayMeetingCount === 0) meetingFreeDays += 1;
+      if (dayMeetingCount >= 4) heavyMeetingDays += 1;
+
+      // Largest meeting-free gap inside the work window — clip each meeting to
+      // [workStart, workEnd], sweep left→right, and take the widest uncovered
+      // stretch. Kept as the period-wide best.
+      const busy = (meetingsByDate[dateStr] || [])
+        .map((e) => ({
+          start: Math.max(workStartMins, Math.min(getTimeInET(new Date(e.startTime)).totalMinutes, workEndMins)),
+          end: Math.max(workStartMins, Math.min(getTimeInET(new Date(e.endTime)).totalMinutes, workEndMins)),
+        }))
+        .filter((iv) => iv.end > iv.start)
+        .sort((a, b) => a.start - b.start);
+      let cursor = workStartMins;
+      let dayGap = 0;
+      let dayFrom = workStartMins;
+      let dayTo = workEndMins;
+      const considerGap = (from, to) => {
+        if (to - from > dayGap) { dayGap = to - from; dayFrom = from; dayTo = to; }
+      };
+      busy.forEach((iv) => {
+        if (iv.start > cursor) considerGap(cursor, iv.start);
+        cursor = Math.max(cursor, iv.end);
+      });
+      if (workEndMins > cursor) considerGap(cursor, workEndMins);
+      if (!longestFocusBlock || dayGap > longestFocusBlock.minutes) {
+        longestFocusBlock = { date: dateStr, minutes: dayGap, fromMin: dayFrom, toMin: dayTo };
+      }
     }
     const focusWeeks = Object.keys(weeklyFocusMinutes).length || 1;
     const totalFocusHours = Math.round(totalFocusMinutes / 6) / 10;
     const avgFocusHoursPerWeek = Math.round((totalFocusMinutes / focusWeeks / 60) * 10) / 10;
+
+    // --- Consistency / streaks ---
+    // Days with at least one completed item, and the longest run of consecutive
+    // calendar days. currentStreak is the run ending on the most recent active
+    // day, but only counts as "current" if that day is today or yesterday.
+    const activeDates = [...new Set(items.map((i) => i.completedISO).filter(Boolean))].sort();
+    const activeDays = activeDates.length;
+    let longestStreak = 0;
+    let runLen = 0;
+    let prevDate = null;
+    activeDates.forEach((d) => {
+      runLen = prevDate && isoDayDiff(prevDate, d) === 1 ? runLen + 1 : 1;
+      if (runLen > longestStreak) longestStreak = runLen;
+      prevDate = d;
+    });
+    let currentStreak = 0;
+    if (activeDates.length) {
+      currentStreak = 1;
+      for (let i = activeDates.length - 1; i > 0; i--) {
+        if (isoDayDiff(activeDates[i - 1], activeDates[i]) === 1) currentStreak += 1;
+        else break;
+      }
+      if (isoDayDiff(activeDates[activeDates.length - 1], getTodayET()) > 1) currentStreak = 0;
+    }
+
+    // --- Work in progress / carryover (current snapshot, not range-bound) ---
+    // Everything not done or cancelled, with age since creation. Answers "what's
+    // piling up," the half of the picture completions alone never show.
+    const openItems = await WorkItem.findAll({
+      where: { status: { [Op.notIn]: ['done', 'cancelled'] } },
+      include: [{ model: Project, as: 'project', attributes: ['name', 'color'] }],
+      order: [['createdAt', 'ASC']],
+    });
+    const nowMs = new Date(getTodayET() + 'T23:59:59').getTime();
+    const wipByStatus = {};
+    const wipItems = openItems.map((i) => {
+      wipByStatus[i.status] = (wipByStatus[i.status] || 0) + 1;
+      return {
+        id: i.id,
+        title: i.title,
+        status: i.status,
+        type: i.type,
+        project: i.project?.name || 'Unassigned',
+        ageDays: Math.max(0, Math.floor((nowMs - new Date(i.createdAt).getTime()) / 86400000)),
+        externalUrl: i.externalUrl || null,
+      };
+    });
+    const wipAges = wipItems.map((i) => i.ageDays);
+    const wip = {
+      count: wipItems.length,
+      byStatus: wipByStatus,
+      oldestDays: wipAges.length ? Math.max(...wipAges) : 0,
+      avgAgeDays: wipAges.length ? Math.round(wipAges.reduce((a, b) => a + b, 0) / wipAges.length) : 0,
+      items: [...wipItems].sort((a, b) => b.ageDays - a.ageDays).slice(0, 20),
+    };
 
     // Earliest data point (ET) — when you actually started tracking work here.
     // Used as a hard floor so the range picker / presets don't reach before
@@ -412,9 +543,31 @@ router.get('/', async (req, res) => {
         oooHours,
         contextSwitches: totalSwitches,
         avgSwitchesPerDay,
+        selfDirectedSwitches,
+        interruptionSwitches,
         totalFocusHours,
         avgFocusHoursPerWeek,
+        workdays,
+        meetingFreeDays,
+        heavyMeetingDays,
+        longestFocusBlock: longestFocusBlock && longestFocusBlock.minutes > 0
+          ? {
+            date: longestFocusBlock.date,
+            hours: Math.round((longestFocusBlock.minutes / 60) * 10) / 10,
+            fromMin: longestFocusBlock.fromMin,
+            toMin: longestFocusBlock.toMin,
+          }
+          : null,
+        avgCycleDays,
+        medianCycleDays,
+        cycleSampleSize: cycleSamples.length,
+        activeDays,
+        longestStreak,
+        currentStreak,
       },
+      wip,
+      weeklySwitchSplit,
+      weeklyMeetingCounts,
       contextTimeline,
       tallyTotals,
       tallyDetails,
@@ -470,6 +623,19 @@ function getMergedMinutes(events, oooIntervals = []) {
     (sum, iv) => sum + subtractIntervals(iv, oooIntervals).reduce((s, p) => s + (p.end - p.start) / 60000, 0),
     0
   );
+}
+
+// Whole-day difference between two YYYY-MM-DD strings (b - a), noon-anchored to
+// dodge DST edges.
+function isoDayDiff(a, b) {
+  return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
+}
+
+// Median of a numeric array (unsorted input is fine).
+function median(nums) {
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
 function getWeekStart(date) {

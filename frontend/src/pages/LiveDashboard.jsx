@@ -47,6 +47,14 @@ const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a
 const weekStartOf = (iso) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - d.getDay()); return fmtISO(d); };
 const fmtDay = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 const round1 = (n) => Math.round(n * 10) / 10;
+// Minutes-since-midnight → "9:30 AM" (for the longest-focus-block window).
+const fmtMins = (m) => {
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  const ap = h >= 12 ? 'PM' : 'AM';
+  const h12 = ((h + 11) % 12) + 1;
+  return `${h12}:${String(mm).padStart(2, '0')} ${ap}`;
+};
 
 // Calendar-period starts (this week / month / quarter / year), as ISO strings.
 const startOfMonthStr = () => { const d = new Date(); return fmtISO(new Date(d.getFullYear(), d.getMonth(), 1)); };
@@ -257,6 +265,10 @@ function buildNarrative(s, weekly) {
     `Completed ${s.totalCompleted} items (${s.avgItemsPerWeek}/wk), with ${s.totalMeetingHours}h in meetings and ~${s.totalFocusHours}h of focus time.`,
     `Strategic work was ${stratPct}% of output; ${s.afterHoursItems} item${s.afterHoursItems === 1 ? '' : 's'} landed after hours.`,
   ];
+  if (s.workdays > 0) {
+    const turnaround = s.medianCycleDays !== null && s.medianCycleDays !== undefined ? ` Typical turnaround was ${s.medianCycleDays}d.` : '';
+    parts.push(`${s.meetingFreeDays} of ${s.workdays} workdays were meeting-free.${turnaround}`);
+  }
   if (weekly?.meetingHrs?.length) {
     let mi = 0;
     weekly.meetingHrs.forEach((h, i) => { if (h > weekly.meetingHrs[mi]) mi = i; });
@@ -331,6 +343,9 @@ export default function LiveDashboard() {
       focusHrs: keys.map((k) => round1((data.weeklyFocusMinutes?.[k] || 0) / 60)),
       stratPct: keys.map((k) => (totalByWeek[k] ? Math.round(((stratByWeek[k] || 0) / totalByWeek[k]) * 100) : 0)),
       afterHours: keys.map((k) => ahByWeek[k] || 0),
+      meetingCounts: keys.map((k) => data.weeklyMeetingCounts?.[k] || 0),
+      selfSwitches: keys.map((k) => data.weeklySwitchSplit?.[k]?.self || 0),
+      interruptions: keys.map((k) => data.weeklySwitchSplit?.[k]?.interruptions || 0),
     };
   }, [data]);
 
@@ -498,9 +513,15 @@ export default function LiveDashboard() {
       `- **Meeting hours:** ${s.totalMeetingHours}h across ${s.totalMeetings} meetings`,
       `- **Focus hours:** ${s.totalFocusHours}h (${s.avgFocusHoursPerWeek}h/wk avg)`,
       `- **After-hours items:** ${s.afterHoursItems}`,
-      `- **Context switches:** ${s.contextSwitches} (${s.avgSwitchesPerDay}/day)`, ``,
+      `- **Context switches:** ${s.contextSwitches} (${s.avgSwitchesPerDay}/day · ${s.selfDirectedSwitches} self-directed, ${s.interruptionSwitches} interruptions)`,
+      `- **Maker / manager:** ${focusPct}% / ${meetingPct}%`,
+      `- **Deep-work days:** ${s.meetingFreeDays} of ${s.workdays} workdays (${s.heavyMeetingDays} heavy)`,
+      s.longestFocusBlock ? `- **Longest focus block:** ${s.longestFocusBlock.hours}h (${fmtDay(s.longestFocusBlock.date)})` : null,
+      s.medianCycleDays !== null ? `- **Turnaround:** ${s.medianCycleDays}d median (avg ${s.avgCycleDays}d, ${s.cycleSampleSize} items)` : null,
+      `- **Active streak:** ${s.currentStreak}d current, ${s.longestStreak}d longest (${s.activeDays} active days)`,
+      `- **Open items now:** ${wip.count} (oldest ${wip.oldestDays}d, avg ${wip.avgAgeDays}d)`, ``,
       `## Type mix`, ...pieData.map((d) => `- ${d.label}: ${d.value}`),
-    ].join('\n');
+    ].filter((l) => l !== null).join('\n');
     try { await navigator.clipboard.writeText(md); setToast('Summary copied to clipboard'); } catch { setToast('Clipboard blocked by browser'); }
   };
 
@@ -523,6 +544,7 @@ export default function LiveDashboard() {
 
   const s = data.summary;
   const ps = prior?.summary;
+  const wip = data.wip;
   const narrative = buildNarrative(s, weekly);
   const activePreset = PRESETS.find((p) => p.value === preset) || null;
   const rangeCapped = !!(activePreset && clampFrom(activePreset.from()) !== activePreset.from());
@@ -549,7 +571,12 @@ export default function LiveDashboard() {
   if (s.totalCompleted > 0 && s.afterHoursItems > 0) {
     callouts.push(`${Math.round((s.afterHoursItems / s.totalCompleted) * 100)}% of items finished after-hours`);
   }
-  if (workHours > 0) callouts.push(`Meetings = ${meetingPct}% of working hours`);
+  if (workHours > 0) callouts.push(`Maker ${focusPct}% · manager ${meetingPct}%`);
+  if (s.workdays > 0) callouts.push(`${s.meetingFreeDays}/${s.workdays} meeting-free days`);
+  if (s.longestFocusBlock) callouts.push(`Longest focus block: ${s.longestFocusBlock.hours}h`);
+  if (s.medianCycleDays !== null && s.medianCycleDays !== undefined) callouts.push(`Typical turnaround: ${s.medianCycleDays}d`);
+  if (s.currentStreak > 1) callouts.push(`${s.currentStreak}-day active streak`);
+  if (wip?.count > 0) callouts.push(`${wip.count} open · oldest ${wip.oldestDays}d`);
   if (s.oooDays > 0) callouts.push(`${s.oooDays} day${s.oooDays === 1 ? '' : 's'} out of office`);
 
   return (
@@ -607,8 +634,25 @@ export default function LiveDashboard() {
         <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
           <StatCard label="Completed items" value={s.totalCompleted} curr={s.totalCompleted} prev={ps?.totalCompleted} sub={`${s.avgItemsPerWeek}/wk avg`} trend={weekly.items} />
           <StatCard label="Meeting hours" value={`${s.totalMeetingHours}h`} color={MEETING_COLOR} curr={s.totalMeetingHours} prev={ps?.totalMeetingHours} invert sub={`${s.totalMeetings} meetings`} trend={weekly.meetingHrs} />
-          <StatCard label="Focus hours" value={`${s.totalFocusHours}h`} color={EXEC_COLOR} curr={s.totalFocusHours} prev={ps?.totalFocusHours} sub={`${s.avgFocusHoursPerWeek}h/wk avg`} trend={weekly.focusHrs} />
+          <StatCard label="Focus hours (est.)" value={`${s.totalFocusHours}h`} color={EXEC_COLOR} curr={s.totalFocusHours} prev={ps?.totalFocusHours} sub={`${s.avgFocusHoursPerWeek}h/wk · workday minus meetings`} trend={weekly.focusHrs} />
           <StatCard label="After-hours items" value={s.afterHoursItems} color="#F44336" curr={s.afterHoursItems} prev={ps?.afterHoursItems} invert sub="lower is better" trend={weekly.afterHours} />
+        </Stack>
+
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+          <StatCard label="Maker / manager" value={`${focusPct} / ${meetingPct}`} color={EXEC_COLOR}
+            sub="maker % / manager %" />
+          <StatCard label="Deep-work days" value={s.meetingFreeDays} color={EXEC_COLOR}
+            curr={s.meetingFreeDays} prev={ps?.meetingFreeDays}
+            sub={`of ${s.workdays} workdays · ${s.heavyMeetingDays} heavy`} />
+          <StatCard label="Longest focus block" value={s.longestFocusBlock ? `${s.longestFocusBlock.hours}h` : '—'} color={STRATEGIC_COLOR}
+            sub={s.longestFocusBlock ? `${fmtDay(s.longestFocusBlock.date)} · ${fmtMins(s.longestFocusBlock.fromMin)}–${fmtMins(s.longestFocusBlock.toMin)}` : 'no meeting-free stretch'} />
+          <StatCard label="Typical turnaround" value={s.medianCycleDays !== null ? `${s.medianCycleDays}d` : '—'}
+            curr={s.medianCycleDays ?? undefined} prev={ps?.medianCycleDays ?? undefined} invert
+            sub={s.medianCycleDays !== null ? `median · avg ${s.avgCycleDays}d · ${s.cycleSampleSize} items` : 'created → done'} />
+          <StatCard label="Active streak" value={`${s.currentStreak}d`} color={STRATEGIC_COLOR}
+            sub={`longest ${s.longestStreak}d · ${s.activeDays} active days`} />
+          <StatCard label="Open items (now)" value={wip.count} color={wip.oldestDays > 30 ? '#F44336' : undefined}
+            invert sub={wip.count ? `oldest ${wip.oldestDays}d · avg ${wip.avgAgeDays}d` : 'nothing open'} />
         </Stack>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
@@ -635,22 +679,22 @@ export default function LiveDashboard() {
             </Stack>
           </Panel>
 
-          <Panel title="Meetings vs focus (hours/week)" subtitle="Stacked weekly hours — meeting load against estimated focus time.">
+          <Panel title="Maker vs manager time" subtitle={`Stacked weekly hours — manager time (meetings) vs maker time (estimated focus). ${s.totalMeetings} meetings total${s.workdays ? `, ~${round1(s.totalMeetings / (s.workdays / 5))}/wk` : ''}.`}>
             {workHours > 0 && (
               <Box sx={{ mb: 1.5 }}>
                 <Box sx={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden' }}>
-                  <Box sx={{ width: `${meetingPct}%`, bgcolor: MEETING_COLOR }} title={`Meetings · ${s.totalMeetingHours}h`} />
-                  <Box sx={{ width: `${focusPct}%`, bgcolor: EXEC_COLOR }} title={`Focus · ${s.totalFocusHours}h`} />
+                  <Box sx={{ width: `${focusPct}%`, bgcolor: EXEC_COLOR }} title={`Maker · ${s.totalFocusHours}h`} />
+                  <Box sx={{ width: `${meetingPct}%`, bgcolor: MEETING_COLOR }} title={`Manager · ${s.totalMeetingHours}h`} />
                 </Box>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  Meetings take <strong>{meetingPct}%</strong> of your working hours · focus {focusPct}%
+                  <strong>{focusPct}%</strong> maker (focus) · <strong>{meetingPct}%</strong> manager (meetings)
                 </Typography>
               </Box>
             )}
             <BarChart height={272} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
               series={[
-                { data: weekly.meetingHrs, label: 'Meeting hrs', color: MEETING_COLOR, stack: 'h' },
-                { data: weekly.focusHrs, label: 'Focus hrs', color: EXEC_COLOR, stack: 'h' },
+                { data: weekly.focusHrs, label: 'Maker (focus hrs)', color: EXEC_COLOR, stack: 'h' },
+                { data: weekly.meetingHrs, label: 'Manager (meeting hrs)', color: MEETING_COLOR, stack: 'h' },
               ]}
               slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
           </Panel>
@@ -676,13 +720,62 @@ export default function LiveDashboard() {
             </Stack>
           </Panel>
 
-          <Panel title="Context switches" subtitle={`${s.contextSwitches} total · ${s.avgSwitchesPerDay}/day avg. Lower is calmer. Click a bar to see the switches.`}>
+          <Panel title="Collaboration" subtitle="Reviewing teammates' PRs (helping) vs shipping your own (authoring).">
+            {(s.prsReviewed + s.prsMerged) > 0 ? (
+              <Box>
+                {(() => {
+                  const reviewed = s.prsReviewed;
+                  const authored = s.prsMerged;
+                  const total = reviewed + authored;
+                  const reviewPct = Math.round((reviewed / total) * 100);
+                  return (
+                    <>
+                      <Box sx={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', mb: 0.75 }}>
+                        <Box sx={{ width: `${reviewPct}%`, bgcolor: MEETING_COLOR }} title={`Reviewed · ${reviewed}`} />
+                        <Box sx={{ width: `${100 - reviewPct}%`, bgcolor: EXEC_COLOR }} title={`Authored · ${authored}`} />
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                        <strong>{reviewPct}%</strong> reviewing · <strong>{100 - reviewPct}%</strong> authoring
+                      </Typography>
+                      <Stack direction="row" spacing={4} justifyContent="center" sx={{ mt: 1 }}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" sx={{ fontWeight: 700, color: MEETING_COLOR }}>{reviewed}</Typography>
+                          <Typography variant="caption" color="text.secondary">PRs reviewed</Typography>
+                        </Box>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" sx={{ fontWeight: 700, color: EXEC_COLOR }}>{authored}</Typography>
+                          <Typography variant="caption" color="text.secondary">PRs merged</Typography>
+                        </Box>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" sx={{ fontWeight: 700 }}>{authored > 0 ? round1(reviewed / authored) : '∞'}</Typography>
+                          <Typography variant="caption" color="text.secondary">review : author ratio</Typography>
+                        </Box>
+                      </Stack>
+                    </>
+                  );
+                })()}
+              </Box>
+            ) : <Typography variant="body2" color="text.secondary">No PR activity in this range.</Typography>}
+          </Panel>
+
+          <Panel title="Context switches" subtitle={`${s.contextSwitches} total · ${s.avgSwitchesPerDay}/day avg · ${s.selfDirectedSwitches} self-directed, ${s.interruptionSwitches} interruptions. Lower is calmer. Click a bar to see the switches.`}>
             {ctx.labels.length ? (
               <BarChart height={300} xAxis={[{ scaleType: 'band', data: ctx.labels }]}
                 series={[{ data: ctx.switches, label: 'Switches', color: SWITCH_COLOR }]}
                 onItemClick={openSwitches}
                 slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
             ) : <Typography variant="body2" color="text.secondary">No activity to derive switches.</Typography>}
+          </Panel>
+
+          <Panel title="Self-directed vs interruptions" subtitle="Weekly switches split by cause — churn you chose (changing tasks/meetings) vs yanks imposed on you (logged tallies). A rising orange band means a noisier week.">
+            {weekly.labels.length && (weekly.selfSwitches.some((n) => n > 0) || weekly.interruptions.some((n) => n > 0)) ? (
+              <BarChart height={300} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
+                series={[
+                  { data: weekly.selfSwitches, label: 'Self-directed', color: STRATEGIC_COLOR, stack: 'sw' },
+                  { data: weekly.interruptions, label: 'Interruptions', color: MEETING_COLOR, stack: 'sw' },
+                ]}
+                slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
+            ) : <Typography variant="body2" color="text.secondary">No switches to split in this range.</Typography>}
           </Panel>
 
           <Panel title="Where the day went" subtitle="Non-task tallies (interruptions, firefighting, etc.). Click one to read the notes.">
@@ -760,6 +853,34 @@ export default function LiveDashboard() {
                 slotProps={{ legend: { hidden: true } }}
                 margin={{ left: 140, right: 10, top: 10, bottom: 30 }} />
             ) : <Typography variant="body2" color="text.secondary">No project data for this range.</Typography>}
+          </Panel>
+
+          <Panel title="Open work / carryover" subtitle={wip.count ? `${wip.count} items open right now (not done or cancelled) · oldest ${wip.oldestDays}d · avg age ${wip.avgAgeDays}d. A live snapshot — not bound to the date range.` : 'Nothing open — your board is clear.'} span>
+            {wip.count ? (
+              <>
+                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+                  {Object.entries(wip.byStatus).sort((a, b) => b[1] - a[1]).map(([st, n]) => (
+                    <Chip key={st} size="small" variant="outlined"
+                      label={`${st.charAt(0).toUpperCase() + st.slice(1)} · ${n}`} />
+                  ))}
+                </Stack>
+                <List dense>
+                  {wip.items.map((it) => (
+                    <ListItem key={it.id} disableGutters
+                      secondaryAction={<Chip label={`${it.ageDays}d`} size="small"
+                        color={it.ageDays > 30 ? 'error' : it.ageDays > 14 ? 'warning' : 'default'}
+                        variant="outlined" />}>
+                      <ListItemText
+                        primary={it.externalUrl ? <Link href={it.externalUrl} target="_blank" rel="noreferrer">{it.title}</Link> : it.title}
+                        secondary={[it.project, it.status].filter(Boolean).join(' · ')} />
+                    </ListItem>
+                  ))}
+                </List>
+                {wip.count > wip.items.length && (
+                  <Typography variant="caption" color="text.secondary">Showing the {wip.items.length} oldest of {wip.count} open items.</Typography>
+                )}
+              </>
+            ) : <Typography variant="body2" color="text.secondary">No open items.</Typography>}
           </Panel>
 
           <Panel title="Activity heatmap" subtitle="Completed items per day. Click a day for its items. Amber ring = after-hours; dashed teal = out of office." span>
