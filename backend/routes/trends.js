@@ -30,6 +30,13 @@ router.get('/', async (req, res) => {
       order: [['completedAt', 'DESC']],
     });
 
+    // Items *created* in the same window — the inflow side of net flow. Compared
+    // against completions (outflow) below to show whether the backlog grew or
+    // shrank over the period, regardless of each item's current status.
+    const createdWhere = { createdAt: { [Op.gte]: since } };
+    if (until) createdWhere.createdAt = { [Op.gte]: since, [Op.lte]: until };
+    const createdItems = await WorkItem.count({ where: createdWhere });
+
     // Shared date filter for cached calendar events. Calendar events are synced
     // ~28 days into the future, so without an upper bound, future meetings and OOO
     // would leak into the totals. Cap at today (or the explicit `to`) so Trends
@@ -500,9 +507,19 @@ router.get('/', async (req, res) => {
       };
     });
     const wipAges = wipItems.map((i) => i.ageDays);
+    // Age distribution across ALL open items (not just the 20 shown) so carryover
+    // risk is legible at a glance: fresh vs stale vs stuck.
+    const wipAgeBuckets = { '0-7': 0, '8-14': 0, '15-30': 0, '30+': 0 };
+    wipItems.forEach((i) => {
+      if (i.ageDays <= 7) wipAgeBuckets['0-7'] += 1;
+      else if (i.ageDays <= 14) wipAgeBuckets['8-14'] += 1;
+      else if (i.ageDays <= 30) wipAgeBuckets['15-30'] += 1;
+      else wipAgeBuckets['30+'] += 1;
+    });
     const wip = {
       count: wipItems.length,
       byStatus: wipByStatus,
+      ageBuckets: wipAgeBuckets,
       oldestDays: wipAges.length ? Math.max(...wipAges) : 0,
       avgAgeDays: wipAges.length ? Math.round(wipAges.reduce((a, b) => a + b, 0) / wipAges.length) : 0,
       items: [...wipItems].sort((a, b) => b.ageDays - a.ageDays).slice(0, 20),
@@ -529,6 +546,8 @@ router.get('/', async (req, res) => {
       period: { days: parseInt(days), since: sinceDate },
       summary: {
         totalCompleted,
+        createdItems,
+        netFlow: createdItems - totalCompleted,
         totalMeetings,
         totalMeetingHours,
         prsReviewed,

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, Fragment } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -26,7 +26,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import CloseIcon from '@mui/icons-material/Close';
 import { toPng } from 'html-to-image';
 import { BarChart, BarPlot } from '@mui/x-charts/BarChart';
-import { LineChart, LinePlot, MarkPlot } from '@mui/x-charts/LineChart';
+import { LinePlot, MarkPlot } from '@mui/x-charts/LineChart';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { SparkLineChart } from '@mui/x-charts/SparkLineChart';
 import { ResponsiveChartContainer } from '@mui/x-charts/ResponsiveChartContainer';
@@ -47,13 +47,11 @@ const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a
 const weekStartOf = (iso) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - d.getDay()); return fmtISO(d); };
 const fmtDay = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 const round1 = (n) => Math.round(n * 10) / 10;
-// Minutes-since-midnight → "9:30 AM" (for the longest-focus-block window).
-const fmtMins = (m) => {
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  const ap = h >= 12 ? 'PM' : 'AM';
-  const h12 = ((h + 11) % 12) + 1;
-  return `${h12}:${String(mm).padStart(2, '0')} ${ap}`;
+const median = (nums) => {
+  if (!nums.length) return 0;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 };
 
 // Calendar-period starts (this week / month / quarter / year), as ISO strings.
@@ -133,6 +131,38 @@ function LegendDot({ color, label, line }) {
       <Box sx={{ width: line ? 16 : 12, height: line ? 3 : 12, borderRadius: line ? 2 : '3px', bgcolor: color }} />
       <Typography variant="caption" color="text.secondary">{label}</Typography>
     </Stack>
+  );
+}
+
+// Weekday × time-of-day crosstab of completed work. Rows are parts of the day,
+// columns are weekdays; cell shade scales with count. Needs a clock timestamp,
+// so only items with a completedAt land here (backfilled items are weekday-only).
+function RhythmGrid({ grid, max }) {
+  const cell = (n) => {
+    if (n === 0) return 'rgba(255,255,255,0.06)';
+    const ratio = max > 0 ? n / max : 0;
+    return `rgba(124,77,255,${0.3 + 0.6 * ratio})`;
+  };
+  return (
+    <Box sx={{ overflowX: 'auto' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: `88px repeat(${DOW_LABELS.length}, 1fr)`, gap: 0.5, minWidth: 360 }}>
+        <Box />
+        {DOW_LABELS.map((d) => (
+          <Typography key={d} variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>{d}</Typography>
+        ))}
+        {PARTS_OF_DAY.map((p, r) => (
+          <Fragment key={p.label}>
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: '28px' }}>{p.label}</Typography>
+            {grid[r].map((n, c) => (
+              <Box key={DOW_LABELS[c]} title={`${p.label} · ${DOW_LABELS[c]}: ${n}`}
+                sx={{ height: 28, borderRadius: '4px', bgcolor: cell(n), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {n > 0 && <Typography variant="caption" sx={{ fontSize: 11, color: 'rgba(255,255,255,0.9)' }}>{n}</Typography>}
+              </Box>
+            ))}
+          </Fragment>
+        ))}
+      </Box>
+    </Box>
   );
 }
 
@@ -326,14 +356,10 @@ export default function LiveDashboard() {
       ...Object.keys(data.weeklyMeetingMinutes || {}),
       ...Object.keys(data.weeklyFocusMinutes || {}),
     ])).sort();
-    const stratByWeek = {};
-    const totalByWeek = {};
     const ahByWeek = {};
     (data.items || []).forEach((i) => {
       if (!i.completedISO) return;
       const w = weekStartOf(i.completedISO);
-      totalByWeek[w] = (totalByWeek[w] || 0) + 1;
-      if (i.type === 'strategic') stratByWeek[w] = (stratByWeek[w] || 0) + 1;
       if (i.afterHours) ahByWeek[w] = (ahByWeek[w] || 0) + 1;
     });
     return {
@@ -341,7 +367,6 @@ export default function LiveDashboard() {
       items: keys.map((k) => data.weeklyCompletions?.[k] || 0),
       meetingHrs: keys.map((k) => round1((data.weeklyMeetingMinutes?.[k] || 0) / 60)),
       focusHrs: keys.map((k) => round1((data.weeklyFocusMinutes?.[k] || 0) / 60)),
-      stratPct: keys.map((k) => (totalByWeek[k] ? Math.round(((stratByWeek[k] || 0) / totalByWeek[k]) * 100) : 0)),
       afterHours: keys.map((k) => ahByWeek[k] || 0),
       meetingCounts: keys.map((k) => data.weeklyMeetingCounts?.[k] || 0),
       selfSwitches: keys.map((k) => data.weeklySwitchSplit?.[k]?.self || 0),
@@ -385,21 +410,29 @@ export default function LiveDashboard() {
   const rhythm = useMemo(() => {
     const byDow = {};
     const byPart = PARTS_OF_DAY.map(() => 0);
+    // [partIndex][dowIndex] crosstab (columns follow DOW_ORDER: Mon..Sun).
+    const grid = PARTS_OF_DAY.map(() => DOW_ORDER.map(() => 0));
     (data?.items || []).forEach((i) => {
       if (i.completedISO) {
         const wd = new Date(`${i.completedISO}T12:00:00`).getDay();
         byDow[wd] = (byDow[wd] || 0) + 1;
       }
       if (i.completedAt) {
-        const h = new Date(i.completedAt).getHours();
-        const idx = PARTS_OF_DAY.findIndex((p) => p.test(h));
-        if (idx >= 0) byPart[idx] += 1;
+        const dt = new Date(i.completedAt);
+        const idx = PARTS_OF_DAY.findIndex((p) => p.test(dt.getHours()));
+        if (idx >= 0) {
+          byPart[idx] += 1;
+          const col = DOW_ORDER.indexOf(dt.getDay());
+          if (col >= 0) grid[idx][col] += 1;
+        }
       }
     });
     const dowCounts = DOW_ORDER.map((d) => byDow[d] || 0);
     return {
       dowCounts,
       partCounts: byPart,
+      grid,
+      gridMax: Math.max(0, ...grid.flat()),
       hasData: dowCounts.some((n) => n > 0),
     };
   }, [data]);
@@ -425,6 +458,96 @@ export default function LiveDashboard() {
       .slice(0, 8);
     return { hasPrior: true, rows };
   }, [data, momPrior, len, momPriorDays]);
+
+  // How concentrated your output is: what share the top project (and top 3)
+  // account for, and across how many projects work is spread.
+  const concentration = useMemo(() => {
+    const entries = Object.entries(data?.projectBreakdown || {}).sort((a, b) => b[1] - a[1]);
+    const total = entries.reduce((sum, [, c]) => sum + c, 0);
+    if (!total) return null;
+    const top3 = entries.slice(0, 3).reduce((sum, [, c]) => sum + c, 0);
+    return {
+      count: entries.length,
+      topName: entries[0][0],
+      topShare: Math.round((entries[0][1] / total) * 100),
+      top3Share: Math.round((top3 / total) * 100),
+    };
+  }, [data]);
+
+  // Meeting load by weekday — which day is most chopped up by meetings, so it's
+  // clear which day to protect (or which is already naturally clear).
+  const meetingDow = useMemo(() => {
+    const mins = DOW_ORDER.map(() => 0);
+    const counts = DOW_ORDER.map(() => 0);
+    Object.entries(data?.dailyBreakdown || {}).forEach(([date, v]) => {
+      const col = DOW_ORDER.indexOf(new Date(`${date}T12:00:00`).getDay());
+      if (col >= 0) {
+        mins[col] += v.meetingMinutes || 0;
+        counts[col] += v.meetingCount || 0;
+      }
+    });
+    const hrs = mins.map((m) => round1(m / 60));
+    return { hrs, counts, hasData: hrs.some((h) => h > 0) };
+  }, [data]);
+
+  // Median turnaround broken out by work type — what actually drags, which the
+  // single global median hides.
+  const cycleByType = useMemo(() => {
+    const buckets = {};
+    (data?.items || []).forEach((i) => {
+      if (i.cycleDays === null || i.cycleDays === undefined) return;
+      if (!buckets[i.type]) buckets[i.type] = [];
+      buckets[i.type].push(i.cycleDays);
+    });
+    return Object.entries(buckets)
+      .map(([type, arr]) => ({
+        type,
+        label: TYPE_LABELS[type] || type,
+        color: TYPE_COLORS[type] || '#90A4AE',
+        median: round1(median(arr)),
+        n: arr.length,
+      }))
+      .sort((a, b) => b.median - a.median);
+  }, [data]);
+
+  // Does getting yanked cost output? Compare average completions on days with at
+  // least one logged interruption vs days with none (both among active days).
+  const interruptImpact = useMemo(() => {
+    const comp = {};
+    (data?.items || []).forEach((i) => { if (i.completedISO) comp[i.completedISO] = (comp[i.completedISO] || 0) + 1; });
+    const inter = {};
+    Object.entries(data?.contextTimeline || {}).forEach(([date, v]) => { inter[date] = v.tallySwitches || 0; });
+    const dates = new Set([...Object.keys(comp), ...Object.keys(inter)]);
+    let calmDays = 0; let calmComp = 0; let busyDays = 0; let busyComp = 0;
+    dates.forEach((d) => {
+      const c = comp[d] || 0;
+      if ((inter[d] || 0) > 0) { busyDays += 1; busyComp += c; } else { calmDays += 1; calmComp += c; }
+    });
+    if (busyDays === 0 || calmDays === 0) return null;
+    const calmAvg = round1(calmComp / calmDays);
+    const busyAvg = round1(busyComp / busyDays);
+    return {
+      calmDays,
+      calmAvg,
+      busyDays,
+      busyAvg,
+      pctDiff: calmAvg > 0 ? Math.round(((busyAvg - calmAvg) / calmAvg) * 100) : null,
+    };
+  }, [data]);
+
+  // After-hours items split into weekend vs. weekday-evening — a cleaner
+  // boundary-health read than one lumped after-hours number.
+  const afterHoursSplit = useMemo(() => {
+    let weekend = 0; let evening = 0;
+    (data?.items || []).forEach((i) => {
+      if (!i.afterHours) return;
+      const wd = i.completedISO
+        ? new Date(`${i.completedISO}T12:00:00`).getDay()
+        : (i.completedAt ? new Date(i.completedAt).getDay() : null);
+      if (wd === 0 || wd === 6) weekend += 1; else evening += 1;
+    });
+    return { weekend, evening };
+  }, [data]);
 
   const openType = (e, item) => {
     const d = pieData[item?.dataIndex];
@@ -556,7 +679,8 @@ export default function LiveDashboard() {
   const meetingPct = workHours > 0 ? Math.round((s.totalMeetingHours / workHours) * 100) : 0;
   const focusPct = workHours > 0 ? 100 - meetingPct : 0;
 
-  // Auto-detected, skimmable facts about the slice.
+  // Auto-detected, skimmable facts about the slice — deliberately limited to
+  // things that aren't already a stat card below, so the row adds rather than echoes.
   const callouts = [];
   if (rhythm.hasData) {
     const maxDow = Math.max(...rhythm.dowCounts);
@@ -571,13 +695,13 @@ export default function LiveDashboard() {
   if (s.totalCompleted > 0 && s.afterHoursItems > 0) {
     callouts.push(`${Math.round((s.afterHoursItems / s.totalCompleted) * 100)}% of items finished after-hours`);
   }
-  if (workHours > 0) callouts.push(`Maker ${focusPct}% · manager ${meetingPct}%`);
-  if (s.workdays > 0) callouts.push(`${s.meetingFreeDays}/${s.workdays} meeting-free days`);
-  if (s.longestFocusBlock) callouts.push(`Longest focus block: ${s.longestFocusBlock.hours}h`);
-  if (s.medianCycleDays !== null && s.medianCycleDays !== undefined) callouts.push(`Typical turnaround: ${s.medianCycleDays}d`);
-  if (s.currentStreak > 1) callouts.push(`${s.currentStreak}-day active streak`);
-  if (wip?.count > 0) callouts.push(`${wip.count} open · oldest ${wip.oldestDays}d`);
   if (s.oooDays > 0) callouts.push(`${s.oooDays} day${s.oooDays === 1 ? '' : 's'} out of office`);
+  // Backlog trajectory at the window's net-flow rate — a modest pace read, not a
+  // hard forecast (personal throughput is noisy).
+  const netPerWeek = round1(s.netFlow / Math.max(1, len / 7));
+  if (netPerWeek >= 0.5) callouts.push(`Backlog growing ~${netPerWeek}/wk`);
+  else if (netPerWeek <= -0.5 && wip.count > 0) callouts.push(`At recent pace, backlog clears in ~${Math.ceil(wip.count / -netPerWeek)} wks`);
+  else callouts.push('Backlog roughly steady');
 
   return (
     <Box sx={{ maxWidth: 1200 }}>
@@ -635,17 +759,18 @@ export default function LiveDashboard() {
           <StatCard label="Completed items" value={s.totalCompleted} curr={s.totalCompleted} prev={ps?.totalCompleted} sub={`${s.avgItemsPerWeek}/wk avg`} trend={weekly.items} />
           <StatCard label="Meeting hours" value={`${s.totalMeetingHours}h`} color={MEETING_COLOR} curr={s.totalMeetingHours} prev={ps?.totalMeetingHours} invert sub={`${s.totalMeetings} meetings`} trend={weekly.meetingHrs} />
           <StatCard label="Focus hours (est.)" value={`${s.totalFocusHours}h`} color={EXEC_COLOR} curr={s.totalFocusHours} prev={ps?.totalFocusHours} sub={`${s.avgFocusHoursPerWeek}h/wk · workday minus meetings`} trend={weekly.focusHrs} />
-          <StatCard label="After-hours items" value={s.afterHoursItems} color="#F44336" curr={s.afterHoursItems} prev={ps?.afterHoursItems} invert sub="lower is better" trend={weekly.afterHours} />
+          <StatCard label="After-hours items" value={s.afterHoursItems} color="#F44336" curr={s.afterHoursItems} prev={ps?.afterHoursItems} invert
+            sub={s.afterHoursItems > 0 ? `${afterHoursSplit.evening} evening · ${afterHoursSplit.weekend} weekend` : 'lower is better'} trend={weekly.afterHours} />
         </Stack>
 
         <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-          <StatCard label="Maker / manager" value={`${focusPct} / ${meetingPct}`} color={EXEC_COLOR}
-            sub="maker % / manager %" />
+          <StatCard label="Net flow" value={`${s.netFlow > 0 ? '+' : ''}${s.netFlow}`}
+            color={s.netFlow > 0 ? '#F44336' : EXEC_COLOR} invert
+            curr={s.netFlow} prev={ps?.netFlow}
+            sub={`${s.createdItems} in · ${s.totalCompleted} done · ${s.netFlow > 0 ? 'backlog grew' : s.netFlow < 0 ? 'backlog shrank' : 'even'}`} />
           <StatCard label="Deep-work days" value={s.meetingFreeDays} color={EXEC_COLOR}
             curr={s.meetingFreeDays} prev={ps?.meetingFreeDays}
             sub={`of ${s.workdays} workdays · ${s.heavyMeetingDays} heavy`} />
-          <StatCard label="Longest focus block" value={s.longestFocusBlock ? `${s.longestFocusBlock.hours}h` : '—'} color={STRATEGIC_COLOR}
-            sub={s.longestFocusBlock ? `${fmtDay(s.longestFocusBlock.date)} · ${fmtMins(s.longestFocusBlock.fromMin)}–${fmtMins(s.longestFocusBlock.toMin)}` : 'no meeting-free stretch'} />
           <StatCard label="Typical turnaround" value={s.medianCycleDays !== null ? `${s.medianCycleDays}d` : '—'}
             curr={s.medianCycleDays ?? undefined} prev={ps?.medianCycleDays ?? undefined} invert
             sub={s.medianCycleDays !== null ? `median · avg ${s.avgCycleDays}d · ${s.cycleSampleSize} items` : 'created → done'} />
@@ -653,6 +778,10 @@ export default function LiveDashboard() {
             sub={`longest ${s.longestStreak}d · ${s.activeDays} active days`} />
           <StatCard label="Open items (now)" value={wip.count} color={wip.oldestDays > 30 ? '#F44336' : undefined}
             invert sub={wip.count ? `oldest ${wip.oldestDays}d · avg ${wip.avgAgeDays}d` : 'nothing open'} />
+          {concentration && (
+            <StatCard label="Project focus" value={`${concentration.top3Share}%`} color={STRATEGIC_COLOR}
+              sub={`top 3 of ${concentration.count} · ${concentration.topShare}% ${concentration.topName}`} />
+          )}
         </Stack>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
@@ -699,10 +828,25 @@ export default function LiveDashboard() {
               slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
           </Panel>
 
-          <Panel title="Strategic share over time" subtitle="Percent of completed items that were strategic work, by week.">
-            <LineChart height={300} xAxis={[{ scaleType: 'point', data: weekly.labels }]} yAxis={[{ min: 0, max: 100 }]}
-              series={[{ data: weekly.stratPct, label: 'Strategic %', color: STRATEGIC_COLOR, area: true, showMark: true }]}
-              slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
+          <Panel title="Meeting fragmentation" subtitle="Number of meetings per week — how chopped-up your weeks are, independent of total hours. Eight 30-min meetings fragments a week more than one 4-hour block.">
+            {weekly.meetingCounts.some((n) => n > 0) ? (
+              <>
+                <BarChart height={272} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
+                  series={[{ data: weekly.meetingCounts, label: 'Meetings', color: MEETING_COLOR }]}
+                  slotProps={{ legend: { hidden: true } }} margin={{ left: 40, right: 10, top: 10, bottom: 30 }} />
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, textAlign: 'center' }}>
+                  {s.totalMeetings} meetings · avg {s.totalMeetings > 0 ? Math.round((s.totalMeetingHours * 60) / s.totalMeetings) : 0} min each
+                </Typography>
+              </>
+            ) : <Typography variant="body2" color="text.secondary">No meetings in this range.</Typography>}
+          </Panel>
+
+          <Panel title="Meeting load by weekday" subtitle="Total meeting hours by day of week across the range — which day to protect, and which is already naturally clear.">
+            {meetingDow.hasData ? (
+              <BarChart height={300} xAxis={[{ scaleType: 'band', data: DOW_LABELS }]}
+                series={[{ data: meetingDow.hrs, label: 'Meeting hrs', color: MEETING_COLOR }]}
+                slotProps={{ legend: { hidden: true } }} margin={{ left: 40, right: 10, top: 10, bottom: 30 }} />
+            ) : <Typography variant="body2" color="text.secondary">No meetings in this range.</Typography>}
           </Panel>
 
           <Panel title="Type mix" subtitle="Completed items by work type. Click a slice or legend item to see them.">
@@ -718,6 +862,21 @@ export default function LiveDashboard() {
                 </Box>
               ))}
             </Stack>
+          </Panel>
+
+          <Panel title="Turnaround by type" subtitle="Median days from created → done, per work type. Shows what actually drags, which the single overall median hides.">
+            {cycleByType.length ? (
+              <Stack spacing={0.25}>
+                {cycleByType.map((r) => (
+                  <Box key={r.type} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 0.5 }}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '3px', bgcolor: r.color, flexShrink: 0 }} />
+                    <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</Typography>
+                    <Typography variant="caption" color="text.secondary">{r.n} item{r.n === 1 ? '' : 's'}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, minWidth: 48, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{r.median}d</Typography>
+                  </Box>
+                ))}
+              </Stack>
+            ) : <Typography variant="body2" color="text.secondary">Not enough dated items to measure turnaround.</Typography>}
           </Panel>
 
           <Panel title="Collaboration" subtitle="Reviewing teammates' PRs (helping) vs shipping your own (authoring).">
@@ -793,19 +952,33 @@ export default function LiveDashboard() {
             ) : <Typography variant="body2" color="text.secondary">No tallies logged in this range.</Typography>}
           </Panel>
 
-          <Panel title="By day of week" subtitle="Which days you complete the most work, across the range.">
-            {rhythm.hasData ? (
-              <BarChart height={300} xAxis={[{ scaleType: 'band', data: DOW_LABELS }]}
-                series={[{ data: rhythm.dowCounts, label: 'Items', color: STRATEGIC_COLOR }]}
-                slotProps={{ legend: { hidden: true } }} margin={{ left: 40, right: 10, top: 10, bottom: 30 }} />
-            ) : <Typography variant="body2" color="text.secondary">No completed items in this range.</Typography>}
+          <Panel title="Interruptions vs output" subtitle="Average items completed on days with at least one logged interruption vs calm days — the real cost of getting yanked.">
+            {interruptImpact ? (
+              <>
+                <Stack direction="row" spacing={4} justifyContent="center" sx={{ mt: 1, mb: 1.5 }}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: EXEC_COLOR }}>{interruptImpact.calmAvg}</Typography>
+                    <Typography variant="caption" color="text.secondary">calm days ({interruptImpact.calmDays})</Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: SWITCH_COLOR }}>{interruptImpact.busyAvg}</Typography>
+                    <Typography variant="caption" color="text.secondary">interrupted days ({interruptImpact.busyDays})</Typography>
+                  </Box>
+                </Stack>
+                {interruptImpact.pctDiff !== null && (
+                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                    {interruptImpact.pctDiff === 0
+                      ? 'About the same output either way.'
+                      : `You complete ${Math.abs(interruptImpact.pctDiff)}% ${interruptImpact.pctDiff < 0 ? 'fewer' : 'more'} items on interrupted days.`}
+                  </Typography>
+                )}
+              </>
+            ) : <Typography variant="body2" color="text.secondary">Need both interrupted and calm days in this range to compare.</Typography>}
           </Panel>
 
-          <Panel title="By time of day" subtitle="When work gets done (local clock time).">
+          <Panel title="When work happens" subtitle="Completed items by weekday and time of day (local clock). Darker = more. Timestamped items only.">
             {rhythm.hasData ? (
-              <BarChart height={300} xAxis={[{ scaleType: 'band', data: PARTS_OF_DAY.map((p) => p.label) }]}
-                series={[{ data: rhythm.partCounts, label: 'Items', color: EXEC_COLOR }]}
-                slotProps={{ legend: { hidden: true } }} margin={{ left: 40, right: 10, top: 10, bottom: 30 }} />
+              <RhythmGrid grid={rhythm.grid} max={rhythm.gridMax} />
             ) : <Typography variant="body2" color="text.secondary">No completed items in this range.</Typography>}
           </Panel>
 
@@ -858,12 +1031,26 @@ export default function LiveDashboard() {
           <Panel title="Open work / carryover" subtitle={wip.count ? `${wip.count} items open right now (not done or cancelled) · oldest ${wip.oldestDays}d · avg age ${wip.avgAgeDays}d. A live snapshot — not bound to the date range.` : 'Nothing open — your board is clear.'} span>
             {wip.count ? (
               <>
-                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
                   {Object.entries(wip.byStatus).sort((a, b) => b[1] - a[1]).map(([st, n]) => (
                     <Chip key={st} size="small" variant="outlined"
                       label={`${st.charAt(0).toUpperCase() + st.slice(1)} · ${n}`} />
                   ))}
                 </Stack>
+                {wip.ageBuckets && (
+                  <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary">Age:</Typography>
+                    {[
+                      { key: '0-7', label: '0–7d', color: undefined },
+                      { key: '8-14', label: '8–14d', color: undefined },
+                      { key: '15-30', label: '15–30d', color: 'warning' },
+                      { key: '30+', label: '30d+', color: 'error' },
+                    ].filter((b) => (wip.ageBuckets[b.key] || 0) > 0).map((b) => (
+                      <Chip key={b.key} size="small" variant="outlined" color={b.color}
+                        label={`${b.label} · ${wip.ageBuckets[b.key]}`} />
+                    ))}
+                  </Stack>
+                )}
                 <List dense>
                   {wip.items.map((it) => (
                     <ListItem key={it.id} disableGutters
