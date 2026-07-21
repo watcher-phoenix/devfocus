@@ -1028,7 +1028,7 @@ export default function LiveDashboard() {
             ) : <Typography variant="body2" color="text.secondary">No project data for this range.</Typography>}
           </Panel>
 
-          <Panel title="Open work / carryover" subtitle={wip.count ? `${wip.count} items open right now (not done or cancelled) · oldest ${wip.oldestDays}d · avg age ${wip.avgAgeDays}d. A live snapshot — not bound to the date range.` : 'Nothing open — your board is clear.'} span>
+          <Panel title="Open work / carryover" subtitle={wip.count ? `${wip.count} items open right now (active, inbox, or waiting) · oldest ${wip.oldestDays}d · avg age ${wip.avgAgeDays}d. A live snapshot — not bound to the date range.` : 'Nothing open — your board is clear.'} span>
             {wip.count ? (
               <>
                 <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>

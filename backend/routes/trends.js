@@ -485,10 +485,12 @@ router.get('/', async (req, res) => {
     }
 
     // --- Work in progress / carryover (current snapshot, not range-bound) ---
-    // Everything not done or cancelled, with age since creation. Answers "what's
-    // piling up," the half of the picture completions alone never show.
+    // Only genuinely-open statuses: inbox (brain dump), active, and waiting.
+    // `later`/`scheduled` are intentionally parked for the future, not carryover,
+    // so they're excluded. Answers "what's piling up," the half of the picture
+    // completions alone never show.
     const openItems = await WorkItem.findAll({
-      where: { status: { [Op.notIn]: ['done', 'cancelled'] } },
+      where: { status: { [Op.in]: ['inbox', 'active', 'waiting'] } },
       include: [{ model: Project, as: 'project', attributes: ['name', 'color'] }],
       order: [['createdAt', 'ASC']],
     });
