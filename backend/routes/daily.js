@@ -33,21 +33,35 @@ router.get('/:date', async (req, res) => {
   try {
   const { date } = req.params;
   const targetDate = date === 'today' ? getTodayET() : date;
+  const isToday = targetDate === getTodayET();
 
-  // All items scheduled for today, including done (shown with strikethrough)
+  // Items scheduled for the target day, including done (shown with strikethrough).
+  // When viewing the actual today, also roll over overdue incomplete items
+  // (scheduled for a past day, not yet done) so they keep surfacing until dealt with.
+  const priorityWhere = isToday
+    ? {
+        [Op.or]: [
+          { scheduledDate: targetDate },
+          { scheduledDate: { [Op.lt]: targetDate }, status: { [Op.ne]: 'done' } },
+        ],
+      }
+    : { scheduledDate: targetDate };
+
   const priorities = await WorkItem.findAll({
-    where: { scheduledDate: targetDate },
+    where: priorityWhere,
     include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
     order: [['priority', 'DESC'], ['sortOrder', 'ASC']],
   });
 
-  // Active work items NOT already in today's priorities
+  // Active work items NOT already in today's priorities. When viewing today,
+  // overdue items now live in priorities, so exclude anything scheduled on or
+  // before today to avoid showing it twice.
   const activeItems = await WorkItem.findAll({
     where: {
       status: 'active',
       [Op.or]: [
         { scheduledDate: null },
-        { scheduledDate: { [Op.ne]: targetDate } },
+        { scheduledDate: isToday ? { [Op.gt]: targetDate } : { [Op.ne]: targetDate } },
       ],
     },
     include: [{ model: Project, as: 'project', attributes: ['id', 'name', 'color'] }],
@@ -144,6 +158,7 @@ router.get('/:date', async (req, res) => {
     priorities: priorities.map((item) => {
       const json = item.toJSON();
       json.afterHours = isAfterHours(item.completedAt, workStartMins, workEndMins);
+      json.overdue = isToday && item.status !== 'done' && item.scheduledDate < targetDate;
       return json;
     }),
     activeItems,
