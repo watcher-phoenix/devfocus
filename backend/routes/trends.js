@@ -401,6 +401,16 @@ router.get('/', async (req, res) => {
     let workdays = 0;
     let meetingFreeDays = 0;
     let heavyMeetingDays = 0;
+    // Maker vs manager days (Paul Graham's schedule shapes): a workday is a
+    // "maker day" if it kept at least one unbroken block this long — enough for
+    // real deep work — regardless of total meeting hours. Otherwise it was
+    // sliced too fine and counts as a "manager day". Judged on schedule *shape*
+    // (the largest meeting-free gap), not raw meeting-hour totals.
+    const MAKER_BLOCK_MIN = 180; // 3h
+    let makerDays = 0;
+    let managerDays = 0;
+    const weeklyMakerDays = {};
+    const weeklyManagerDays = {};
     // Longest uninterrupted focus block: the biggest stretch of the work-hours
     // window with no meeting on the calendar, across all workdays in range.
     let longestFocusBlock = null; // { date, minutes, fromMin, toMin }
@@ -454,6 +464,15 @@ router.get('/', async (req, res) => {
       if (workEndMins > cursor) considerGap(cursor, workEndMins);
       if (!longestFocusBlock || dayGap > longestFocusBlock.minutes) {
         longestFocusBlock = { date: dateStr, minutes: dayGap, fromMin: dayFrom, toMin: dayTo };
+      }
+
+      // Classify the day by its largest unbroken block, not meeting hours.
+      if (dayGap >= MAKER_BLOCK_MIN) {
+        makerDays += 1;
+        weeklyMakerDays[weekStart] = (weeklyMakerDays[weekStart] || 0) + 1;
+      } else {
+        managerDays += 1;
+        weeklyManagerDays[weekStart] = (weeklyManagerDays[weekStart] || 0) + 1;
       }
     }
     const focusWeeks = Object.keys(weeklyFocusMinutes).length || 1;
@@ -571,6 +590,9 @@ router.get('/', async (req, res) => {
         workdays,
         meetingFreeDays,
         heavyMeetingDays,
+        makerDays,
+        managerDays,
+        makerBlockHours: Math.round((MAKER_BLOCK_MIN / 60) * 10) / 10,
         longestFocusBlock: longestFocusBlock && longestFocusBlock.minutes > 0
           ? {
             date: longestFocusBlock.date,
@@ -596,6 +618,8 @@ router.get('/', async (req, res) => {
       weeklyCompletions,
       weeklyMeetingMinutes,
       weeklyFocusMinutes,
+      weeklyMakerDays,
+      weeklyManagerDays,
       typeBreakdown,
       projectBreakdown,
       projectColors,

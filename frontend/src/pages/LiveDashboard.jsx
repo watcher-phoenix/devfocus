@@ -47,12 +47,6 @@ const daysBetween = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a
 const weekStartOf = (iso) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - d.getDay()); return fmtISO(d); };
 const fmtDay = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 const round1 = (n) => Math.round(n * 10) / 10;
-const median = (nums) => {
-  if (!nums.length) return 0;
-  const s = [...nums].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-};
 
 // Calendar-period starts (this week / month / quarter / year), as ISO strings.
 const startOfMonthStr = () => { const d = new Date(); return fmtISO(new Date(d.getFullYear(), d.getMonth(), 1)); };
@@ -369,6 +363,8 @@ export default function LiveDashboard() {
       focusHrs: keys.map((k) => round1((data.weeklyFocusMinutes?.[k] || 0) / 60)),
       afterHours: keys.map((k) => ahByWeek[k] || 0),
       meetingCounts: keys.map((k) => data.weeklyMeetingCounts?.[k] || 0),
+      makerDays: keys.map((k) => data.weeklyMakerDays?.[k] || 0),
+      managerDays: keys.map((k) => data.weeklyManagerDays?.[k] || 0),
       selfSwitches: keys.map((k) => data.weeklySwitchSplit?.[k]?.self || 0),
       interruptions: keys.map((k) => data.weeklySwitchSplit?.[k]?.interruptions || 0),
     };
@@ -488,26 +484,6 @@ export default function LiveDashboard() {
     });
     const hrs = mins.map((m) => round1(m / 60));
     return { hrs, counts, hasData: hrs.some((h) => h > 0) };
-  }, [data]);
-
-  // Median turnaround broken out by work type — what actually drags, which the
-  // single global median hides.
-  const cycleByType = useMemo(() => {
-    const buckets = {};
-    (data?.items || []).forEach((i) => {
-      if (i.cycleDays === null || i.cycleDays === undefined) return;
-      if (!buckets[i.type]) buckets[i.type] = [];
-      buckets[i.type].push(i.cycleDays);
-    });
-    return Object.entries(buckets)
-      .map(([type, arr]) => ({
-        type,
-        label: TYPE_LABELS[type] || type,
-        color: TYPE_COLORS[type] || '#90A4AE',
-        median: round1(median(arr)),
-        n: arr.length,
-      }))
-      .sort((a, b) => b.median - a.median);
   }, [data]);
 
   // Does getting yanked cost output? Compare average completions on days with at
@@ -637,7 +613,7 @@ export default function LiveDashboard() {
       `- **Focus hours:** ${s.totalFocusHours}h (${s.avgFocusHoursPerWeek}h/wk avg)`,
       `- **After-hours items:** ${s.afterHoursItems}`,
       `- **Context switches:** ${s.contextSwitches} (${s.avgSwitchesPerDay}/day · ${s.selfDirectedSwitches} self-directed, ${s.interruptionSwitches} interruptions)`,
-      `- **Maker / manager:** ${focusPct}% / ${meetingPct}%`,
+      `- **Maker / manager days:** ${s.makerDays} / ${s.managerDays} of ${s.workdays} workdays (maker = ${s.makerBlockHours}h+ unbroken block)`,
       `- **Deep-work days:** ${s.meetingFreeDays} of ${s.workdays} workdays (${s.heavyMeetingDays} heavy)`,
       s.longestFocusBlock ? `- **Longest focus block:** ${s.longestFocusBlock.hours}h (${fmtDay(s.longestFocusBlock.date)})` : null,
       s.medianCycleDays !== null ? `- **Turnaround:** ${s.medianCycleDays}d median (avg ${s.avgCycleDays}d, ${s.cycleSampleSize} items)` : null,
@@ -671,13 +647,6 @@ export default function LiveDashboard() {
   const narrative = buildNarrative(s, weekly);
   const activePreset = PRESETS.find((p) => p.value === preset) || null;
   const rangeCapped = !!(activePreset && clampFrom(activePreset.from()) !== activePreset.from());
-
-  // Meeting load as a share of actual working time. focus + meeting ≈ the
-  // workday capacity (focus is already workday minus meetings/OOO), so this
-  // reads as "how much of your available time went to meetings."
-  const workHours = round1(s.totalMeetingHours + s.totalFocusHours);
-  const meetingPct = workHours > 0 ? Math.round((s.totalMeetingHours / workHours) * 100) : 0;
-  const focusPct = workHours > 0 ? 100 - meetingPct : 0;
 
   // Auto-detected, skimmable facts about the slice — deliberately limited to
   // things that aren't already a stat card below, so the row adds rather than echoes.
@@ -808,24 +777,31 @@ export default function LiveDashboard() {
             </Stack>
           </Panel>
 
-          <Panel title="Maker vs manager time" subtitle={`Stacked weekly hours — manager time (meetings) vs maker time (estimated focus). ${s.totalMeetings} meetings total${s.workdays ? `, ~${round1(s.totalMeetings / (s.workdays / 5))}/wk` : ''}.`}>
-            {workHours > 0 && (
-              <Box sx={{ mb: 1.5 }}>
-                <Box sx={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden' }}>
-                  <Box sx={{ width: `${focusPct}%`, bgcolor: EXEC_COLOR }} title={`Maker · ${s.totalFocusHours}h`} />
-                  <Box sx={{ width: `${meetingPct}%`, bgcolor: MEETING_COLOR }} title={`Manager · ${s.totalMeetingHours}h`} />
-                </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  <strong>{focusPct}%</strong> maker (focus) · <strong>{meetingPct}%</strong> manager (meetings)
-                </Typography>
-              </Box>
-            )}
-            <BarChart height={272} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
-              series={[
-                { data: weekly.focusHrs, label: 'Maker (focus hrs)', color: EXEC_COLOR, stack: 'h' },
-                { data: weekly.meetingHrs, label: 'Manager (meeting hrs)', color: MEETING_COLOR, stack: 'h' },
-              ]}
-              slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
+          <Panel title="Maker vs manager days" subtitle={`How your days were shaped, not how many hours you sat in meetings. A maker day kept at least one unbroken ${s.makerBlockHours}h+ block for deep work; a manager day was sliced too fine — regardless of total meeting time.`}>
+            {s.workdays > 0 ? (
+              <>
+                {(() => {
+                  const makerPct = Math.round((s.makerDays / s.workdays) * 100);
+                  return (
+                    <Box sx={{ mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden' }}>
+                        <Box sx={{ width: `${makerPct}%`, bgcolor: EXEC_COLOR }} title={`Maker · ${s.makerDays} days`} />
+                        <Box sx={{ width: `${100 - makerPct}%`, bgcolor: MEETING_COLOR }} title={`Manager · ${s.managerDays} days`} />
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                        <strong>{s.makerDays}</strong> maker · <strong>{s.managerDays}</strong> manager · of {s.workdays} workdays
+                      </Typography>
+                    </Box>
+                  );
+                })()}
+                <BarChart height={272} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
+                  series={[
+                    { data: weekly.makerDays, label: 'Maker days', color: EXEC_COLOR, stack: 'd' },
+                    { data: weekly.managerDays, label: 'Manager days', color: MEETING_COLOR, stack: 'd' },
+                  ]}
+                  slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
+              </>
+            ) : <Typography variant="body2" color="text.secondary">No workdays in this range.</Typography>}
           </Panel>
 
           <Panel title="Meeting fragmentation" subtitle="Number of meetings per week — how chopped-up your weeks are, independent of total hours. Eight 30-min meetings fragments a week more than one 4-hour block.">
@@ -864,21 +840,6 @@ export default function LiveDashboard() {
             </Stack>
           </Panel>
 
-          <Panel title="Turnaround by type" subtitle="Median days from created → done, per work type. Shows what actually drags, which the single overall median hides.">
-            {cycleByType.length ? (
-              <Stack spacing={0.25}>
-                {cycleByType.map((r) => (
-                  <Box key={r.type} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 0.5 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: '3px', bgcolor: r.color, flexShrink: 0 }} />
-                    <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</Typography>
-                    <Typography variant="caption" color="text.secondary">{r.n} item{r.n === 1 ? '' : 's'}</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700, minWidth: 48, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{r.median}d</Typography>
-                  </Box>
-                ))}
-              </Stack>
-            ) : <Typography variant="body2" color="text.secondary">Not enough dated items to measure turnaround.</Typography>}
-          </Panel>
-
           <Panel title="Collaboration" subtitle="Reviewing teammates' PRs (helping) vs shipping your own (authoring).">
             {(s.prsReviewed + s.prsMerged) > 0 ? (
               <Box>
@@ -905,11 +866,19 @@ export default function LiveDashboard() {
                           <Typography variant="h4" sx={{ fontWeight: 700, color: EXEC_COLOR }}>{authored}</Typography>
                           <Typography variant="caption" color="text.secondary">PRs merged</Typography>
                         </Box>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h4" sx={{ fontWeight: 700 }}>{authored > 0 ? round1(reviewed / authored) : '∞'}</Typography>
-                          <Typography variant="caption" color="text.secondary">review : author ratio</Typography>
-                        </Box>
                       </Stack>
+                      <Typography variant="body2" color="text.secondary" sx={{ display: 'block', mt: 1.5, textAlign: 'center' }}>
+                        {(() => {
+                          if (authored === 0) return 'All reviewing so far — no PRs of your own merged in this range.';
+                          if (reviewed === 0) return `You merged ${authored} PR${authored === 1 ? '' : 's'} and reviewed none.`;
+                          if (reviewed >= authored) {
+                            const r = round1(reviewed / authored);
+                            return `You review about ${r} teammate PR${r === 1 ? '' : 's'} for every one you ship.`;
+                          }
+                          const r = round1(authored / reviewed);
+                          return `You ship about ${r} PR${r === 1 ? '' : 's'} for every teammate PR you review.`;
+                        })()}
+                      </Typography>
                     </>
                   );
                 })()}
