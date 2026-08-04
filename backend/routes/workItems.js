@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
 const { WorkItem, Project, UserSettings, StatusConfig } = require('../database/models');
-const { getTimeInET, isWeekendET } = require('../utilities/timezone');
+const { getTimeInET, isWeekendET, getTodayET, getDateET, etWallClockToUTC } = require('../utilities/timezone');
 
 const router = Router();
 
@@ -49,6 +49,25 @@ async function spawnNextRecurrence(item) {
 async function isCompletionStatus(key) {
   const cfg = await StatusConfig.findOne({ where: { key } });
   return cfg?.isCompletion || false;
+}
+
+// Resolve the completedAt timestamp for a completion-status item, honoring an
+// explicit `completedDate` (YYYY-MM-DD in ET) picked in the edit dialog.
+// Choosing today keeps the precise current time; any other day anchors to noon
+// ET (or 6pm ET when after-hours) so it always reads back as that same day.
+// Returns undefined to leave the existing completedAt untouched.
+function resolveCompletedAt(item, { completedDate, afterHours }) {
+  if (!completedDate) {
+    // No explicit date: stamp now only when first entering a completion status.
+    return item.completedAt ? undefined : new Date();
+  }
+  const todayET = getTodayET();
+  if (completedDate === todayET) {
+    // Already completed today → keep the precise time; otherwise stamp now.
+    if (item.completedAt && getDateET(item.completedAt) === todayET) return undefined;
+    return new Date();
+  }
+  return etWallClockToUTC(completedDate, afterHours ? 18 : 12, 0);
 }
 
 async function getWorkHourBounds() {
@@ -118,9 +137,15 @@ router.put('/:id', async (req, res) => {
 
   const wasCompletion = await isCompletionStatus(item.status);
   const willBeCompletion = req.body.status ? await isCompletionStatus(req.body.status) : wasCompletion;
-  if (req.body.status && willBeCompletion && !wasCompletion) {
-    req.body.completedAt = new Date();
+  if (willBeCompletion) {
+    const resolved = resolveCompletedAt(item, {
+      completedDate: req.body.completedDate,
+      afterHours: req.body.afterHours,
+    });
+    if (resolved !== undefined) req.body.completedAt = resolved;
   }
+  delete req.body.completedDate;
+  delete req.body.afterHours;
 
   await item.update(req.body);
 

@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { Op } = require('sequelize');
 const { WorkItem, Project, CachedEvent } = require('../database/models');
-const { getDaysAgoET, getTodayET, getDateET } = require('../utilities/timezone');
+const { getDaysAgoET, getTodayET, getDateET, etWallClockToUTC } = require('../utilities/timezone');
 
 const router = Router();
 
@@ -88,9 +88,9 @@ router.post('/log', async (req, res) => {
   if (!date || date === today) {
     completedAt = new Date();
   } else if (afterHours) {
-    completedAt = new Date(date + 'T18:00:00'); // 6pm — after work hours
+    completedAt = etWallClockToUTC(date, 18, 0); // 6pm ET — after work hours
   } else {
-    completedAt = new Date(date + 'T12:00:00'); // noon — during work hours
+    completedAt = etWallClockToUTC(date, 12, 0); // noon ET — during work hours
   }
 
   const item = await WorkItem.create({
@@ -105,7 +105,7 @@ router.post('/log', async (req, res) => {
     externalUrl: ticketUrl || null,
     externalSource: ticketId ? 'jira' : null,
     completedAt,
-    scheduledDate: scheduledDate || completedAt.toISOString().split('T')[0],
+    scheduledDate: scheduledDate || getDateET(completedAt),
     dueDate: dueDate || null,
   });
 

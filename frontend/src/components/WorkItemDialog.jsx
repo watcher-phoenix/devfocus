@@ -65,6 +65,9 @@ export default function WorkItemDialog({ item, open, onClose }) {
         externalUrl: item.externalUrl || '',
         recurrenceRule: item.recurrenceRule || '',
         afterHours: item.afterHours || false,
+        completedDate: item.completedAt
+          ? new Date(item.completedAt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+          : '',
       });
     }
   }, [item]);
@@ -82,23 +85,16 @@ export default function WorkItemDialog({ item, open, onClose }) {
       externalUrl: form.externalUrl || null,
       recurrenceRule: form.recurrenceRule || null,
     };
-    delete payload.afterHours;
-
-    // If status is done, set completedAt based on the afterHours toggle. Anchor
-    // to the day the item was ACTUALLY completed so editing an already-completed
-    // item (e.g. changing its project) never bumps the completion date. Only fall
-    // back to scheduledDate/today for items that aren't completed yet.
+    // For completion statuses, hand the picked "Completed on" day + after-hours
+    // flag to the backend, which anchors completedAt in Eastern time. Editing an
+    // already-completed item keeps its day (the field defaults to it); changing
+    // the field moves the completion to that day. Non-completion items send
+    // neither and the backend leaves completedAt alone.
     if (completionKeys.has(form.status)) {
-      const existingDay = item.completedAt
-        ? new Date(item.completedAt).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-        : null;
-      const dateStr = existingDay || form.scheduledDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-      if (form.afterHours) {
-        payload.completedAt = new Date(dateStr + 'T18:00:00');
-      } else if (item.afterHours || !item.completedAt) {
-        // Was after-hours (or not yet completed) and is now during-hours: reset to noon on the same day
-        payload.completedAt = new Date(dateStr + 'T12:00:00');
-      }
+      payload.completedDate = form.completedDate || null;
+    } else {
+      delete payload.afterHours;
+      delete payload.completedDate;
     }
 
     await updateItem.mutateAsync(payload);
@@ -235,10 +231,20 @@ export default function WorkItemDialog({ item, open, onClose }) {
           rows={3}
         />
         {completionKeys.has(form.status) && (
-          <FormControlLabel
-            control={<Checkbox checked={form.afterHours || false} onChange={(e) => setForm({ ...form, afterHours: e.target.checked })} />}
-            label={(form.afterHours || false) ? 'After hours work (working late again?)' : 'After hours work'}
-          />
+          <Stack direction="row" spacing={2} alignItems="center">
+            <TextField
+              label="Completed on"
+              type="date"
+              value={form.completedDate || ''}
+              onChange={(e) => setForm({ ...form, completedDate: e.target.value })}
+              sx={{ maxWidth: 200 }}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <FormControlLabel
+              control={<Checkbox checked={form.afterHours || false} onChange={(e) => setForm({ ...form, afterHours: e.target.checked })} />}
+              label={(form.afterHours || false) ? 'After hours work (working late again?)' : 'After hours work'}
+            />
+          </Stack>
         )}
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'space-between', px: 3 }}>

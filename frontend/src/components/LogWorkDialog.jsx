@@ -12,7 +12,6 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import InputLabel from '@mui/material/InputLabel';
 import Stack from '@mui/material/Stack';
-import dayjs from 'dayjs';
 import { useProjects } from '../api/projects';
 import { useLogWork } from '../api/activity';
 import EmojiButton from './EmojiButton';
@@ -45,7 +44,7 @@ export default function LogWorkDialog({ open, onClose }) {
     ticketUrl: '',
     scheduledDate: '',
     dueDate: '',
-    date: dayjs().format('YYYY-MM-DD'),
+    date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
     afterHours: false,
   };
   const [form, setForm] = useState(defaultForm);
@@ -57,7 +56,7 @@ export default function LogWorkDialog({ open, onClose }) {
       projectId: form.projectId || null,
       ticketId: form.ticketId || null,
     });
-    setForm({ ...defaultForm, date: dayjs().format('YYYY-MM-DD') });
+    setForm({ ...defaultForm, date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) });
     onClose();
   };
 

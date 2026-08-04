@@ -17,6 +17,34 @@ function getDateET(date) {
   return new Date(date).toLocaleDateString('en-CA', { timeZone: TZ });
 }
 
+// Build a Date whose Eastern-time wall clock is `dateStr` (YYYY-MM-DD) at hh:mm.
+// Works regardless of the server's own timezone (Fly runs in UTC), so a value
+// stored this way always reads back as the same ET calendar day and time.
+function etWallClockToUTC(dateStr, hh, mm) {
+  const pad = (n) => String(n).padStart(2, '0');
+  // First interpret the wall clock as if it were UTC...
+  const guess = new Date(`${dateStr}T${pad(hh)}:${pad(mm)}:00Z`);
+  // ...then measure what ET wall clock that instant actually lands on, and
+  // shift by the difference so the ET wall clock matches the target.
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(guess);
+  const get = (t) => parts.find((p) => p.type === t).value;
+  const hour = get('hour') === '24' ? '00' : get('hour');
+  const etAsIfUTC = new Date(
+    `${get('year')}-${get('month')}-${get('day')}T${hour}:${get('minute')}:${get('second')}Z`
+  );
+  const offset = guess.getTime() - etAsIfUTC.getTime();
+  return new Date(guess.getTime() + offset);
+}
+
 // Get day of week name for a date string
 function getDayOfWeek(dateStr) {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -59,4 +87,4 @@ function isWeekendET(date) {
   return dayStr === 'Sat' || dayStr === 'Sun';
 }
 
-module.exports = { getTodayET, getYesterdayET, getDateET, getDayOfWeek, getWeekStart, getDaysAgoET, getTimeInET, isWeekendET, TZ };
+module.exports = { getTodayET, getYesterdayET, getDateET, etWallClockToUTC, getDayOfWeek, getWeekStart, getDaysAgoET, getTimeInET, isWeekendET, TZ };
