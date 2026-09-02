@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 const axios = require('axios');
-const { WorkItem, IntegrationConfig } = require('../database/models');
+const { WorkItem, IntegrationConfig, StatusConfig } = require('../database/models');
 
 async function syncJira() {
   const integrationConfig = await IntegrationConfig.findOne({
@@ -59,6 +59,11 @@ async function syncJira() {
     for (const issue of (doneResponse.data.issues || [])) issueMap.set(issue.key, issue);
     const issues = Array.from(issueMap.values());
 
+    // Build the Jira-status -> DevFocus-column mapper from the live columns, so
+    // custom columns (e.g. "In Testing") map automatically by matching label.
+    const statusConfigs = await StatusConfig.findAll();
+    const { map: mapJiraStatus, controlled: jiraControlledKeys } = buildJiraStatusMapper(statusConfigs);
+
     let created = 0;
     let updated = 0;
 
@@ -69,8 +74,8 @@ async function syncJira() {
 
       const jiraPriority = mapJiraPriority(issue.fields.priority?.name);
       const jiraStatus = (issue.fields.status?.name || '').toLowerCase();
-      const isCancelled = mapJiraStatusToCancelled(jiraStatus);
-      const isDone = !isCancelled && mapJiraStatusToDone(jiraStatus);
+      const targetStatus = mapJiraStatus(jiraStatus);
+      const isTerminalTarget = targetStatus === 'done' || targetStatus === 'cancelled';
       // Use real completion date — don't fall back to 'updated' since that
       // changes whenever anyone touches the ticket
       const completionDate = issue.fields.resolutiondate
@@ -101,24 +106,24 @@ async function syncJira() {
           description: data.description,
           priority: jiraPriority,
         };
-        if (isCancelled && existing.status !== 'cancelled') {
-          updates.status = 'cancelled';
-          updates.completedAt = null;
-        } else if (isDone && existing.status !== 'done') {
-          updates.status = 'done';
-          updates.completedAt = completionDate ? new Date(completionDate) : new Date();
-        } else if (!isDone && !isCancelled && (existing.status === 'cancelled' || existing.status === 'done')) {
-          // Ticket was reopened in Jira — move back to inbox
-          updates.status = 'inbox';
-          updates.completedAt = null;
+        // Jira owns the lifecycle columns (Brain Dump / Active / In Testing / Done / Cancelled).
+        // Terminal states (Done/Cancelled) always win. For non-terminal moves we only
+        // reshuffle among Jira-controlled columns, so a manual park in Waiting/Later/
+        // Scheduled (or any custom column) is preserved.
+        if (existing.status !== targetStatus
+          && (isTerminalTarget || jiraControlledKeys.has(existing.status))) {
+          updates.status = targetStatus;
+          updates.completedAt = targetStatus === 'done'
+            ? (completionDate ? new Date(completionDate) : new Date())
+            : null;
         }
         await existing.update(updates);
         updated++;
       } else {
         await WorkItem.create({
           ...data,
-          status: isCancelled ? 'cancelled' : isDone ? 'done' : 'inbox',
-          completedAt: isDone ? (completionDate ? new Date(completionDate) : new Date()) : null,
+          status: targetStatus,
+          completedAt: targetStatus === 'done' ? (completionDate ? new Date(completionDate) : new Date()) : null,
         });
         created++;
       }
@@ -140,14 +145,40 @@ async function syncJira() {
   }
 }
 
-function mapJiraStatusToDone(statusName) {
-  const doneStatuses = ['done', 'ready for release', 'post release validation', 'pass', 'fail'];
-  return doneStatuses.includes(statusName.toLowerCase());
-}
+// Jira status names (lowercased) that map to terminal DevFocus columns.
+const DONE_STATUSES = ['done', 'ready for release', 'post release validation', 'pass', 'fail'];
+const CANCELLED_STATUSES = ["won't do", 'duplicate', 'cancelled'];
+// Jira statuses that map to Brain Dump / Active when there's no exact column-label match.
+const INBOX_ALIASES = ['backlog', 'to do', 'open', 'new', 'selected for development'];
+const ACTIVE_ALIASES = ['active', 'in progress', 'in development'];
+// Jira workflow statuses that ride on custom DevFocus columns matched by label.
+// These columns are treated as Jira-controlled (not manual parking columns).
+const WORKFLOW_LABELS = ['in testing', 'testing', 'in review', 'code review'];
 
-function mapJiraStatusToCancelled(statusName) {
-  const cancelledStatuses = ["won't do", 'duplicate', 'cancelled'];
-  return cancelledStatuses.includes(statusName.toLowerCase());
+// Build a Jira-status -> DevFocus-column mapper from the live StatusConfig rows.
+// A custom column auto-maps when its label matches the Jira status name
+// (e.g. Jira "In Testing" -> DevFocus "In Testing"), so no hardcoded key is needed.
+function buildJiraStatusMapper(statusConfigs) {
+  const byLabel = new Map(statusConfigs.map((s) => [s.label.toLowerCase(), s.key]));
+  const hasKey = (k) => statusConfigs.some((s) => s.key === k);
+
+  const map = (statusName) => {
+    const n = (statusName || '').toLowerCase().trim();
+    if (CANCELLED_STATUSES.includes(n)) return 'cancelled';
+    if (DONE_STATUSES.includes(n)) return 'done';
+    if (byLabel.has(n)) return byLabel.get(n); // exact column-label match (handles "In Testing", "Active")
+    if (ACTIVE_ALIASES.includes(n)) return hasKey('active') ? 'active' : 'inbox';
+    if (INBOX_ALIASES.includes(n)) return 'inbox';
+    return 'inbox';
+  };
+
+  // Columns whose contents Jira owns: base lifecycle + any label-matched workflow column.
+  const controlled = new Set(['inbox', 'active', 'done', 'cancelled']);
+  statusConfigs.forEach((s) => {
+    if (WORKFLOW_LABELS.includes(s.label.toLowerCase())) controlled.add(s.key);
+  });
+
+  return { map, controlled };
 }
 
 function mapJiraPriority(jiraPriorityName) {
