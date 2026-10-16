@@ -148,8 +148,9 @@ async function syncJira() {
 // Jira status names (lowercased) that map to terminal DevFocus columns.
 const DONE_STATUSES = ['done', 'ready for release', 'post release validation', 'pass', 'fail'];
 const CANCELLED_STATUSES = ["won't do", 'duplicate', 'cancelled'];
-// Jira statuses that map to Brain Dump / Active when there's no exact column-label match.
-const INBOX_ALIASES = ['backlog', 'to do', 'open', 'new', 'selected for development'];
+// Jira statuses that map to Brain Dump / Backlog / Active when there's no exact column-label match.
+const INBOX_ALIASES = ['to do', 'open', 'new', 'selected for development'];
+const BACKLOG_ALIASES = ['backlog'];
 const ACTIVE_ALIASES = ['active', 'in progress', 'in development'];
 // Jira workflow statuses that ride on custom DevFocus columns matched by synonym.
 // Each group lists the Jira status names (and DevFocus column labels) that mean the
@@ -185,12 +186,13 @@ function buildJiraStatusMapper(statusConfigs) {
     if (TESTING_ALIASES.includes(n) && testingKey) return testingKey; // Jira "Testing" -> "In Testing" column
     if (REVIEW_ALIASES.includes(n) && reviewKey) return reviewKey;
     if (ACTIVE_ALIASES.includes(n)) return hasKey('active') ? 'active' : 'inbox';
+    if (BACKLOG_ALIASES.includes(n)) return hasKey('backlog') ? 'backlog' : 'inbox';
     if (INBOX_ALIASES.includes(n)) return 'inbox';
     return 'inbox';
   };
 
   // Columns whose contents Jira owns: base lifecycle + any label-matched workflow column.
-  const controlled = new Set(['inbox', 'active', 'done', 'cancelled']);
+  const controlled = new Set(['inbox', 'backlog', 'active', 'done', 'cancelled']);
   statusConfigs.forEach((s) => {
     if (WORKFLOW_LABELS.includes(s.label.toLowerCase())) controlled.add(s.key);
   });

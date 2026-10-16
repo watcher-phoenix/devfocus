@@ -1,16 +1,18 @@
 const { Router } = require('express');
+const { Op } = require('sequelize');
 const { StatusConfig } = require('../database/models');
 
 const router = Router();
 
 const DEFAULT_STATUSES = [
   { key: 'inbox', label: 'Brain Dump', color: '#9AA0A6', sortOrder: 0, isSystem: true, isCompletion: false },
-  { key: 'active', label: 'Active', color: '#7C4DFF', sortOrder: 1, isSystem: true, isCompletion: false },
-  { key: 'waiting', label: 'Waiting', color: '#FFD600', sortOrder: 2, isSystem: true, isCompletion: false },
-  { key: 'later', label: 'Later', color: '#03A9F4', sortOrder: 3, isSystem: true, isCompletion: false },
-  { key: 'scheduled', label: 'Scheduled', color: '#AB47BC', sortOrder: 4, isSystem: true, isCompletion: false },
-  { key: 'done', label: 'Done', color: '#00C853', sortOrder: 5, isSystem: true, isCompletion: true },
-  { key: 'cancelled', label: 'Cancelled', color: '#9E9E9E', sortOrder: 6, isSystem: true, isCompletion: false },
+  { key: 'backlog', label: 'Backlog', color: '#607D8B', sortOrder: 1, isSystem: true, isCompletion: false },
+  { key: 'active', label: 'Active', color: '#7C4DFF', sortOrder: 2, isSystem: true, isCompletion: false },
+  { key: 'waiting', label: 'Waiting', color: '#FFD600', sortOrder: 3, isSystem: true, isCompletion: false },
+  { key: 'later', label: 'Later', color: '#03A9F4', sortOrder: 4, isSystem: true, isCompletion: false },
+  { key: 'scheduled', label: 'Scheduled', color: '#AB47BC', sortOrder: 5, isSystem: true, isCompletion: false },
+  { key: 'done', label: 'Done', color: '#00C853', sortOrder: 6, isSystem: true, isCompletion: true },
+  { key: 'cancelled', label: 'Cancelled', color: '#9E9E9E', sortOrder: 7, isSystem: true, isCompletion: false },
 ];
 
 async function ensureSeeded() {
@@ -22,6 +24,13 @@ async function ensureSeeded() {
     const hasCancelled = await StatusConfig.findOne({ where: { key: 'cancelled' } });
     if (!hasCancelled) {
       await StatusConfig.create({ key: 'cancelled', label: 'Cancelled', color: '#9E9E9E', sortOrder: 6, isSystem: true, isCompletion: false });
+    }
+    // Backfill Backlog status for existing installs — slot it right after Brain Dump
+    // (sortOrder 1) by shifting everything below Brain Dump down one spot.
+    const hasBacklog = await StatusConfig.findOne({ where: { key: 'backlog' } });
+    if (!hasBacklog) {
+      await StatusConfig.increment('sortOrder', { by: 1, where: { sortOrder: { [Op.gte]: 1 } } });
+      await StatusConfig.create({ key: 'backlog', label: 'Backlog', color: '#607D8B', sortOrder: 1, isSystem: true, isCompletion: false });
     }
   }
 }

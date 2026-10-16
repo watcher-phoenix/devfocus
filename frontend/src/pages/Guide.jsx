@@ -106,9 +106,11 @@ export default function Guide() {
       </Section>
 
       <Section title="Work — The Board">
-        <P>The Work page is a kanban board with five columns:</P>
+        <P>The Work page is a kanban board with these columns:</P>
         <B>Brain Dump (gray)</B>
-        <P>Unsorted items. Everything captured lands here first. Triage regularly.</P>
+        <P>Unsorted items. Everything you capture lands here first. Triage regularly — decide what each item is and move it on.</P>
+        <B>Backlog (slate)</B>
+        <P>Triaged work that's real but not scheduled yet. Jira tickets in a Backlog status land here automatically (rather than cluttering Brain Dump), so this column is your committed-but-not-started queue. Pull from it into Active or schedule it on the Weekly Planner.</P>
         <B>Active (purple)</B>
         <P>What you're currently working on. Keep this focused — 3-5 items max.</P>
         <B>Waiting (yellow)</B>
@@ -246,7 +248,7 @@ export default function Guide() {
         <B>Projects</B>
         <P>Create projects that map to your repos. Assign colors for visual grouping. One project can cover multiple repos (comma-separated slugs).</P>
         <B>Statuses</B>
-        <P>Rename, recolor, or add custom work statuses. System statuses (Brain Dump, Active, Waiting, Later, Scheduled, Done, Cancelled) can be renamed and recolored but not deleted. Custom statuses can be added for your workflow.</P>
+        <P>Rename, recolor, or add custom work statuses. System statuses (Brain Dump, Backlog, Active, Waiting, Later, Scheduled, Done, Cancelled) can be renamed and recolored but not deleted. Custom statuses can be added for your workflow.</P>
         <B>Integrations</B>
         <P>Connect Jira (API token), Bitbucket (access token or app password), and Outlook Calendar (sign in with your Microsoft work account — read-only calendar access via Azure/Entra). Each syncs automatically every 30 minutes during work hours, or sync on-demand with the Sync button. If calendar syncing ever stops, use Reconnect Microsoft. You can also set an optional fallback ICS URL — if a Graph sync fails, it automatically pulls from that published calendar instead so your calendar never goes stale. Set token expiry dates to get reminders before they expire.</P>
       </Section>

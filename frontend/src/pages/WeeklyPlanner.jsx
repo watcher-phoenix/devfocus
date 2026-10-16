@@ -122,7 +122,7 @@ export default function WeeklyPlanner() {
   const [activeItem, setActiveItem] = useState(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(true);
 
-  const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,active,waiting,later,scheduled' });
+  const { data: allItems = [] } = useWorkItems({ statuses: 'inbox,backlog,active,waiting,later,scheduled' });
   const updateItem = useUpdateWorkItem();
   const { data: weekMeetingsRaw = {} } = useWeekMeetings(weekStart);
   const weekMeetings = weekMeetingsRaw.days || weekMeetingsRaw;
