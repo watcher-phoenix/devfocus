@@ -151,22 +151,39 @@ const CANCELLED_STATUSES = ["won't do", 'duplicate', 'cancelled'];
 // Jira statuses that map to Brain Dump / Active when there's no exact column-label match.
 const INBOX_ALIASES = ['backlog', 'to do', 'open', 'new', 'selected for development'];
 const ACTIVE_ALIASES = ['active', 'in progress', 'in development'];
-// Jira workflow statuses that ride on custom DevFocus columns matched by label.
+// Jira workflow statuses that ride on custom DevFocus columns matched by synonym.
+// Each group lists the Jira status names (and DevFocus column labels) that mean the
+// same lifecycle stage, so Jira "Testing" lands in a DevFocus "In Testing" column
+// even though the strings don't match exactly.
+const TESTING_ALIASES = ['in testing', 'testing', 'ready for testing', 'in qa', 'qa'];
+const REVIEW_ALIASES = ['in review', 'code review', 'review', 'in code review', 'peer review'];
+// Jira workflow statuses that ride on custom DevFocus columns matched by label/synonym.
 // These columns are treated as Jira-controlled (not manual parking columns).
-const WORKFLOW_LABELS = ['in testing', 'testing', 'in review', 'code review'];
+const WORKFLOW_LABELS = [...TESTING_ALIASES, ...REVIEW_ALIASES];
 
 // Build a Jira-status -> DevFocus-column mapper from the live StatusConfig rows.
-// A custom column auto-maps when its label matches the Jira status name
-// (e.g. Jira "In Testing" -> DevFocus "In Testing"), so no hardcoded key is needed.
+// A custom column auto-maps when its label matches the Jira status name exactly
+// (e.g. Jira "In Testing" -> DevFocus "In Testing"), or when both the Jira status and
+// a column label fall in the same synonym group (e.g. Jira "Testing" -> "In Testing").
 function buildJiraStatusMapper(statusConfigs) {
   const byLabel = new Map(statusConfigs.map((s) => [s.label.toLowerCase(), s.key]));
   const hasKey = (k) => statusConfigs.some((s) => s.key === k);
+
+  // Resolve the first existing column whose label matches any synonym in the group.
+  const columnForGroup = (aliases) => {
+    const match = aliases.find((a) => byLabel.has(a));
+    return match ? byLabel.get(match) : null;
+  };
+  const testingKey = columnForGroup(TESTING_ALIASES);
+  const reviewKey = columnForGroup(REVIEW_ALIASES);
 
   const map = (statusName) => {
     const n = (statusName || '').toLowerCase().trim();
     if (CANCELLED_STATUSES.includes(n)) return 'cancelled';
     if (DONE_STATUSES.includes(n)) return 'done';
     if (byLabel.has(n)) return byLabel.get(n); // exact column-label match (handles "In Testing", "Active")
+    if (TESTING_ALIASES.includes(n) && testingKey) return testingKey; // Jira "Testing" -> "In Testing" column
+    if (REVIEW_ALIASES.includes(n) && reviewKey) return reviewKey;
     if (ACTIVE_ALIASES.includes(n)) return hasKey('active') ? 'active' : 'inbox';
     if (INBOX_ALIASES.includes(n)) return 'inbox';
     return 'inbox';
