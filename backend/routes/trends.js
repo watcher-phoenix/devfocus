@@ -418,6 +418,7 @@ router.get('/', async (req, res) => {
     // same way meetings/items are bounded.
     const todayET = getTodayET();
     const focusRangeEnd = untilDate && untilDate < todayET ? untilDate : todayET;
+    const dayShapeByDate = {};
     for (
       let cur = new Date(sinceDate + 'T12:00:00Z'), end = new Date(focusRangeEnd + 'T12:00:00Z');
       cur <= end;
@@ -467,13 +468,20 @@ router.get('/', async (req, res) => {
       }
 
       // Classify the day by its largest unbroken block, not meeting hours.
-      if (dayGap >= MAKER_BLOCK_MIN) {
+      const isMaker = dayGap >= MAKER_BLOCK_MIN;
+      if (isMaker) {
         makerDays += 1;
         weeklyMakerDays[weekStart] = (weeklyMakerDays[weekStart] || 0) + 1;
       } else {
         managerDays += 1;
         weeklyManagerDays[weekStart] = (weeklyManagerDays[weekStart] || 0) + 1;
       }
+      // Per-day shape, so the maker/manager chart can be drilled into by week.
+      dayShapeByDate[dateStr] = {
+        type: isMaker ? 'maker' : 'manager',
+        gapHours: Math.round((dayGap / 60) * 10) / 10,
+        meetingCount: dayMeetingCount,
+      };
     }
     const focusWeeks = Object.keys(weeklyFocusMinutes).length || 1;
     const totalFocusHours = Math.round(totalFocusMinutes / 6) / 10;
@@ -545,6 +553,42 @@ router.get('/', async (req, res) => {
       avgAgeDays: wipAges.length ? Math.round(wipAges.reduce((a, b) => a + b, 0) / wipAges.length) : 0,
       items: [...wipItems].sort((a, b) => b.ageDays - a.ageDays).slice(0, 20),
     };
+
+    // --- Backlog trend (reconstructed, not snapshotted) ---
+    // Weekly inflow (items created) vs outflow (items completed), plus a running
+    // count of items created but not yet completed as of each week's end. This is
+    // the net-flow stat played out over time — "is work arriving faster than I
+    // clear it?" — reconstructed from each item's created/completed timestamps,
+    // so there's history immediately without storing daily snapshots. Cancelled
+    // items are excluded; status is otherwise ignored (completion is the signal).
+    const flowItems = (await WorkItem.findAll({
+      attributes: ['createdAt', 'completedAt'],
+      where: { status: { [Op.ne]: 'cancelled' } },
+    })).map((i) => ({
+      c: new Date(i.createdAt).getTime(),
+      d: i.completedAt ? new Date(i.completedAt).getTime() : null,
+    }));
+    const trendEnd = untilDate && untilDate < getTodayET() ? untilDate : getTodayET();
+    const trendCapMs = new Date(trendEnd + 'T23:59:59').getTime();
+    const weekStarts = [];
+    for (
+      let c = new Date(getWeekStart(sinceDate) + 'T12:00:00'), lastWeek = getWeekStart(trendEnd);
+      c.toLocaleDateString('en-CA') <= lastWeek;
+      c.setDate(c.getDate() + 7)
+    ) {
+      weekStarts.push(c.toLocaleDateString('en-CA'));
+    }
+    const backlogTrend = weekStarts.map((ws) => {
+      const wsMs = new Date(ws + 'T00:00:00').getTime();
+      const weMs = Math.min(wsMs + 7 * 86400000 - 1000, trendCapMs);
+      let open = 0; let created = 0; let completed = 0;
+      flowItems.forEach(({ c, d }) => {
+        if (c <= weMs && (d === null || d > weMs)) open += 1;
+        if (c >= wsMs && c <= weMs) created += 1;
+        if (d !== null && d >= wsMs && d <= weMs) completed += 1;
+      });
+      return { week: ws, open, created, completed };
+    });
 
     // Earliest data point (ET) — when you actually started tracking work here.
     // Used as a hard floor so the range picker / presets don't reach before
@@ -620,6 +664,8 @@ router.get('/', async (req, res) => {
       weeklyFocusMinutes,
       weeklyMakerDays,
       weeklyManagerDays,
+      dayShapeByDate,
+      backlogTrend,
       typeBreakdown,
       projectBreakdown,
       projectColors,

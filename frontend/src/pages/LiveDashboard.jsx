@@ -23,6 +23,7 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ImageIcon from '@mui/icons-material/Image';
+import DownloadIcon from '@mui/icons-material/Download';
 import CloseIcon from '@mui/icons-material/Close';
 import { toPng } from 'html-to-image';
 import { BarChart, BarPlot } from '@mui/x-charts/BarChart';
@@ -36,6 +37,7 @@ import { ChartsTooltip } from '@mui/x-charts/ChartsTooltip';
 import { useTrends } from '../api/trends';
 import { TYPE_LABELS, TYPE_COLORS } from '../constants/workTypes';
 import { TALLY_CATEGORIES } from '../constants/tallies';
+import { exportTrendsCSV, exportReportHTML } from '../utils/exportReport';
 
 // ── date helpers ───────────────────────────────────────────────────────────
 const pad = (n) => String(n).padStart(2, '0');
@@ -358,15 +360,13 @@ export default function LiveDashboard() {
     });
     return {
       labels: keys.map(fmtDay),
+      weekKeys: keys,
       items: keys.map((k) => data.weeklyCompletions?.[k] || 0),
       meetingHrs: keys.map((k) => round1((data.weeklyMeetingMinutes?.[k] || 0) / 60)),
       focusHrs: keys.map((k) => round1((data.weeklyFocusMinutes?.[k] || 0) / 60)),
       afterHours: keys.map((k) => ahByWeek[k] || 0),
-      meetingCounts: keys.map((k) => data.weeklyMeetingCounts?.[k] || 0),
       makerDays: keys.map((k) => data.weeklyMakerDays?.[k] || 0),
       managerDays: keys.map((k) => data.weeklyManagerDays?.[k] || 0),
-      selfSwitches: keys.map((k) => data.weeklySwitchSplit?.[k]?.self || 0),
-      interruptions: keys.map((k) => data.weeklySwitchSplit?.[k]?.interruptions || 0),
     };
   }, [data]);
 
@@ -376,15 +376,36 @@ export default function LiveDashboard() {
       .map(([type, value]) => ({ id: type, value, label: TYPE_LABELS[type] || type, color: TYPE_COLORS[type] || '#90A4AE' }));
   }, [data]);
 
-  const projects = useMemo(() => {
-    if (!data) return { names: [], counts: [], colors: [] };
-    const top = Object.entries(data.projectBreakdown || {}).sort((a, b) => b[1] - a[1]).slice(0, 8).reverse();
-    return {
-      names: top.map(([name]) => name),
-      counts: top.map(([, c]) => c),
-      colors: top.map(([name]) => data.projectColors?.[name] || STRATEGIC_COLOR),
-    };
-  }, [data]);
+  // Top projects by output, each annotated with its momentum (change in
+  // items/week vs the prior window) — merges the old "Top projects" bars and
+  // "Project momentum" list into one panel. Prior rates use the clamped
+  // comparison window so a short early-history prior is still fair.
+  const projectRows = useMemo(() => {
+    if (!data) return { rows: [], max: 0, hasPrior: false };
+    const curr = data.projectBreakdown || {};
+    const prev = momPrior?.projectBreakdown || null;
+    const hasPrior = !!prev;
+    const currWeeks = Math.max(1, len) / 7;
+    const prevWeeks = Math.max(1, momPriorDays) / 7;
+    const entries = Object.entries(curr).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const max = entries.length ? entries[0][1] : 0;
+    const rows = entries.map(([name, count]) => {
+      const currRate = count / currWeeks;
+      const prevRate = prev ? (prev[name] || 0) / prevWeeks : 0;
+      const delta = currRate - prevRate;
+      return {
+        name,
+        count,
+        color: data.projectColors?.[name] || STRATEGIC_COLOR,
+        currRate,
+        prevRate,
+        delta,
+        isNew: hasPrior && prevRate === 0 && currRate > 0,
+        flat: Math.abs(delta) < 0.05,
+      };
+    });
+    return { rows, max, hasPrior };
+  }, [data, momPrior, len, momPriorDays]);
 
   const ctx = useMemo(() => {
     if (!data) return { labels: [], switches: [], days: [] };
@@ -400,6 +421,19 @@ export default function LiveDashboard() {
     if (!data) return [];
     return TALLY_CATEGORIES.map((c) => ({ ...c, count: data.tallyTotals?.[c.key] || 0 }))
       .filter((c) => c.count > 0).sort((a, b) => b.count - a.count);
+  }, [data]);
+
+  // Backlog trend — weekly inflow/outflow and the running count of items created
+  // but not yet done, reconstructed server-side from item timestamps.
+  const backlog = useMemo(() => {
+    const t = data?.backlogTrend || [];
+    return {
+      labels: t.map((w) => fmtDay(w.week)),
+      created: t.map((w) => w.created),
+      completed: t.map((w) => w.completed),
+      open: t.map((w) => w.open),
+      hasData: t.length > 1,
+    };
   }, [data]);
 
   // When work actually gets done — completions by weekday and by part of day.
@@ -433,41 +467,25 @@ export default function LiveDashboard() {
     };
   }, [data]);
 
-  // Which projects sped up or slowed down vs the prior period, compared as
-  // items/week so a shorter prior window (near the start of history) is fair.
-  const momentum = useMemo(() => {
-    if (!data) return { hasPrior: false, rows: [] };
-    const curr = data.projectBreakdown || {};
-    const prev = momPrior?.projectBreakdown || null;
-    if (!prev) return { hasPrior: false, rows: [] };
-    const currWeeks = Math.max(1, len) / 7;
-    const prevWeeks = Math.max(1, momPriorDays) / 7;
-    const names = Array.from(new Set([...Object.keys(curr), ...Object.keys(prev)]));
-    const rows = names
-      .map((name) => {
-        const currRate = (curr[name] || 0) / currWeeks;
-        const prevRate = (prev[name] || 0) / prevWeeks;
-        return { name, curr: curr[name] || 0, currRate, prevRate, delta: currRate - prevRate };
-      })
-      .filter((r) => r.currRate > 0 || r.prevRate > 0)
-      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-      .slice(0, 8);
-    return { hasPrior: true, rows };
-  }, [data, momPrior, len, momPriorDays]);
-
-  // How concentrated your output is: what share the top project (and top 3)
-  // account for, and across how many projects work is spread.
-  const concentration = useMemo(() => {
-    const entries = Object.entries(data?.projectBreakdown || {}).sort((a, b) => b[1] - a[1]);
-    const total = entries.reduce((sum, [, c]) => sum + c, 0);
-    if (!total) return null;
-    const top3 = entries.slice(0, 3).reduce((sum, [, c]) => sum + c, 0);
-    return {
-      count: entries.length,
-      topName: entries[0][0],
-      topShare: Math.round((entries[0][1] / total) * 100),
-      top3Share: Math.round((top3 / total) * 100),
-    };
+  // Turnaround distribution — bucket each completed item by how long it took
+  // from created to done (cycleDays), so the shape shows consistency, not just
+  // the median. Items without a usable cycle (backfilled, missing dates) drop out.
+  const cycle = useMemo(() => {
+    const buckets = [
+      { label: 'Same day', test: (d) => d < 1 },
+      { label: '1–2d', test: (d) => d >= 1 && d < 3 },
+      { label: '3–7d', test: (d) => d >= 3 && d < 8 },
+      { label: '8–14d', test: (d) => d >= 8 && d < 15 },
+      { label: '15–30d', test: (d) => d >= 15 && d < 31 },
+      { label: '30d+', test: (d) => d >= 31 },
+    ];
+    const counts = buckets.map(() => 0);
+    (data?.items || []).forEach((i) => {
+      if (i.cycleDays === null || i.cycleDays === undefined) return;
+      const idx = buckets.findIndex((b) => b.test(i.cycleDays));
+      if (idx >= 0) counts[idx] += 1;
+    });
+    return { labels: buckets.map((b) => b.label), counts, total: counts.reduce((a, b) => a + b, 0) };
   }, [data]);
 
   // Meeting load by weekday — which day is most chopped up by meetings, so it's
@@ -495,11 +513,15 @@ export default function LiveDashboard() {
     Object.entries(data?.contextTimeline || {}).forEach(([date, v]) => { inter[date] = v.tallySwitches || 0; });
     const dates = new Set([...Object.keys(comp), ...Object.keys(inter)]);
     let calmDays = 0; let calmComp = 0; let busyDays = 0; let busyComp = 0;
+    const calmDates = []; const busyDates = [];
     dates.forEach((d) => {
       const c = comp[d] || 0;
-      if ((inter[d] || 0) > 0) { busyDays += 1; busyComp += c; } else { calmDays += 1; calmComp += c; }
+      if ((inter[d] || 0) > 0) { busyDays += 1; busyComp += c; busyDates.push({ date: d, count: c }); }
+      else { calmDays += 1; calmComp += c; calmDates.push({ date: d, count: c }); }
     });
     if (busyDays === 0 || calmDays === 0) return null;
+    calmDates.sort((a, b) => (a.date < b.date ? 1 : -1));
+    busyDates.sort((a, b) => (a.date < b.date ? 1 : -1));
     const calmAvg = round1(calmComp / calmDays);
     const busyAvg = round1(busyComp / busyDays);
     return {
@@ -507,6 +529,8 @@ export default function LiveDashboard() {
       calmAvg,
       busyDays,
       busyAvg,
+      calmDates,
+      busyDates,
       pctDiff: calmAvg > 0 ? Math.round(((busyAvg - calmAvg) / calmAvg) * 100) : null,
     };
   }, [data]);
@@ -529,9 +553,62 @@ export default function LiveDashboard() {
     const d = pieData[item?.dataIndex];
     if (d) setDrill({ title: `${d.label} — ${d.value} items`, items: data.typeDetails?.[d.id] || [] });
   };
-  const openProject = (e, item) => {
-    const name = projects.names[item?.dataIndex];
-    if (name) setDrill({ title: `${name} — ${data.projectBreakdown[name]} items`, items: data.projectDetails?.[name] || [] });
+  const openProjectByName = (name) => {
+    if (name && data.projectBreakdown?.[name] != null) {
+      setDrill({ title: `${name} — ${data.projectBreakdown[name]} items`, items: data.projectDetails?.[name] || [] });
+    }
+  };
+  // Click a weekday in "Meeting load by weekday" to see the meetings that fell
+  // on that weekday across the range (pulled from each day's context timeline).
+  const openMeetingDow = (e, item) => {
+    const idx = item?.dataIndex;
+    if (idx == null) return;
+    const targetDow = DOW_ORDER[idx];
+    const meetings = [];
+    Object.entries(data.contextTimeline || {}).forEach(([date, v]) => {
+      if (new Date(`${date}T12:00:00`).getDay() !== targetDow) return;
+      (v.timeline || []).filter((row) => row.kind === 'meeting').forEach((row, i) => {
+        meetings.push({ id: `${date}-${i}`, title: row.title || 'Meeting', completedAt: row.ts || `${date}T12:00:00` });
+      });
+    });
+    meetings.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+    setDrill({ title: `Meetings on ${DOW_LABELS[idx]}s — ${meetings.length}`, items: meetings });
+  };
+  // Click a week in "Maker vs manager days" to see each workday that week and
+  // how it was classified (and why — its largest focus block and meeting count).
+  const openMakerWeek = (e, item) => {
+    const idx = item?.dataIndex;
+    if (idx == null || !weekly) return;
+    const weekStart = weekly.weekKeys[idx];
+    if (!weekStart) return;
+    const days = Object.entries(data.dayShapeByDate || {})
+      .filter(([date]) => weekStartOf(date) === weekStart)
+      .sort((a, b) => a[0].localeCompare(b[0]));
+    const content = (
+      <Stack spacing={1}>
+        {days.length ? days.map(([date, d]) => (
+          <Box key={date} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ width: 10, height: 10, borderRadius: '2px', flexShrink: 0, bgcolor: d.type === 'maker' ? EXEC_COLOR : MEETING_COLOR }} />
+            <Typography variant="body2" sx={{ flex: 1 }}>
+              {new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {d.type} · {d.gapHours}h block · {d.meetingCount} mtg{d.meetingCount === 1 ? '' : 's'}
+            </Typography>
+          </Box>
+        )) : <Typography variant="body2" color="text.secondary">No workdays in this week.</Typography>}
+      </Stack>
+    );
+    setDrill({ title: `Week of ${fmtDay(weekStart)} — maker vs manager`, content });
+  };
+  // Click either side of "Interruptions vs output" to list those days.
+  const openInterruptDays = (kind) => {
+    if (!interruptImpact) return;
+    const list = kind === 'busy' ? interruptImpact.busyDates : interruptImpact.calmDates;
+    setDrill({
+      title: kind === 'busy' ? `Interrupted days — ${list.length}` : `Calm days — ${list.length}`,
+      items: list.map((d, i) => ({ id: `${kind}-${i}`, title: `${d.count} completed`, completedAt: `${d.date}T12:00:00` })),
+    });
   };
   const openDay = (day) => {
     const dayItems = (data.items || [])
@@ -665,6 +742,7 @@ export default function LiveDashboard() {
     callouts.push(`${Math.round((s.afterHoursItems / s.totalCompleted) * 100)}% of items finished after-hours`);
   }
   if (s.oooDays > 0) callouts.push(`${s.oooDays} day${s.oooDays === 1 ? '' : 's'} out of office`);
+  if (s.longestFocusBlock?.hours > 0) callouts.push(`Longest focus block: ${s.longestFocusBlock.hours}h (${fmtDay(s.longestFocusBlock.date)})`);
   // Backlog trajectory at the window's net-flow rate — a modest pace read, not a
   // hard forecast (personal throughput is noisy).
   const netPerWeek = round1(s.netFlow / Math.max(1, len / 7));
@@ -694,6 +772,10 @@ export default function LiveDashboard() {
         </Box>
         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
           <Button size="small" variant="outlined" startIcon={<ContentCopyIcon />} onClick={copySummary}>Copy summary</Button>
+          <Button size="small" variant="outlined" startIcon={<DownloadIcon />}
+            onClick={() => exportTrendsCSV(data, `devfocus-${fromDate}_${toDate}`)}>CSV</Button>
+          <Button size="small" variant="outlined" startIcon={<DownloadIcon />}
+            onClick={() => exportReportHTML(data, { mode: 'shareable', dateRange: `${fromDate} to ${toDate}` })}>Report</Button>
           <Button size="small" variant="outlined" startIcon={<ImageIcon />} onClick={exportPng}>PNG</Button>
           <ToggleButtonGroup value={preset} exclusive onChange={applyPreset} size="small">
             {PRESETS.map((p) => (
@@ -737,9 +819,6 @@ export default function LiveDashboard() {
             color={s.netFlow > 0 ? '#F44336' : EXEC_COLOR} invert
             curr={s.netFlow} prev={ps?.netFlow}
             sub={`${s.createdItems} in · ${s.totalCompleted} done · ${s.netFlow > 0 ? 'backlog grew' : s.netFlow < 0 ? 'backlog shrank' : 'even'}`} />
-          <StatCard label="Deep-work days" value={s.meetingFreeDays} color={EXEC_COLOR}
-            curr={s.meetingFreeDays} prev={ps?.meetingFreeDays}
-            sub={`of ${s.workdays} workdays · ${s.heavyMeetingDays} heavy`} />
           <StatCard label="Typical turnaround" value={s.medianCycleDays !== null ? `${s.medianCycleDays}d` : '—'}
             curr={s.medianCycleDays ?? undefined} prev={ps?.medianCycleDays ?? undefined} invert
             sub={s.medianCycleDays !== null ? `median · avg ${s.avgCycleDays}d · ${s.cycleSampleSize} items` : 'created → done'} />
@@ -747,10 +826,6 @@ export default function LiveDashboard() {
             sub={`longest ${s.longestStreak}d · ${s.activeDays} active days`} />
           <StatCard label="Open items (now)" value={wip.count} color={wip.oldestDays > 30 ? '#F44336' : undefined}
             invert sub={wip.count ? `oldest ${wip.oldestDays}d · avg ${wip.avgAgeDays}d` : 'nothing open'} />
-          {concentration && (
-            <StatCard label="Project focus" value={`${concentration.top3Share}%`} color={STRATEGIC_COLOR}
-              sub={`top 3 of ${concentration.count} · ${concentration.topShare}% ${concentration.topName}`} />
-          )}
         </Stack>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
@@ -777,7 +852,23 @@ export default function LiveDashboard() {
             </Stack>
           </Panel>
 
-          <Panel title="Maker vs manager days" subtitle={`How your days were shaped, not how many hours you sat in meetings. A maker day kept at least one unbroken ${s.makerBlockHours}h+ block for deep work; a manager day was sliced too fine — regardless of total meeting time.`}>
+          <Panel title="Where the week went" subtitle="Estimated focus hours vs meeting hours per week — how much of each week was actually yours. Focus is your workday minus meetings and time off.">
+            {weekly.labels.length && (weekly.focusHrs.some((n) => n > 0) || weekly.meetingHrs.some((n) => n > 0)) ? (
+              <>
+                <BarChart height={272} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
+                  series={[
+                    { data: weekly.focusHrs, label: 'Focus hrs', color: EXEC_COLOR, stack: 'wk' },
+                    { data: weekly.meetingHrs, label: 'Meeting hrs', color: MEETING_COLOR, stack: 'wk' },
+                  ]}
+                  slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, textAlign: 'center' }}>
+                  {s.totalFocusHours}h focus · {s.totalMeetingHours}h meetings across the range
+                </Typography>
+              </>
+            ) : <Typography variant="body2" color="text.secondary">No focus or meeting time in this range.</Typography>}
+          </Panel>
+
+          <Panel title="Maker vs manager days" subtitle={`How your days were shaped, not how many hours you sat in meetings. A maker day kept at least one unbroken ${s.makerBlockHours}h+ block for deep work; a manager day was sliced too fine — regardless of total meeting time. Click a week to see each day.`}>
             {s.workdays > 0 ? (
               <>
                 {(() => {
@@ -799,28 +890,17 @@ export default function LiveDashboard() {
                     { data: weekly.makerDays, label: 'Maker days', color: EXEC_COLOR, stack: 'd' },
                     { data: weekly.managerDays, label: 'Manager days', color: MEETING_COLOR, stack: 'd' },
                   ]}
+                  onItemClick={openMakerWeek}
                   slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
               </>
             ) : <Typography variant="body2" color="text.secondary">No workdays in this range.</Typography>}
           </Panel>
 
-          <Panel title="Meeting fragmentation" subtitle="Number of meetings per week — how chopped-up your weeks are, independent of total hours. Eight 30-min meetings fragments a week more than one 4-hour block.">
-            {weekly.meetingCounts.some((n) => n > 0) ? (
-              <>
-                <BarChart height={272} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
-                  series={[{ data: weekly.meetingCounts, label: 'Meetings', color: MEETING_COLOR }]}
-                  slotProps={{ legend: { hidden: true } }} margin={{ left: 40, right: 10, top: 10, bottom: 30 }} />
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, textAlign: 'center' }}>
-                  {s.totalMeetings} meetings · avg {s.totalMeetings > 0 ? Math.round((s.totalMeetingHours * 60) / s.totalMeetings) : 0} min each
-                </Typography>
-              </>
-            ) : <Typography variant="body2" color="text.secondary">No meetings in this range.</Typography>}
-          </Panel>
-
-          <Panel title="Meeting load by weekday" subtitle="Total meeting hours by day of week across the range — which day to protect, and which is already naturally clear.">
+          <Panel title="Meeting load by weekday" subtitle="Total meeting hours by day of week across the range — which day to protect, and which is already naturally clear. Click a day to see those meetings.">
             {meetingDow.hasData ? (
               <BarChart height={300} xAxis={[{ scaleType: 'band', data: DOW_LABELS }]}
                 series={[{ data: meetingDow.hrs, label: 'Meeting hrs', color: MEETING_COLOR }]}
+                onItemClick={openMeetingDow}
                 slotProps={{ legend: { hidden: true } }} margin={{ left: 40, right: 10, top: 10, bottom: 30 }} />
             ) : <Typography variant="body2" color="text.secondary">No meetings in this range.</Typography>}
           </Panel>
@@ -895,17 +975,6 @@ export default function LiveDashboard() {
             ) : <Typography variant="body2" color="text.secondary">No activity to derive switches.</Typography>}
           </Panel>
 
-          <Panel title="Self-directed vs interruptions" subtitle="Weekly switches split by cause — churn you chose (changing tasks/meetings) vs yanks imposed on you (logged tallies). A rising orange band means a noisier week.">
-            {weekly.labels.length && (weekly.selfSwitches.some((n) => n > 0) || weekly.interruptions.some((n) => n > 0)) ? (
-              <BarChart height={300} xAxis={[{ scaleType: 'band', data: weekly.labels }]}
-                series={[
-                  { data: weekly.selfSwitches, label: 'Self-directed', color: STRATEGIC_COLOR, stack: 'sw' },
-                  { data: weekly.interruptions, label: 'Interruptions', color: MEETING_COLOR, stack: 'sw' },
-                ]}
-                slotProps={BOTTOM_LEGEND} margin={{ left: 40, right: 10, top: 10, bottom: 55 }} />
-            ) : <Typography variant="body2" color="text.secondary">No switches to split in this range.</Typography>}
-          </Panel>
-
           <Panel title="Where the day went" subtitle="Non-task tallies (interruptions, firefighting, etc.). Click one to read the notes.">
             {tallies.length ? (
               <Stack spacing={0.25}>
@@ -921,15 +990,15 @@ export default function LiveDashboard() {
             ) : <Typography variant="body2" color="text.secondary">No tallies logged in this range.</Typography>}
           </Panel>
 
-          <Panel title="Interruptions vs output" subtitle="Average items completed on days with at least one logged interruption vs calm days — the real cost of getting yanked.">
+          <Panel title="Interruptions vs output" subtitle="Average items completed on days with at least one logged interruption vs calm days — the real cost of getting yanked. Click either side to see those days.">
             {interruptImpact ? (
               <>
                 <Stack direction="row" spacing={4} justifyContent="center" sx={{ mt: 1, mb: 1.5 }}>
-                  <Box sx={{ textAlign: 'center' }}>
+                  <Box onClick={() => openInterruptDays('calm')} sx={{ textAlign: 'center', cursor: 'pointer', borderRadius: 1, p: 0.5, '&:hover': { bgcolor: 'action.hover' } }}>
                     <Typography variant="h4" sx={{ fontWeight: 700, color: EXEC_COLOR }}>{interruptImpact.calmAvg}</Typography>
                     <Typography variant="caption" color="text.secondary">calm days ({interruptImpact.calmDays})</Typography>
                   </Box>
-                  <Box sx={{ textAlign: 'center' }}>
+                  <Box onClick={() => openInterruptDays('busy')} sx={{ textAlign: 'center', cursor: 'pointer', borderRadius: 1, p: 0.5, '&:hover': { bgcolor: 'action.hover' } }}>
                     <Typography variant="h4" sx={{ fontWeight: 700, color: SWITCH_COLOR }}>{interruptImpact.busyAvg}</Typography>
                     <Typography variant="caption" color="text.secondary">interrupted days ({interruptImpact.busyDays})</Typography>
                   </Box>
@@ -951,27 +1020,26 @@ export default function LiveDashboard() {
             ) : <Typography variant="body2" color="text.secondary">No completed items in this range.</Typography>}
           </Panel>
 
-          <Panel title="Project momentum" subtitle="Speeding up or slowing down vs the prior period (items/week).">
-            {!momentum.hasPrior ? (
-              <Typography variant="body2" color="text.secondary">Need at least a week of earlier history to compare. Try a shorter range, or check back as more history builds up.</Typography>
-            ) : momentum.rows.length ? (
+          <Panel title="Projects" subtitle="Completed items by project (bar), with momentum vs the prior period (arrow = change in items/week). Click a row to see the items.">
+            {projectRows.rows.length ? (
               <Stack spacing={0.25}>
-                {momentum.rows.map((r) => {
-                  const isNew = r.prevRate === 0 && r.currRate > 0;
-                  const gone = r.currRate === 0 && r.prevRate > 0;
+                {projectRows.rows.map((r) => {
                   const up = r.delta > 0;
-                  const flat = Math.abs(r.delta) < 0.05;
-                  const color = flat ? 'text.secondary' : up ? 'success.main' : 'error.main';
+                  const color = r.flat ? 'text.secondary' : up ? 'success.main' : 'error.main';
                   return (
-                    <Box key={r.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 0.5 }}>
-                      <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }} title="items per week: prior → current">{round1(r.prevRate)} → {round1(r.currRate)}/wk</Typography>
-                      <Box sx={{ width: 64, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', color, fontWeight: 600 }}>
-                        {isNew ? <Chip label="new" size="small" color="success" variant="outlined" />
-                          : gone ? <Chip label="gone" size="small" variant="outlined" />
-                          : flat ? <Typography variant="caption" color="text.secondary">flat</Typography>
+                    <Box key={r.name} onClick={() => openProjectByName(r.name)}
+                      sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 0.5, borderRadius: 1, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}>
+                      <Typography variant="body2" sx={{ width: 110, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</Typography>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Box sx={{ height: 14, borderRadius: 1, bgcolor: r.color, width: `${projectRows.max > 0 ? Math.max(4, (r.count / projectRows.max) * 100) : 0}%` }} />
+                      </Box>
+                      <Typography variant="body2" sx={{ minWidth: 26, textAlign: 'right', fontWeight: 600 }}>{r.count}</Typography>
+                      <Box sx={{ width: 58, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                        {!projectRows.hasPrior ? null
+                          : r.isNew ? <Chip label="new" size="small" color="success" variant="outlined" />
+                          : r.flat ? <Typography variant="caption" color="text.secondary">flat</Typography>
                           : (
-                            <Typography component="span" variant="caption" sx={{ display: 'inline-flex', alignItems: 'center', color, fontWeight: 700 }}>
+                            <Typography component="span" variant="caption" sx={{ display: 'inline-flex', alignItems: 'center', color, fontWeight: 700 }} title={`${round1(r.prevRate)} → ${round1(r.currRate)} items/wk`}>
                               {up ? <ArrowUpwardIcon sx={{ fontSize: 14 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14 }} />}
                               {round1(Math.abs(r.delta))}
                             </Typography>
@@ -980,21 +1048,48 @@ export default function LiveDashboard() {
                     </Box>
                   );
                 })}
+                {projectRows.hasPrior && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>Arrow = change in items/week vs the prior period.</Typography>
+                )}
               </Stack>
             ) : <Typography variant="body2" color="text.secondary">No project data for this range.</Typography>}
           </Panel>
 
-          <Panel title="Top projects" subtitle="Completed items by project. Click a bar to see the items.">
-            {projects.names.length ? (
-              <BarChart height={Math.max(180, projects.names.length * 38)} layout="horizontal"
-                yAxis={[{ scaleType: 'band', data: projects.names }]}
-                xAxis={[{ min: 0 }]}
-                series={[{ data: projects.counts, label: 'Items' }]}
-                onItemClick={openProject}
-                colors={projects.colors}
-                slotProps={{ legend: { hidden: true } }}
-                margin={{ left: 140, right: 10, top: 10, bottom: 30 }} />
-            ) : <Typography variant="body2" color="text.secondary">No project data for this range.</Typography>}
+          <Panel title="Turnaround distribution" subtitle={`How long items took from created to done${s.medianCycleDays !== null ? ` · ${s.medianCycleDays}d median` : ''}. A long right tail means a few items sat for weeks.`}>
+            {cycle.total > 0 ? (
+              <BarChart height={300} xAxis={[{ scaleType: 'band', data: cycle.labels }]}
+                series={[{ data: cycle.counts, label: 'Items', color: STRATEGIC_COLOR }]}
+                slotProps={{ legend: { hidden: true } }} margin={{ left: 40, right: 10, top: 10, bottom: 30 }} />
+            ) : <Typography variant="body2" color="text.secondary">No turnaround data — items need both a created and completed date.</Typography>}
+          </Panel>
+
+          <Panel title="Backlog trend" subtitle="Items created (inflow) vs completed (outflow) each week, with the running count of items created but not yet done (line). A climbing line means work is arriving faster than you clear it." span>
+            {backlog.hasData ? (
+              <>
+                <ResponsiveChartContainer height={300}
+                  xAxis={[{ scaleType: 'band', data: backlog.labels }]}
+                  yAxis={[{ id: 'flow' }, { id: 'open' }]}
+                  series={[
+                    { type: 'bar', data: backlog.created, label: 'Created', color: MEETING_COLOR, yAxisId: 'flow' },
+                    { type: 'bar', data: backlog.completed, label: 'Completed', color: EXEC_COLOR, yAxisId: 'flow' },
+                    { type: 'line', data: backlog.open, label: 'Open', color: STRATEGIC_COLOR, yAxisId: 'open', curve: 'monotoneX' },
+                  ]}
+                  margin={{ left: 40, right: 44, top: 10, bottom: 30 }}>
+                  <BarPlot />
+                  <LinePlot />
+                  <MarkPlot />
+                  <ChartsXAxis />
+                  <ChartsYAxis axisId="flow" />
+                  <ChartsYAxis axisId="open" position="right" />
+                  <ChartsTooltip />
+                </ResponsiveChartContainer>
+                <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                  <LegendDot color={MEETING_COLOR} label="Created (bars)" />
+                  <LegendDot color={EXEC_COLOR} label="Completed (bars)" />
+                  <LegendDot color={STRATEGIC_COLOR} label="Open — created, not done (line)" line />
+                </Stack>
+              </>
+            ) : <Typography variant="body2" color="text.secondary">Not enough history for a backlog trend — try a longer range.</Typography>}
           </Panel>
 
           <Panel title="Open work / carryover" subtitle={wip.count ? `${wip.count} items open right now (active, inbox, or waiting) · oldest ${wip.oldestDays}d · avg age ${wip.avgAgeDays}d. A live snapshot — not bound to the date range.` : 'Nothing open — your board is clear.'} span>

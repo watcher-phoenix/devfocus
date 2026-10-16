@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Layout from './components/Layout';
@@ -8,9 +8,7 @@ const DailyFocus = lazy(() => import('./pages/DailyFocus'));
 const Board = lazy(() => import('./pages/Board'));
 const WeeklyPlanner = lazy(() => import('./pages/WeeklyPlanner'));
 const Settings = lazy(() => import('./pages/Settings'));
-const Trends = lazy(() => import('./pages/Trends'));
 const Notes = lazy(() => import('./pages/Notes'));
-const WeeklySummary = lazy(() => import('./pages/WeeklySummary'));
 const Guide = lazy(() => import('./pages/Guide'));
 const LiveDashboard = lazy(() => import('./pages/LiveDashboard'));
 const Login = lazy(() => import('./pages/Login'));
@@ -34,10 +32,11 @@ export default function App() {
             <Route path="/work" element={<Board />} />
             <Route path="/plan" element={<WeeklyPlanner />} />
             <Route path="/notes" element={<Notes />} />
-            <Route path="/trends" element={<Trends />} />
-            <Route path="/summary" element={<WeeklySummary />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/report" element={<LiveDashboard />} />
+            {/* Trends and Weekly Summary were merged into the Live Dashboard; keep old links working. */}
+            <Route path="/trends" element={<Navigate to="/report" replace />} />
+            <Route path="/summary" element={<Navigate to="/report" replace />} />
             <Route path="/guide" element={<Guide />} />
           </Route>
         </Routes>
