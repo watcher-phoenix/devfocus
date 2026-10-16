@@ -157,7 +157,9 @@ const ACTIVE_ALIASES = ['active', 'in progress', 'in development'];
 // same lifecycle stage, so Jira "Testing" lands in a DevFocus "In Testing" column
 // even though the strings don't match exactly.
 const TESTING_ALIASES = ['in testing', 'testing', 'ready for testing', 'in qa', 'qa'];
-const REVIEW_ALIASES = ['in review', 'code review', 'review', 'in code review', 'peer review'];
+// Includes the Jira status names ("code review", "in review", ...) AND the DevFocus
+// column label ("in pr") so the Jira "Code Review" status lands in the "In PR" column.
+const REVIEW_ALIASES = ['in pr', 'in review', 'code review', 'review', 'in code review', 'peer review'];
 // Jira workflow statuses that ride on custom DevFocus columns matched by label/synonym.
 // These columns are treated as Jira-controlled (not manual parking columns).
 const WORKFLOW_LABELS = [...TESTING_ALIASES, ...REVIEW_ALIASES];
